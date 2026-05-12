@@ -191,7 +191,7 @@ def home(request):
 
 
 @login_required
-def dashboard_home(request):
+def moneypro_home(request):
     gate = _onboarding_gate_or_redirect(request)
     if gate:
         return gate
@@ -199,7 +199,7 @@ def dashboard_home(request):
     business = getattr(request, "business", None)
     if business is None:
         messages.error(request, "No active business is set for your account.")
-        return render(request, "dashboard/home.html", {})
+        return render(request, "dashboard/moneypro_home.html", {})
 
     today = timezone.localdate()
 
@@ -246,7 +246,58 @@ def dashboard_home(request):
         "recent_transactions": recent_transactions,
         "recent_invoices": recent_invoices,
     }
-    return render(request, "dashboard/home.html", context)
+    return render(request, "dashboard/moneypro_home.html", context)
+
+
+@login_required
+def dashboard_home(request):
+    gate = _onboarding_gate_or_redirect(request)
+    if gate:
+        return gate
+
+    business = getattr(request, "business", None)
+    if business is None:
+        messages.error(request, "No active business is set for your account.")
+        return redirect("accounts:onboarding")
+
+    from flightlogs.models import FlightLog
+    from operations.models import OpsPlan
+    from assets.models import Asset
+
+    recent_transactions = (
+        Transaction.objects.filter(business=business)
+        .order_by("-date", "-id")[:3]
+    )
+    recent_invoices = (
+        Invoice.objects.filter(business=business)
+        .order_by("-issue_date", "-id")[:3]
+    )
+
+    today = timezone.localdate()
+    mtd_income = (
+        Transaction.objects.filter(
+            business=business,
+            trans_type=Transaction.TransactionType.INCOME,
+            date__year=today.year,
+            date__month=today.month,
+        ).aggregate(total=Sum(_signed_amount_expr()))["total"]
+        or 0
+    )
+
+    context = {
+        "mtd_income": float(mtd_income),
+        "flights_mtd": FlightLog.objects.filter(
+            business=business,
+            flight_date__year=today.year,
+            flight_date__month=today.month,
+        ).count(),
+        "active_jobs": OpsPlan.objects.filter(business=business).exclude(status=OpsPlan.ARCHIVED).count(),
+        "open_invoices": Invoice.objects.filter(business=business).exclude(status__iexact="paid").count(),
+        "active_assets": Asset.objects.filter(business=business, is_active=True).count(),
+        "recent_transactions": recent_transactions,
+        "recent_invoices": recent_invoices,
+    }
+    return render(request, "dashboard/suite_home.html", context)
 
 
 @login_required

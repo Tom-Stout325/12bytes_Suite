@@ -1,0 +1,73 @@
+{% load static %}
+{% with current_ns=request.resolver_match.namespace current_url_name=request.resolver_match.url_name %}
+<nav class="suite-sidebar d-none d-lg-block" aria-label="Suite navigation">
+  <div class="suite-sidebar-inner">
+    <a class="suite-brand" href="{% url 'dashboard:home' %}">
+      <span class="suite-brand-mark"><i class="fa-solid fa-network-wired"></i></span>
+      <span>
+        <span class="suite-brand-name"><span class="suite-brand-blue">12</span>Bytes</span>
+        <span class="suite-brand-subtitle">Suites</span>
+      </span>
+    </a>
+
+    <div class="suite-nav">
+      <a class="suite-nav-link {% if current_ns == 'dashboard' and current_url_name == 'home' %}active{% endif %}" href="{% url 'dashboard:home' %}">
+        <i class="fa-solid fa-house"></i> Home
+      </a>
+      <a class="suite-nav-link {% if current_ns == 'dashboard' and current_url_name == 'moneypro_home' or current_ns == 'ledger' or current_ns == 'invoices' or current_ns == 'reports' or current_ns == 'vehicles' or current_ns == 'contractor' %}active{% endif %}" href="{% url 'dashboard:moneypro_home' %}">
+        <i class="fa-solid fa-chart-column"></i> MoneyPro
+      </a>
+      <a class="suite-nav-link {% if current_ns == 'flightlogs' %}active{% endif %}" href="{% url 'flightlogs:flightlog_list' %}">
+        <i class="fa-solid fa-drone"></i> Flight Logs
+      </a>
+      <a class="suite-nav-link {% if current_ns == 'documents' %}active{% endif %}" href="{% url 'documents:documents_portal' %}">
+        <i class="fa-solid fa-file-lines"></i> Documents
+      </a>
+      <a class="suite-nav-link {% if current_ns == 'pilot' %}active{% endif %}" href="{% url 'pilot:profile' %}">
+        <i class="fa-solid fa-user-pilot"></i> Pilots
+      </a>
+      <a class="suite-nav-link {% if current_ns == 'operations' %}active{% endif %}" href="{% url 'operations:ops_plan_index' %}">
+        <i class="fa-solid fa-briefcase"></i> Operations
+      </a>
+      <a class="suite-nav-link {% if current_ns == 'assets' %}active{% endif %}" href="{% url 'assets:asset_list' %}">
+        <i class="fa-solid fa-boxes-stacked"></i> Assets
+      </a>
+    </div>
+
+    <div class="suite-sidebar-spacer"></div>
+
+    <div class="suite-nav">
+      <a class="suite-nav-link {% if current_ns == 'accounts' %}active{% endif %}" href="{% url 'accounts:settings' %}">
+        <i class="fa-solid fa-gear"></i> Settings
+      </a>
+      <form method="post" action="{% url 'account_logout' %}" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="suite-nav-link border-0 w-100 text-start" style="background: transparent;">
+          <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+      </form>
+    </div>
+
+    <div class="suite-sidebar-footer">© {% now "Y" %} 12Bytes Suites</div>
+  </div>
+</nav>
+
+<div class="offcanvas offcanvas-start text-bg-dark" tabindex="-1" id="suiteMobileSidebar" aria-labelledby="suiteMobileSidebarLabel">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="suiteMobileSidebarLabel">12Bytes Suites</h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <div class="suite-nav">
+      <a class="suite-nav-link" href="{% url 'dashboard:home' %}"><i class="fa-solid fa-house"></i> Home</a>
+      <a class="suite-nav-link" href="{% url 'dashboard:moneypro_home' %}"><i class="fa-solid fa-chart-column"></i> MoneyPro</a>
+      <a class="suite-nav-link" href="{% url 'flightlogs:flightlog_list' %}"><i class="fa-solid fa-drone"></i> Flight Logs</a>
+      <a class="suite-nav-link" href="{% url 'documents:documents_portal' %}"><i class="fa-solid fa-file-lines"></i> Documents</a>
+      <a class="suite-nav-link" href="{% url 'pilot:profile' %}"><i class="fa-solid fa-user-pilot"></i> Pilots</a>
+      <a class="suite-nav-link" href="{% url 'operations:ops_plan_index' %}"><i class="fa-solid fa-briefcase"></i> Operations</a>
+      <a class="suite-nav-link" href="{% url 'assets:asset_list' %}"><i class="fa-solid fa-boxes-stacked"></i> Assets</a>
+      <a class="suite-nav-link" href="{% url 'accounts:settings' %}"><i class="fa-solid fa-gear"></i> Settings</a>
+    </div>
+  </div>
+</div>
+{% endwith %}

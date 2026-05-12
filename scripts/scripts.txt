@@ -8,7 +8,7 @@ cp -R _MONEYPRO _MONEYPRO_backup
 
 cd into the root folder
 
-unzip ~/Downloads/12bytes_suite_operations_patch.zip
+unzip ~/Downloads/12bytes_suite_flightlogs_kpi_links_patch.zip
 or:
 unzip ~/Downloads/MoneyPro_invite.zip -d /tmp/moneypro_invite
 rsync -av --progress /tmp/moneypro_invite/MoneyPro/ ./

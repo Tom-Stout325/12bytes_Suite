@@ -1,0 +1,584 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}Dashboard | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+
+  <!-- Header -->
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-3">
+    <div>
+      <h1 class="h2 mb-0 text-secondary-brand">Dashboard</h1>
+      <div class="text-muted small">Welcome back, {{ request.user.email|default:request.user.get_username }}</div>
+    </div>
+
+    <!-- Quick actions (mobile-first) -->
+    <div class="d-grid d-sm-flex gap-2">
+      <a class="btn btn-outline-primary" href="{% url 'ledger:transaction_create' %}">
+        <i class="fa-solid fa-plus me-1"></i> Add transaction
+      </a>
+
+      <a class="btn btn-outline-secondary" href="{% url 'invoices:invoice_create' %}" title="Create Invoice">
+        <i class="fa-solid fa-file-invoice-dollar me-1"></i> Create invoice
+      </a>
+
+      <a class="btn btn-outline-warning" href="{% url 'reports:home' %}" title="Reports">
+        <i class="fa-solid fa-chart-line me-1"></i> Reports
+      </a>
+
+      <a class="btn btn-outline-dark" href="{% url 'dashboard:business_backup_admin' %}" title="Admin backups">
+        <i class="fa-solid fa-database me-1"></i> Admin
+      </a>
+
+      <button class="btn btn-outline-success" type="button" data-bs-toggle="offcanvas" data-bs-target="#appMore" aria-controls="appMore">
+        <i class="fa-solid fa-ellipsis me-1"></i> More
+      </button>
+    </div>
+  </div>
+
+
+  <!-- KPIs -->
+  <div class="kpi-grid mb-3">
+    <a class="text-decoration-none" href="{% url 'ledger:transaction_list' %}">
+      <div class="kpi-card kpi-accent-success h-100">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <div class="kpi-label">Income (<span id="periodLabel">{{ period_label }}</span>)</div>
+            <p class="kpi-value" id="incomeTotal">${{ income_total|floatformat:2|intcomma }}</p>
+          </div>
+          <div class="kpi-icon" aria-hidden="true">
+            <i class="fa-solid fa-arrow-trend-up"></i>
+          </div>
+        </div>
+      </div>
+    </a>
+
+    <a class="text-decoration-none" href="{% url 'ledger:transaction_list' %}">
+      <div class="kpi-card kpi-accent-danger h-100">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <div class="kpi-label">Expenses (<span id="periodLabel2">{{ period_label }}</span>)</div>
+            <p class="kpi-value" id="expenseTotal">${{ expense_total|floatformat:2|intcomma }}</p>
+          </div>
+          <div class="kpi-icon" aria-hidden="true">
+            <i class="fa-solid fa-receipt"></i>
+          </div>
+        </div>
+      </div>
+    </a>
+
+    <a class="text-decoration-none" href="{% url 'ledger:transaction_list' %}">
+      <div class="kpi-card kpi-accent-primary h-100">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <div class="kpi-label">Net (<span id="periodLabel3">{{ period_label }}</span>)</div>
+            <p class="kpi-value" id="netTotal">${{ net_total|floatformat:2|intcomma }}</p>
+          </div>
+          <div class="kpi-icon" aria-hidden="true">
+            <i class="fa-solid fa-scale-balanced"></i>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+
+  <!-- Charts -->
+  <div class="row g-3">
+    <!-- Chart -->
+    <div class="col-12 col-lg-7">
+      <div class="card h-100">
+        <div class="card-body p-3 p-md-4">
+
+          <div class="dash-card-head">
+            <div>
+              <h2 class="h6 dash-card-title mb-0">Monthly income vs expenses</h2>
+              <div class="dash-card-subtitle" id="chartPeriodLabel">{{ period_label }}</div>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+              <div class="btn-group btn-group-sm btn-segment" role="group" aria-label="Chart period">
+                <input type="radio" class="btn-check" name="periodMode" id="modeRolling" autocomplete="off" checked>
+                <label class="btn btn-ghost" for="modeRolling">Rolling 12</label>
+
+                <input type="radio" class="btn-check" name="periodMode" id="modeMonth" autocomplete="off">
+                <label class="btn btn-ghost" for="modeMonth">Current Month</label>
+
+                <input type="radio" class="btn-check" name="periodMode" id="modeYear" autocomplete="off">
+                <label class="btn btn-ghost" for="modeYear">Year</label>
+              </div>
+
+              <label for="yearSelect" class="visually-hidden">Year</label>
+              <select
+                id="yearSelect"
+                class="form-select form-select-sm select-compact"
+                style="min-width: 120px;"
+                {% if not years %}disabled{% endif %}
+              >
+                {% for y in years %}
+                  <option value="{{ y }}">{{ y }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="chart-frame" style="height: 340px;">
+            <div class="chart-frame-inner h-100">
+              <canvas id="incomeExpenseChart"></canvas>
+            </div>
+          </div>
+
+          <div class="text-muted small mt-3">
+            Tip: expenses are shown as positive values (refunds reduce totals).
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Breakdown infographic (Income / Expenses) -->
+    <div class="col-12 col-lg-5">
+      <div class="card h-100">
+        <div class="card-body p-3 p-md-4">
+
+          <div class="dash-card-head">
+            <div>
+              <h2 class="h6 dash-card-title mb-0">Breakdown</h2>
+              <div class="dash-card-subtitle" id="breakdownPeriodLabel">{{ period_label }}</div>
+            </div>
+
+            <div class="btn-group btn-group-sm" role="group" aria-label="Breakdown type">
+              <input type="radio" class="btn-check" name="breakdownType" id="bdIncome" autocomplete="off" checked>
+              <label class="btn btn-outline-primary" for="bdIncome"><i class="fa-solid fa-arrow-trend-up me-1"></i>Income</label>
+
+              <input type="radio" class="btn-check" name="breakdownType" id="bdExpenses" autocomplete="off">
+              <label class="btn btn-outline-secondary" for="bdExpenses"><i class="fa-solid fa-receipt me-1"></i>Expenses</label>
+            </div>
+          </div>
+
+          <div class="row g-3 align-items-center">
+            <div class="col-12 col-md-6">
+              <div class="chart-frame" style="height: 260px;">
+                <div class="chart-frame-inner h-100">
+                  <canvas id="breakdownChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="small text-muted mb-2">Top sources</div>
+              <div id="breakdownLegend" class="d-grid gap-2"></div>
+              <div class="mt-3">
+                <a class="btn btn-sm btn-outline-secondary" href="{% url 'ledger:transaction_list' %}">
+                  View transactions <i class="fa-solid fa-arrow-right-long ms-1"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-muted small mt-3">
+            Tip: this breakdown updates with the same period toggle as the line chart.
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.row -->
+
+
+  <!-- Recent transactions -->
+  <div class="card mt-3 table-head-accent table-head-accent-secondary">
+    <div class="card-body p-3 p-md-4">
+
+      <div class="dash-card-head">
+        <div>
+          <h2 class="h3 dash-card-title mb-0 text-secondary-brand">Recent transactions</h2>
+          <div class="dash-card-subtitle">Latest activity across income and expenses</div>
+        </div>
+        <a class="small text-decoration-none" href="{% url 'ledger:transaction_list' %}">View all</a>
+      </div>
+
+      <!-- Mobile list -->
+      <div class="d-md-none">
+        <div class="list-group list-group-soft">
+          {% for t in recent_transactions %}
+            <a class="list-group-item list-group-item-action" href="{% url 'ledger:transaction_detail' t.pk %}">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="me-2">
+                  <div class="fw-semibold">{{ t.description }}</div>
+                  <div class="list-meta">
+                    {{ t.date }}
+                    {% if t.invoice_number %} · Invoice {{ t.invoice_number }}{% endif %}
+                    · {{ t.subcategory.name }}
+                  </div>
+                </div>
+
+                <div class="text-end text-nowrap">
+                  <div class="amount {% if t.trans_type == 'income' %}text-success{% else %}text-body{% endif %}">
+                    {% if t.is_refund %}-{% endif %}${{ t.amount|floatformat:2|intcomma }}
+                  </div>
+                  {% if t.trans_type == "income" %}
+                    <span class="badge badge-income">Income</span>
+                  {% endif %}
+                </div>
+              </div>
+            </a>
+          {% empty %}
+            <div class="text-muted small">No transactions yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Desktop table -->
+      <div class="table-responsive d-none d-md-block">
+        <table class="table table-sm align-middle mb-0 table-soft table-zebra">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Invoice #</th>
+              <th>Subcategory</th>
+              <th class="text-end">Amount</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in recent_transactions %}
+              <tr>
+                <td class="text-nowrap">{{ t.date }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="fw-semibold">{{ t.description }}</div>
+                    {% if t.trans_type == "income" %}
+                      <span class="badge badge-income">Income</span>
+                    {% endif %}
+                  </div>
+                  <div class="text-muted small">
+                    {% if t.invoice_number %}Invoice {{ t.invoice_number }} · {% endif %}
+                    {{ t.subcategory.name }}
+                  </div>
+                </td>
+                <td>{% if t.invoice_number %}{{ t.invoice_number }}{% else %}—{% endif %}</td>
+                <td>{{ t.subcategory.name }}</td>
+                <td class="text-end">
+                  <span class="amount {% if t.trans_type == 'income' %}amount-income{% endif %}">
+                    {% if t.is_refund %}-{% endif %}${{ t.amount|floatformat:2|intcomma }}
+                  </span>
+                </td>
+                <td class="text-end table-actions">
+                  <a class="btn btn-sm btn-ghost" href="{% url 'ledger:transaction_detail' t.pk %}" title="View">
+                    <i class="fa-regular fa-eye"></i>
+                    <span class="visually-hidden">View</span>
+                  </a>
+                  <a class="btn btn-sm btn-ghost" href="{% url 'ledger:transaction_update' t.pk %}" title="Edit">
+                    <i class="fa-regular fa-pen-to-square"></i>
+                    <span class="visually-hidden">Edit</span>
+                  </a>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" class="text-muted">No transactions yet.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+    <!-- Recent invoices -->
+  <div class="card mt-3 table-head-accent table-head-accent-success">
+    <div class="card-body p-3 p-md-4">
+
+      <div class="dash-card-head">
+        <div>
+          <h2 class="h4 dash-card-title mb-0 text-success-brand">Recent Invoices</h2>
+          <div class="dash-card-subtitle">Newest invoices and current statuses</div>
+        </div>
+        <a class="small text-decoration-none" href="{% url 'invoices:invoice_list' %}">View all</a>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 table-soft table-zebra">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Invoice #</th>
+              <th>Job</th>
+              <th class="text-end">Amount</th>
+              <th>Status</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inv in recent_invoices %}
+              <tr>
+                <td class="text-nowrap">{{ inv.issue_date }}</td>
+                <td class="text-nowrap">{{ inv.invoice_number|default:"—" }}</td>
+                <td>
+                  {% if inv.job %}
+                    <div class="fw-semibold">{{ inv.job.label }}</div>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-end text-nowrap">
+                  <span class="amount">${{ inv.total|floatformat:2|intcomma }}</span>
+                </td>
+                <td class="text-nowrap">
+                  {% with status=inv.status %}
+                    <span class="badge badge-status
+                      {% if status == 'paid' %}badge-paid
+                      {% elif status == 'sent' %}badge-sent
+                      {% elif status == 'draft' %}badge-draft
+                      {% elif status == 'void' %}badge-void
+                      {% else %}badge-draft{% endif %}">
+                      {{ inv.get_status_display }}
+                    </span>
+                  {% endwith %}
+                </td>
+                <td class="text-end table-actions">
+                  <a class="btn btn-sm btn-ghost" href="{% url 'invoices:invoice_detail' inv.pk %}" title="View">
+                    <i class="fa-regular fa-eye"></i>
+                    <span class="visually-hidden">View</span>
+                  </a>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" class="text-muted">No invoices yet.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+{# Offcanvas (More) is now global and included from templates/index.html #}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  (function () {
+    const chartDataUrl = "{% url 'dashboard:chart_data' %}";
+
+    const labels0 = {{ chart_labels_json|safe }};
+    const income0 = {{ chart_income_json|safe }};
+    const expenses0 = {{ chart_expense_json|safe }};
+
+    const incomeBDLabels0 = {{ income_breakdown_labels_json|safe }};
+    const incomeBDValues0 = {{ income_breakdown_values_json|safe }};
+    const expenseBDLabels0 = {{ expense_breakdown_labels_json|safe }};
+    const expenseBDValues0 = {{ expense_breakdown_values_json|safe }};
+
+    const el = document.getElementById("incomeExpenseChart");
+    if (!el) return;
+
+    const chart = new Chart(el, {
+      type: "line",
+      data: {
+        labels: labels0,
+        datasets: [
+          { label: "Income", data: income0, tension: 0.25 },
+          { label: "Expenses", data: expenses0, tension: 0.25 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { display: true } },
+        scales: {
+          y: { ticks: { callback: (value) => "$" + value.toLocaleString() } }
+        }
+      }
+    });
+
+    // Breakdown chart (doughnut) + legend
+    const bdCanvas = document.getElementById("breakdownChart");
+    const bdLegend = document.getElementById("breakdownLegend");
+    const bdIncome = document.getElementById("bdIncome");
+    const bdExpenses = document.getElementById("bdExpenses");
+    const bdPeriodLabel = document.getElementById("breakdownPeriodLabel");
+
+    const bdChart = bdCanvas
+      ? new Chart(bdCanvas, {
+          type: "doughnut",
+          data: {
+            labels: incomeBDLabels0,
+            datasets: [{ data: incomeBDValues0 }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "62%",
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    const v = Number(ctx.parsed || 0);
+                    return `${ctx.label}: $${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                  },
+                },
+              },
+            },
+          },
+        })
+      : null;
+
+    function renderBreakdownLegend(labels, values) {
+      if (!bdLegend) return;
+      bdLegend.innerHTML = "";
+      const total = (values || []).reduce((a, b) => a + Number(b || 0), 0);
+
+      if (!labels || !labels.length || total <= 0) {
+        bdLegend.innerHTML = '<div class="text-muted small">No data for this period.</div>';
+        return;
+      }
+
+      labels.forEach((name, idx) => {
+        const v = Number(values[idx] || 0);
+        const pct = total ? Math.round((v / total) * 100) : 0;
+
+        const row = document.createElement("div");
+        row.className = "d-flex justify-content-between align-items-start gap-2";
+
+        const left = document.createElement("div");
+        left.innerHTML = `<div class="fw-semibold">${name}</div><div class="text-muted small">${pct}%</div>`;
+
+        const right = document.createElement("div");
+        right.className = "text-end text-nowrap";
+        right.innerHTML = `<div class="fw-semibold">$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`;
+
+        row.appendChild(left);
+        row.appendChild(right);
+        bdLegend.appendChild(row);
+      });
+    }
+
+    let latestBreakdown = {
+      income: { labels: incomeBDLabels0, values: incomeBDValues0 },
+      expense: { labels: expenseBDLabels0, values: expenseBDValues0 },
+    };
+
+    function applyBreakdown(which) {
+      if (!bdChart) return;
+      const b = which === "expense" ? latestBreakdown.expense : latestBreakdown.income;
+      bdChart.data.labels = b.labels || [];
+      bdChart.data.datasets[0].data = b.values || [];
+      bdChart.update();
+      renderBreakdownLegend(b.labels || [], b.values || []);
+    }
+
+    // initial render
+    applyBreakdown("income");
+
+    const modeRolling = document.getElementById("modeRolling");
+    const modeMonth = document.getElementById("modeMonth");
+    const modeYear = document.getElementById("modeYear");
+    const yearSelect = document.getElementById("yearSelect");
+
+    const periodLabelEls = [
+      document.getElementById("periodLabel"),
+      document.getElementById("periodLabel2"),
+      document.getElementById("periodLabel3"),
+      document.getElementById("chartPeriodLabel"),
+    ];
+
+    const incomeTotalEl = document.getElementById("incomeTotal");
+    const expenseTotalEl = document.getElementById("expenseTotal");
+    const netTotalEl = document.getElementById("netTotal");
+
+    const initialSelected = "{{ selected_year_value }}";
+
+    if (initialSelected === "month") {
+      modeMonth.checked = true;
+      modeRolling.checked = false;
+      modeYear.checked = false;
+    } else if (initialSelected && initialSelected !== "rolling" && yearSelect) {
+      yearSelect.value = initialSelected;
+      modeYear.checked = true;
+      modeRolling.checked = false;
+      modeMonth.checked = false;
+    } else {
+      modeRolling.checked = true;
+      modeMonth.checked = false;
+      modeYear.checked = false;
+    }
+
+    async function refreshChart(params) {
+      const url = new URL(chartDataUrl, window.location.origin);
+      Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, v));
+
+      const res = await fetch(url.toString(), { headers: { "X-Requested-With": "XMLHttpRequest" } });
+      if (!res.ok) return;
+      const data = await res.json();
+
+      chart.data.labels = data.labels || [];
+      chart.data.datasets[0].data = data.income || [];
+      chart.data.datasets[1].data = data.expenses || [];
+      chart.update();
+
+      if (data.period_label) {
+        periodLabelEls.forEach((n) => { if (n) n.textContent = data.period_label; });
+        if (bdPeriodLabel) bdPeriodLabel.textContent = data.period_label;
+      }
+      if (incomeTotalEl && data.income_total != null) incomeTotalEl.textContent = "$" + Number(data.income_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (expenseTotalEl && data.expense_total != null) expenseTotalEl.textContent = "$" + Number(data.expense_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (netTotalEl && data.net_total != null) netTotalEl.textContent = "$" + Number(data.net_total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      // breakdown payload
+      latestBreakdown = {
+        income: {
+          labels: data.income_breakdown_labels || [],
+          values: data.income_breakdown_values || [],
+        },
+        expense: {
+          labels: data.expense_breakdown_labels || [],
+          values: data.expense_breakdown_values || [],
+        },
+      };
+      if (bdExpenses && bdExpenses.checked) {
+        applyBreakdown("expense");
+      } else {
+        applyBreakdown("income");
+      }
+    }
+
+    function selectedModeParams() {
+      if (modeMonth && modeMonth.checked) return { mode: "month" };
+      if (modeYear && modeYear.checked && yearSelect && yearSelect.value) return { mode: "year", year: yearSelect.value };
+      return { mode: "rolling" };
+    }
+
+    [modeRolling, modeMonth, modeYear].forEach((radio) => {
+      if (!radio) return;
+      radio.addEventListener("change", () => refreshChart(selectedModeParams()));
+    });
+
+    if (yearSelect) {
+      yearSelect.addEventListener("change", () => {
+        if (modeYear) modeYear.checked = true;
+        refreshChart(selectedModeParams());
+      });
+    }
+
+    if (bdIncome) {
+      bdIncome.addEventListener("change", () => applyBreakdown("income"));
+    }
+    if (bdExpenses) {
+      bdExpenses.addEventListener("change", () => applyBreakdown("expense"));
+    }
+  })();
+</script>
+{% endblock %}

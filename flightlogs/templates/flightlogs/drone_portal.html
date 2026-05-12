@@ -17,10 +17,58 @@
   </div>
 
   <div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-muted small">Flights</div><div class="fs-3 fw-bold">{{ total_flights }}</div></div></div></div>
-    <div class="col-6 col-lg-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-muted small">Flight Time</div><div class="fs-3 fw-bold">{{ total_flight_time_seconds|duration_hm }}</div></div></div></div>
-    <div class="col-6 col-lg-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-muted small">Drones</div><div class="fs-3 fw-bold">{{ active_drones }}</div></div></div></div>
-    <div class="col-6 col-lg-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-muted small">Highest Altitude</div><div class="fs-3 fw-bold">{% if highest_altitude_flight %}{{ highest_altitude_flight.max_altitude_ft|floatformat:0 }} ft{% else %}—{% endif %}</div></div></div></div>
+    <div class="col-6 col-lg-3">
+      <a class="text-decoration-none text-reset" href="{% url 'flightlogs:flightlog_list' %}">
+        <div class="card shadow-sm h-100 border-0"><div class="card-body"><div class="text-muted small">Flights</div><div class="fs-3 fw-bold">{{ total_flights }}</div><div class="small text-primary mt-1">Open all logs →</div></div></div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a class="text-decoration-none text-reset" href="{% url 'flightlogs:flightlog_list' %}">
+        <div class="card shadow-sm h-100 border-0"><div class="card-body"><div class="text-muted small">Flight Time</div><div class="fs-3 fw-bold">{{ total_flight_time_seconds|duration_hm }}</div><div class="small text-primary mt-1">Open all logs →</div></div></div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a class="text-decoration-none text-reset" href="{% url 'flightlogs:flightlog_list' %}?year={{ current_year }}">
+        <div class="card shadow-sm h-100 border-0"><div class="card-body"><div class="text-muted small">YTD Flights</div><div class="fs-3 fw-bold">{{ ytd_flights }}</div><div class="small text-primary mt-1">View {{ current_year }} flights →</div></div></div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a class="text-decoration-none text-reset" href="{% url 'flightlogs:flightlog_list' %}?year={{ current_year }}">
+        <div class="card shadow-sm h-100 border-0"><div class="card-body"><div class="text-muted small">YTD Flight Time</div><div class="fs-3 fw-bold">{{ ytd_flight_time_seconds|duration_hm }}</div><div class="small text-primary mt-1">View {{ current_year }} flights →</div></div></div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a class="text-decoration-none text-reset" href="{% url 'flightlogs:flightlog_list' %}">
+        <div class="card shadow-sm h-100 border-0"><div class="card-body"><div class="text-muted small">Drones</div><div class="fs-3 fw-bold">{{ active_drones }}</div><div class="small text-primary mt-1">Open logs →</div></div></div>
+      </a>
+    </div>
+    <div class="col-6 col-lg-3">
+      {% if highest_altitude_flight %}
+        <a class="text-decoration-none text-reset" href="{% url 'flightlogs:flightlog_detail' highest_altitude_flight.pk %}">
+      {% else %}
+        <div class="text-decoration-none text-reset">
+      {% endif %}
+        <div class="card shadow-sm h-100 border-0"><div class="card-body"><div class="text-muted small">Highest Altitude</div><div class="fs-3 fw-bold">{% if highest_altitude_flight %}{{ highest_altitude_flight.max_altitude_ft|floatformat:0 }} ft{% else %}—{% endif %}</div><div class="small text-primary mt-1">{% if highest_altitude_flight %}View flight →{% else %}&nbsp;{% endif %}</div></div></div>
+      {% if highest_altitude_flight %}</a>{% else %}</div>{% endif %}
+    </div>
+    <div class="col-6 col-lg-3">
+      {% if fastest_speed_flight %}
+        <a class="text-decoration-none text-reset" href="{% url 'flightlogs:flightlog_detail' fastest_speed_flight.pk %}">
+      {% else %}
+        <div class="text-decoration-none text-reset">
+      {% endif %}
+        <div class="card shadow-sm h-100 border-0"><div class="card-body"><div class="text-muted small">Fastest Flight</div><div class="fs-3 fw-bold">{% if fastest_speed_flight %}{{ fastest_speed_flight.max_speed_mph|floatformat:1 }} mph{% else %}—{% endif %}</div><div class="small text-primary mt-1">{% if fastest_speed_flight %}View flight →{% else %}&nbsp;{% endif %}</div></div></div>
+      {% if fastest_speed_flight %}</a>{% else %}</div>{% endif %}
+    </div>
+    <div class="col-6 col-lg-3">
+      {% if farthest_flight %}
+        <a class="text-decoration-none text-reset" href="{% url 'flightlogs:flightlog_detail' farthest_flight.pk %}">
+      {% else %}
+        <div class="text-decoration-none text-reset">
+      {% endif %}
+        <div class="card shadow-sm h-100 border-0"><div class="card-body"><div class="text-muted small">Farthest Flight</div><div class="fs-3 fw-bold">{% if farthest_flight %}{{ farthest_flight.max_distance_ft|floatformat:0 }} ft{% else %}—{% endif %}</div><div class="small text-primary mt-1">{% if farthest_flight %}View flight →{% else %}&nbsp;{% endif %}</div></div></div>
+      {% if farthest_flight %}</a>{% else %}</div>{% endif %}
+    </div>
   </div>
 
   <div class="row g-3">

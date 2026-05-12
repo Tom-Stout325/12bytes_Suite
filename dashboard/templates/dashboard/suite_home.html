@@ -1,0 +1,117 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}Home | 12Bytes Suites{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+  <div>
+    <h1 class="h2 fw-black mb-1">Welcome back, {{ request.user.first_name|default:request.user.get_username }}!</h1>
+    <p class="suite-page-kicker">Here’s what’s happening with your operations today.</p>
+  </div>
+</div>
+
+<div class="suite-app-grid mb-4">
+  <a class="suite-app-card" href="{% url 'dashboard:moneypro_home' %}">
+    <span class="suite-app-icon suite-gradient-blue"><i class="fa-solid fa-chart-column"></i></span>
+    <span class="suite-app-title">MoneyPro</span>
+    <span class="suite-app-text">Manage finances, expenses, invoicing and reports.</span>
+    <span class="suite-open-link">Open <i class="fa-solid fa-arrow-right ms-1"></i></span>
+  </a>
+
+  <a class="suite-app-card" href="{% url 'flightlogs:flightlog_list' %}">
+    <span class="suite-app-icon suite-gradient-green"><i class="fa-solid fa-drone"></i></span>
+    <span class="suite-app-title">Flight Logs</span>
+    <span class="suite-app-text">View, manage and analyze flight log records.</span>
+    <span class="suite-open-link">Open <i class="fa-solid fa-arrow-right ms-1"></i></span>
+  </a>
+
+  <a class="suite-app-card" href="{% url 'documents:documents_portal' %}">
+    <span class="suite-app-icon suite-gradient-purple"><i class="fa-solid fa-file-lines"></i></span>
+    <span class="suite-app-title">Documents</span>
+    <span class="suite-app-text">Access and manage company documents.</span>
+    <span class="suite-open-link">Open <i class="fa-solid fa-arrow-right ms-1"></i></span>
+  </a>
+
+  <a class="suite-app-card" href="{% url 'pilot:profile' %}">
+    <span class="suite-app-icon suite-gradient-blue"><i class="fa-solid fa-user-pilot"></i></span>
+    <span class="suite-app-title">Pilots</span>
+    <span class="suite-app-text">Manage pilot profiles, certifications and training.</span>
+    <span class="suite-open-link">Open <i class="fa-solid fa-arrow-right ms-1"></i></span>
+  </a>
+
+  <a class="suite-app-card" href="{% url 'operations:ops_plan_index' %}">
+    <span class="suite-app-icon suite-gradient-orange"><i class="fa-solid fa-briefcase"></i></span>
+    <span class="suite-app-title">Operations</span>
+    <span class="suite-app-text">Manage jobs, missions, approvals and operations.</span>
+    <span class="suite-open-link">Open <i class="fa-solid fa-arrow-right ms-1"></i></span>
+  </a>
+
+  <a class="suite-app-card" href="{% url 'ledger:contact_list' %}">
+    <span class="suite-app-icon suite-gradient-teal"><i class="fa-solid fa-users"></i></span>
+    <span class="suite-app-title">Contacts</span>
+    <span class="suite-app-text">Manage clients, vendors and partner contacts.</span>
+    <span class="suite-open-link">Open <i class="fa-solid fa-arrow-right ms-1"></i></span>
+  </a>
+
+  <a class="suite-app-card" href="{% url 'assets:asset_list' %}">
+    <span class="suite-app-icon suite-gradient-slate"><i class="fa-solid fa-boxes-stacked"></i></span>
+    <span class="suite-app-title">Assets</span>
+    <span class="suite-app-text">Track drones, controllers, batteries and equipment.</span>
+    <span class="suite-open-link">Open <i class="fa-solid fa-arrow-right ms-1"></i></span>
+  </a>
+
+  <a class="suite-app-card" href="{% url 'documents:incident_reporting_system' %}">
+    <span class="suite-app-icon suite-gradient-red"><i class="fa-solid fa-shield-halved"></i></span>
+    <span class="suite-app-title">Safety</span>
+    <span class="suite-app-text">Manage safety reports, incidents and compliance.</span>
+    <span class="suite-open-link">Open <i class="fa-solid fa-arrow-right ms-1"></i></span>
+  </a>
+
+  <a class="suite-app-card" href="{% url 'reports:home' %}">
+    <span class="suite-app-icon suite-gradient-gold"><i class="fa-solid fa-chart-pie"></i></span>
+    <span class="suite-app-title">Reports</span>
+    <span class="suite-app-text">Run reports and view key business insights.</span>
+    <span class="suite-open-link">Open <i class="fa-solid fa-arrow-right ms-1"></i></span>
+  </a>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-xl-8">
+    <div class="suite-mini-card p-3 p-md-4 h-100">
+      <h2 class="h5 fw-bold mb-3">Recent Activity</h2>
+      <div class="list-group list-group-flush">
+        {% for invoice in recent_invoices %}
+          <a class="list-group-item list-group-item-action px-0 d-flex justify-content-between gap-3" href="{% url 'invoices:invoice_detail' invoice.pk %}">
+            <span><i class="fa-solid fa-file-invoice-dollar text-primary me-2"></i> Invoice {{ invoice.invoice_number|default:invoice.pk }} was updated</span>
+            <span class="text-muted small text-nowrap">{{ invoice.issue_date|date:"m/d/Y" }}</span>
+          </a>
+        {% endfor %}
+        {% for transaction in recent_transactions %}
+          <a class="list-group-item list-group-item-action px-0 d-flex justify-content-between gap-3" href="{% url 'ledger:transaction_detail' transaction.pk %}">
+            <span><i class="fa-solid fa-receipt text-success me-2"></i> {{ transaction.description|default:"Transaction" }}</span>
+            <span class="text-muted small text-nowrap">{{ transaction.date|date:"m/d/Y" }}</span>
+          </a>
+        {% empty %}
+          {% if not recent_invoices %}
+            <div class="text-muted small">No recent activity yet.</div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-4">
+    <div class="suite-mini-card p-3 p-md-4 h-100">
+      <h2 class="h5 fw-bold mb-3">Business Overview</h2>
+      <div class="d-grid gap-2">
+        <div class="d-flex justify-content-between"><span>Total Revenue (MTD)</span><strong class="text-success">${{ mtd_income|floatformat:2|intcomma }}</strong></div>
+        <div class="d-flex justify-content-between"><span>Flights (MTD)</span><strong class="text-success">{{ flights_mtd|intcomma }}</strong></div>
+        <div class="d-flex justify-content-between"><span>Active Ops Plans</span><strong>{{ active_jobs|intcomma }}</strong></div>
+        <div class="d-flex justify-content-between"><span>Open Invoices</span><strong class="text-warning">{{ open_invoices|intcomma }}</strong></div>
+        <div class="d-flex justify-content-between"><span>Active Assets</span><strong>{{ active_assets|intcomma }}</strong></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

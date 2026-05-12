@@ -7,6 +7,7 @@ from .views import (
     business_backup_table_csv,
     dashboard_chart_data,
     dashboard_home,
+    moneypro_home,
     rebuild_defaults,
     reseed_defaults,
 )
@@ -15,6 +16,7 @@ app_name = "dashboard"
 
 urlpatterns = [
     path("", dashboard_home, name="home"),
+    path("moneypro/", moneypro_home, name="moneypro_home"),
     path("chart-data/", dashboard_chart_data, name="chart_data"),
     path("backups/", business_backup_admin, name="business_backup_admin"),
     path("backups/download-all/", business_backup_all_xlsx, name="business_backup_all_xlsx"),
