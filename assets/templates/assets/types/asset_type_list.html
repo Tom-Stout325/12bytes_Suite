@@ -1,0 +1,73 @@
+{% extends "index.html" %}
+
+{% block title %}Asset Types | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-0 text-secondary-brand">Asset Types</h1>
+      <div class="text-muted small">Manage the type list used by business assets</div>
+    </div>
+    <div class="d-grid d-md-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'assets:asset_list' %}">
+        <i class="fa-solid fa-arrow-left me-1"></i> Assets
+      </a>
+      <a class="btn btn-brand" href="{% url 'assets:asset_type_create' %}">
+        <i class="fa-solid fa-plus me-1"></i> Add type
+      </a>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-0">
+      {% if asset_types %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">Name</th>
+                <th class="text-center">Active</th>
+                <th class="text-end">Sort</th>
+                <th class="text-end pe-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for type in asset_types %}
+                <tr>
+                  <td class="ps-3 fw-semibold">{{ type.name }}</td>
+                  <td class="text-center">
+                    {% if type.is_active %}
+                      <i class="fa-solid fa-square-check text-success" title="Active"></i>
+                    {% else %}
+                      <i class="fa-regular fa-square text-muted" title="Inactive"></i>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">{{ type.sort_order }}</td>
+                  <td class="text-end pe-3">
+                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'assets:asset_type_update' type.pk %}" title="Edit">
+                      <i class="fa-solid fa-pen-to-square"></i>
+                    </a>
+                    <a class="btn btn-sm btn-outline-danger" href="{% url 'assets:asset_type_delete' type.pk %}" title="Delete">
+                      <i class="fa-solid fa-trash"></i>
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4">
+          <div class="text-muted">No asset types yet.</div>
+          <div class="mt-2">
+            <a class="btn btn-brand" href="{% url 'assets:asset_type_create' %}">
+              <i class="fa-solid fa-plus me-1"></i> Add your first type
+            </a>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

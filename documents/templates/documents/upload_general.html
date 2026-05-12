@@ -1,0 +1,24 @@
+{% extends "index.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Upload Document | 12bytes Suite{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+  <div class="card border-0 shadow-sm rounded-4 mx-auto" style="max-width: 820px;">
+    <div class="card-header bg-transparent border-0 pt-4 px-4">
+      <h1 class="h4 mb-1 text-secondary-brand">Upload General Document</h1>
+      <div class="text-muted small">Upload a business document to this tenant.</div>
+    </div>
+    <div class="card-body p-4">
+      <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+        {{ form|crispy }}
+        <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
+          <a class="btn btn-outline-secondary" href="{% url 'documents:general_document_list' %}">Cancel</a>
+          <button class="btn btn-brand" type="submit"><i class="fa-solid fa-upload me-1"></i> Upload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

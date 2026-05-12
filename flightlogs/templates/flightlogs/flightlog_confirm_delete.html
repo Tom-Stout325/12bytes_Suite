@@ -1,0 +1,5 @@
+{% extends "index.html" %}
+{% load formatting %}
+{% block content %}
+<div class="container py-4"><div class="card border-danger shadow-sm"><div class="card-body"><h1 class="h4 text-danger">Delete Flight Log</h1><p>Delete <strong>{{ log.flight_title|default:"Flight" }}</strong> from <strong>{{ log.flight_date|mdy }}</strong>?</p><form method="post">{% csrf_token %}<button type="submit" class="btn btn-danger">Delete</button><a href="{% url 'flightlogs:flightlog_detail' log.pk %}" class="btn btn-outline-secondary">Cancel</a></form></div></div></div>
+{% endblock %}

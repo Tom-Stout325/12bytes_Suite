@@ -1,0 +1,23 @@
+12bytes_Suite/
+│
+├── core/              # business ownership, auth, middleware
+├── ledger/            # MoneyPro financials
+├── invoices/
+├── contractors/
+├── vehicles/
+├── flightplan/        # drone operations
+├── airspace/          # waivers, FAA workflows
+├── equipment/
+├── pilot_profiles/
+├── reports/
+│
+├── templates/
+├── static/
+├── media/
+│
+├── project/
+│   ├── settings/
+│   │   ├── base.py
+│   │   ├── dev.py
+│   │   ├── prod.py
+│   │   └── clients/

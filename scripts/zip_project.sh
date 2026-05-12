@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-PROJECT_NAME="MoneyPro"
+PROJECT_NAME="Suite"
 OUTPUT="${PROJECT_NAME}.zip"
 
 zip -r "$OUTPUT" . \

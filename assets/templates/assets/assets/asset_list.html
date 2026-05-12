@@ -13,6 +13,9 @@
       <div class="text-muted small">Track business property, receipts, and depreciation details</div>
     </div>
     <div class="d-grid d-md-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'assets:asset_type_list' %}">
+        <i class="fa-solid fa-tags me-1"></i> Types
+      </a>
       <a class="btn btn-brand" href="{% url 'assets:asset_create' %}">
         <i class="fa-solid fa-plus me-1"></i> Add asset
       </a>
@@ -28,8 +31,8 @@
           <label class="form-label small text-muted mb-1">Type</label>
           <select name="type" class="form-select" onchange="this.form.submit()">
             <option value="">All</option>
-            {% for value,label in type_choices %}
-              <option value="{{ value }}" {% if value == type_filter %}selected{% endif %}>{{ label }}</option>
+            {% for type in type_choices %}
+              <option value="{{ type.pk }}" {% if type.pk|stringformat:'s' == type_filter %}selected{% endif %}>{{ type.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -59,12 +62,18 @@
                   <div>
                     <div class="fw-semibold">{{ a.name }}</div>
                     <div class="small text-muted">
-                      {{ a.get_asset_type_display }} • Purchased {{ a.purchase_date|date:"M j, Y" }}
-                      {% if a.vehicle %} • {{ a.vehicle.label }}{% endif %}
+                      {{ a.asset_type.name }} • Purchased {{ a.purchase_date|date:"m/d/Y" }}
+                    </div>
+                    <div class="small mt-1">
+                      {% if a.is_active %}
+                        <span class="badge text-bg-success">Active</span>
+                      {% else %}
+                        <span class="badge text-bg-secondary">Inactive</span>
+                      {% endif %}
                     </div>
                   </div>
                   <div class="text-end">
-                    <div class="fw-semibold">{{ a.purchase_price|floatformat:2|intcomma }}</div>
+                    <div class="fw-semibold">${{ a.purchase_price|floatformat:2|intcomma }}</div>
                     <div class="small text-muted">Basis</div>
                   </div>
                 </div>
@@ -83,7 +92,7 @@
                   <th>Type</th>
                   <th>Purchased</th>
                   <th class="text-end">Price</th>
-                  <th>Vehicle</th>
+                  <th class="text-center">Active</th>
                   <th class="text-end pe-3">Actions</th>
                 </tr>
               </thead>
@@ -95,15 +104,24 @@
                         {{ a.name }}
                       </a>
                     </td>
-                    <td>{{ a.get_asset_type_display }}</td>
-                    <td>{{ a.purchase_date|date:"Y-m-d" }}</td>
-                    <td class="text-end">{{ a.purchase_price|floatformat:2|intcomma }}</td>
-                    <td>{% if a.vehicle %}{{ a.vehicle.label }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                    <td>{{ a.asset_type.name }}</td>
+                    <td>{{ a.purchase_date|date:"m/d/Y" }}</td>
+                    <td class="text-end">${{ a.purchase_price|floatformat:2|intcomma }}</td>
+                    <td class="text-center">
+                      {% if a.is_active %}
+                        <i class="fa-solid fa-square-check text-success" title="Active"></i>
+                      {% else %}
+                        <i class="fa-regular fa-square text-muted" title="Inactive"></i>
+                      {% endif %}
+                    </td>
                     <td class="text-end pe-3">
-                      <a class="btn btn-sm btn-outline-secondary" href="{% url 'assets:asset_update' a.pk %}">
+                      <a class="btn btn-sm btn-outline-primary" href="{% url 'assets:asset_detail' a.pk %}" title="View">
+                        <i class="fa-solid fa-eye"></i>
+                      </a>
+                      <a class="btn btn-sm btn-outline-secondary" href="{% url 'assets:asset_update' a.pk %}" title="Edit">
                         <i class="fa-solid fa-pen-to-square"></i>
                       </a>
-                      <a class="btn btn-sm btn-outline-danger" href="{% url 'assets:asset_delete' a.pk %}">
+                      <a class="btn btn-sm btn-outline-danger" href="{% url 'assets:asset_delete' a.pk %}" title="Delete">
                         <i class="fa-solid fa-trash"></i>
                       </a>
                     </td>

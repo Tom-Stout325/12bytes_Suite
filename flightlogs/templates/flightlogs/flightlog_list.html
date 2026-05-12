@@ -1,0 +1,62 @@
+{% extends "index.html" %}
+{% load formatting %}
+{% load flightlog_extras %}
+
+{% block title %}Flight Logs{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div><p class="text-muted small text-uppercase fw-bold mb-1">FlightPlan</p><h1 class="h3 mb-0">Flight Logs</h1></div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{% url 'flightlogs:drone_portal' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-gauge-high me-1"></i> Portal</a>
+      <a href="{% url 'flightlogs:flightlog_upload' %}" class="btn btn-success btn-sm"><i class="fa-solid fa-upload me-1"></i> Upload CSV</a>
+      <a href="{% url 'flightlogs:export_flightlogs_csv' %}" class="btn btn-outline-success btn-sm"><i class="fa-solid fa-file-csv me-1"></i> Export CSV</a>
+      <a href="{% url 'flightlogs:flight_map' %}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-map-location-dot me-1"></i> Map</a>
+    </div>
+  </div>
+
+  <form method="get" class="card card-body shadow-sm mb-4">
+    <div class="row g-3 align-items-end">
+      <div class="col-6 col-md-3"><label class="form-label">Year</label><select name="year" class="form-select"><option value="">All</option>{% for y in years %}<option value="{{ y }}" {% if sel_year == y|stringformat:'s' %}selected{% endif %}>{{ y }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-md-3"><label class="form-label">Month</label><select name="month" class="form-select"><option value="">All</option>{% for m in months_present %}<option value="{{ m }}" {% if sel_month == m|stringformat:'s' %}selected{% endif %}>{{ month_labels|get_item:m|default:m }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-md-2"><label class="form-label">State</label><select name="state" class="form-select"><option value="">All</option>{% for st in states %}<option value="{{ st }}" {% if sel_state == st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-md-2"><label class="form-label">City</label><select name="city" class="form-select"><option value="">All</option>{% for city in cities %}<option value="{{ city }}" {% if sel_city == city %}selected{% endif %}>{{ city }}</option>{% endfor %}</select></div>
+      <div class="col-md-2 d-grid"><button class="btn btn-primary">Filter</button></div>
+    </div>
+  </form>
+
+  <div class="table-responsive card shadow-sm">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light"><tr><th>Date</th><th>Title</th><th class="d-none d-md-table-cell">Duration</th><th>Drone</th><th>Location</th><th class="d-none d-lg-table-cell">Photos</th><th class="d-none d-lg-table-cell">Videos</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for log in logs %}
+          <tr>
+            <td>{{ log.flight_date|mdy }}</td>
+            <td>{{ log.flight_title|default:"Flight" }}</td>
+            <td class="d-none d-md-table-cell">{{ log.air_time|duration_hm }}</td>
+            <td>{{ log.drone_name|default:"—" }}</td>
+            <td>{% if log.takeoff_address %}<a href="https://www.google.com/maps/search/?api=1&query={{ log.takeoff_address|urlencode }}" target="_blank">{{ log.takeoff_address|truncatechars:42 }}</a>{% elif log.takeoff_latlong %}<a href="https://www.google.com/maps/search/?api=1&query={{ log.takeoff_latlong|urlencode }}" target="_blank">{{ log.takeoff_latlong }}</a>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            <td class="d-none d-lg-table-cell">{{ log.photos|default:"—" }}</td>
+            <td class="d-none d-lg-table-cell">{{ log.videos|default:"—" }}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'flightlogs:flightlog_detail' log.pk %}" title="View"><i class="fa-solid fa-eye"></i></a>
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'flightlogs:flightlog_edit' log.pk %}" title="Edit"><i class="fa-solid fa-pen"></i></a>
+              <a class="btn btn-sm btn-outline-danger" href="{% url 'flightlogs:flightlog_pdf' log.pk %}" target="_blank" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8" class="text-center py-4 text-muted">No flight logs found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if logs.paginator.num_pages > 1 %}
+  <nav class="mt-4"><ul class="pagination justify-content-center">
+    {% if logs.has_previous %}<li class="page-item"><a class="page-link" href="?{{ qs_without_page }}&page=1">First</a></li><li class="page-item"><a class="page-link" href="?{{ qs_without_page }}&page={{ logs.previous_page_number }}">Prev</a></li>{% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ logs.number }} of {{ logs.paginator.num_pages }}</span></li>
+    {% if logs.has_next %}<li class="page-item"><a class="page-link" href="?{{ qs_without_page }}&page={{ logs.next_page_number }}">Next</a></li><li class="page-item"><a class="page-link" href="?{{ qs_without_page }}&page={{ logs.paginator.num_pages }}">Last</a></li>{% endif %}
+  </ul></nav>
+  {% endif %}
+</div>
+{% endblock %}

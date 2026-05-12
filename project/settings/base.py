@@ -103,6 +103,9 @@ LOCAL_APPS = [
     'invoices',
     'contractor',
         'assets',
+    'documents',
+    'flightlogs',
+    'pilot',
 'helpcenter',
 
 ]

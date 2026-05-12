@@ -1,0 +1,22 @@
+{% extends "index.html" %}
+{% load formatting %}
+{% load flightlog_extras %}
+
+{% block title %}Flight Log{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-start gap-3 mb-4">
+    <div><a href="{% url 'flightlogs:flightlog_list' %}" class="btn btn-sm btn-outline-secondary mb-3"><i class="fa-solid fa-arrow-left me-1"></i> Back</a><h1 class="h3 mb-1">{{ log.flight_title|default:"Flight Log" }}</h1><div class="text-muted">{{ log.flight_date|mdy }}</div></div>
+    <div class="d-flex gap-2"><a href="{% url 'flightlogs:flightlog_edit' log.pk %}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-pen me-1"></i> Edit</a><a href="{% url 'flightlogs:flightlog_pdf' log.pk %}" target="_blank" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-file-pdf me-1"></i> PDF</a></div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Flight</div><div class="card-body"><p><strong>Pilot:</strong> {{ log.pilot_in_command|default:"—" }}</p><p><strong>License:</strong> {{ log.license_number|default:"—" }}</p><p><strong>Application:</strong> {{ log.flight_application|default:"—" }}</p><p><strong>Remote ID:</strong> {{ log.remote_id|default:"—" }}</p><p><strong>Duration:</strong> {{ log.air_time|duration_hm }}</p></div></div></div>
+    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Location</div><div class="card-body"><p><strong>Address:</strong> {{ log.takeoff_address|default:"—" }}</p><p><strong>GPS:</strong> {{ log.takeoff_latlong|default:"—" }}</p><p><strong>Landing Time:</strong> {{ log.landing_time|default:"—" }}</p></div></div></div>
+    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Drone & Battery</div><div class="card-body"><p><strong>Drone:</strong> {{ log.drone_name|default:"—" }} {% if log.drone_type %}({{ log.drone_type }}){% endif %}</p><p><strong>Drone Serial:</strong> {{ log.drone_serial|default:"—" }}</p><p><strong>FAA Reg:</strong> {{ log.drone_reg_number|default:"—" }}</p><p><strong>Battery:</strong> {{ log.battery_name|default:"—" }}</p><p><strong>Battery Serial:</strong> {{ log.battery_serial_internal|default:log.battery_serial_printed|default:"—" }}</p><p><strong>Battery:</strong> {{ log.takeoff_battery_pct|default:"—" }}% → {{ log.landing_battery_pct|default:"—" }}%</p></div></div></div>
+    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Performance</div><div class="card-body"><p><strong>Max Altitude:</strong> {{ log.max_altitude_ft|default:"—" }} ft</p><p><strong>Max Distance:</strong> {{ log.max_distance_ft|default:"—" }} ft</p><p><strong>Max Speed:</strong> {{ log.max_speed_mph|default:"—" }} mph</p><p><strong>Total Distance:</strong> {{ log.total_mileage_ft|default:"—" }} ft</p><p><strong>Signal Losses:</strong> {{ log.signal_losses|default:"—" }}</p></div></div></div>
+    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Weather</div><div class="card-body"><p><strong>Summary:</strong> {{ log.ground_weather_summary|default:"—" }}</p><p><strong>Temp:</strong> {{ log.ground_temp_f|default:"—" }} °F</p><p><strong>Wind:</strong> {{ log.wind_speed|default:"—" }} {{ log.wind_direction }}</p><p><strong>Visibility:</strong> {{ log.visibility_miles|default:"—" }} mi</p><p><strong>Cloud Cover:</strong> {{ log.cloud_cover|default:"—" }}</p></div></div></div>
+    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Media & Notes</div><div class="card-body"><p><strong>Photos:</strong> {{ log.photos|default:"—" }}</p><p><strong>Videos:</strong> {{ log.videos|default:"—" }}</p><p><strong>Tags:</strong> {{ log.tags|default:"—" }}</p><p class="mb-0"><strong>Notes:</strong><br>{{ log.notes|linebreaksbr|default:"—" }}</p></div></div></div>
+  </div>
+</div>
+{% endblock %}

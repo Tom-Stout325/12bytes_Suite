@@ -64,7 +64,16 @@
           <div class="col-12 col-md-6">
             <label class="form-label">Type</label>
             {{ form.asset_type }}
+            <div class="form-text">Manage type options from the Assets Types page.</div>
             {% if form.asset_type.errors %}<div class="invalid-feedback d-block">{{ form.asset_type.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div class="form-check mt-md-4 pt-md-2">
+              {{ form.is_active }}
+              <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Active</label>
+            </div>
+            {% if form.is_active.errors %}<div class="invalid-feedback d-block">{{ form.is_active.errors|striptags }}</div>{% endif %}
           </div>
 
           <div class="col-12 col-md-4">
@@ -84,13 +93,6 @@
             <label class="form-label">Purchase price</label>
             {{ form.purchase_price }}
             {% if form.purchase_price.errors %}<div class="invalid-feedback d-block">{{ form.purchase_price.errors|striptags }}</div>{% endif %}
-          </div>
-
-          <div class="col-12 col-md-6">
-            <label class="form-label">Linked vehicle (optional)</label>
-            {{ form.vehicle }}
-            <div class="form-text">Link to an existing vehicle for mileage-related tracking.</div>
-            {% if form.vehicle.errors %}<div class="invalid-feedback d-block">{{ form.vehicle.errors|striptags }}</div>{% endif %}
           </div>
 
           <!-- Depreciation -->

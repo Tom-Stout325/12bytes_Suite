@@ -26,6 +26,8 @@ urlpatterns = [
     path("reports/", include(("reports.urls", "reports"), namespace="reports")),
     path("vehicles/", include(("vehicles.urls", "vehicles"), namespace="vehicles")),
     path("assets/", include(("assets.urls", "assets"), namespace="assets")),
+    path("documents/", include(("documents.urls", "documents"), namespace="documents")),
+    path("pilot/", include(("pilot.urls", "pilot"), namespace="pilot")),
     path("invoices/", include(("invoices.urls", "invoices"), namespace="invoices")),
     path("contractors/", include(("contractor.urls", "contractor"), namespace="contractor")),
     

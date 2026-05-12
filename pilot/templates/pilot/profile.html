@@ -1,0 +1,198 @@
+{% extends 'index.html' %}
+{% load crispy_forms_tags %}
+{% load pilot_extras %}
+
+{% block title %}Pilot Profile{% endblock %}
+
+{% block content %}
+<div class="container py-4 py-lg-5">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+    <div>
+      <h1 class="display-6 fw-bold mb-1"><i class="fa-solid fa-user-pilot me-2"></i>{{ request.user.get_full_name|default:request.user.username }}</h1>
+      <p class="text-muted mb-0">Manage pilot credentials, flight history, and training records.</p>
+    </div>
+    <a href="{% url 'flightlogs:flightlog_list' %}" class="btn btn-outline-primary">
+      <i class="fa-solid fa-plane-departure me-1"></i> Flight Logs
+    </a>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <span><i class="fa-solid fa-id-card me-1"></i> Pilot Credentials</span>
+          <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#editProfileForm">
+            <i class="fa-solid fa-pen-to-square me-1"></i> Edit
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="list-group list-group-flush mb-3">
+            <div class="list-group-item d-flex justify-content-between gap-3 px-0">
+              <strong>License Number</strong><span>{{ profile.license_number|default:"—" }}</span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between gap-3 px-0">
+              <strong>License Date</strong><span>{{ profile.license_date|date:"m/d/Y"|default:"—" }}</span>
+            </div>
+            <div class="list-group-item px-0">
+              <strong class="d-block mb-2">License File</strong>
+              {% if profile.license_image %}
+                <a href="{{ profile.license_image.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                  <i class="fa-solid fa-file-arrow-down me-1"></i> View Uploaded License
+                </a>
+              {% else %}
+                <span class="text-muted">No license file uploaded.</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="collapse {% if form.errors %}show{% endif %}" id="editProfileForm">
+            <form method="post" enctype="multipart/form-data" class="border rounded-3 p-3 bg-body-tertiary">
+              {% csrf_token %}
+              <input type="hidden" name="update_profile" value="true">
+              {{ form|crispy }}
+              <button type="submit" class="btn btn-success w-100 mt-2">
+                <i class="fa-solid fa-floppy-disk me-1"></i> Save Credentials
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-dark text-white"><i class="fa-solid fa-chart-simple me-1"></i> Flight Summary</div>
+        <div class="card-body">
+          <div class="list-group list-group-flush">
+            <div class="list-group-item d-flex justify-content-between px-0"><strong>Total Flights</strong><span>{{ profile.flights_total }}</span></div>
+            <div class="list-group-item d-flex justify-content-between px-0"><strong>Flights This Year</strong><span>{{ profile.flights_this_year }}</span></div>
+            <div class="list-group-item d-flex justify-content-between px-0"><strong>Total Flight Time</strong><span>{{ profile.flight_time_total|seconds_to_hms }}</span></div>
+            <div class="list-group-item d-flex justify-content-between px-0"><strong>Flight Time This Year</strong><span>{{ profile.flight_time_this_year|seconds_to_hms }}</span></div>
+            <div class="list-group-item d-flex justify-content-between px-0"><strong>Highest Flight</strong><span>{{ highest_altitude_flight.max_altitude_ft|default:"—" }} ft</span></div>
+            <div class="list-group-item d-flex justify-content-between px-0"><strong>Fastest Flight</strong><span>{{ fastest_speed_flight.max_speed_mph|default:"—" }} mph</span></div>
+            <div class="list-group-item d-flex justify-content-between px-0"><strong>Longest Flight</strong><span>{{ longest_flight.max_distance_ft|default:"—" }} ft</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mt-1">
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+          <span><i class="fa-solid fa-user me-1"></i> User Information</span>
+          <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#editUserForm">
+            <i class="fa-solid fa-pen-to-square me-1"></i> Edit
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="list-group list-group-flush mb-3">
+            <div class="list-group-item d-flex justify-content-between px-0"><strong>First Name</strong><span>{{ request.user.first_name|default:"—" }}</span></div>
+            <div class="list-group-item d-flex justify-content-between px-0"><strong>Last Name</strong><span>{{ request.user.last_name|default:"—" }}</span></div>
+            <div class="list-group-item d-flex justify-content-between px-0"><strong>Email</strong><span>{{ request.user.email|default:"—" }}</span></div>
+          </div>
+          <div class="collapse {% if user_form.errors %}show{% endif %}" id="editUserForm">
+            <form method="post" class="border rounded-3 p-3 bg-body-tertiary">
+              {% csrf_token %}
+              <input type="hidden" name="update_user" value="true">
+              {{ user_form|crispy }}
+              <button type="submit" class="btn btn-success w-100 mt-2">
+                <i class="fa-solid fa-floppy-disk me-1"></i> Save User Info
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+          <span><i class="fa-solid fa-graduation-cap me-1"></i> Training History</span>
+          <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#trainingFormCollapse">
+            <i class="fa-solid fa-plus me-1"></i> Add
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="p-3 border-bottom">
+            <form method="get" class="d-flex align-items-center gap-2">
+              <label for="year" class="form-label mb-0 fw-semibold">Year</label>
+              <select id="year" name="year" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
+                <option value="">All</option>
+                {% for y in years %}
+                  <option value="{{ y }}" {% if y|stringformat:"s" == selected_year %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+              </select>
+            </form>
+          </div>
+          <ul class="list-group list-group-flush">
+            {% for training in trainings %}
+              <li class="list-group-item d-flex justify-content-between align-items-center gap-3">
+                <div>
+                  <strong>{{ training.title }}</strong><br>
+                  <small class="text-muted">{{ training.date_completed|date:"m/d/Y" }}</small>
+                  {% if training.required %}<span class="badge bg-warning text-dark ms-2">Required</span>{% endif %}
+                </div>
+                <div class="d-flex gap-2">
+                  {% if training.certificate %}
+                    <a href="{{ training.certificate.url }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="View certificate"><i class="fa-solid fa-file"></i></a>
+                  {% endif %}
+                  <a href="{% url 'pilot:training_edit' training.pk %}" class="btn btn-sm btn-outline-primary" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
+                  <a href="{% url 'pilot:training_delete' training.pk %}" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fa-solid fa-trash"></i></a>
+                </div>
+              </li>
+            {% empty %}
+              <li class="list-group-item text-muted text-center py-4">No training records found.</li>
+            {% endfor %}
+          </ul>
+          <div class="collapse border-top p-3 {% if training_form.errors %}show{% endif %}" id="trainingFormCollapse">
+            <form method="post" enctype="multipart/form-data">
+              {% csrf_token %}
+              <input type="hidden" name="add_training" value="true">
+              {{ training_form|crispy }}
+              <button type="submit" class="btn btn-primary w-100 mt-2">
+                <i class="fa-solid fa-floppy-disk me-1"></i> Save Training
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mt-1">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-light fw-semibold text-primary fs-5 text-center">Drone Usage Summary</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0 align-middle">
+              <thead class="table-secondary">
+                <tr>
+                  <th>Drone Name</th>
+                  <th>Serial Number</th>
+                  <th class="text-end"># Flights</th>
+                  <th class="text-end">Total Flight Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for d in drone_stats %}
+                  <tr>
+                    <td>{{ d.drone_name|default:"—" }}</td>
+                    <td>{{ d.drone_serial|default:"—" }}</td>
+                    <td class="text-end">{{ d.flights }}</td>
+                    <td class="text-end">{{ d.total_seconds|seconds_to_hms }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="4" class="text-center text-muted py-4">No flight logs found for this pilot.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

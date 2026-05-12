@@ -1,0 +1,18 @@
+{% extends "index.html" %}
+
+{% block title %}SOP Library | 12bytes Suite{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+    <div><h1 class="h4 mb-0 text-secondary-brand">SOP Library</h1><div class="text-muted small">Standard operating procedures</div></div>
+    <div class="d-grid d-md-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'documents:documents_portal' %}"><i class="fa-solid fa-arrow-left me-1"></i> Documents</a>
+      <a class="btn btn-brand" href="{% url 'documents:sop_upload' %}"><i class="fa-solid fa-upload me-1"></i> Upload SOP</a>
+    </div>
+  </div>
+  <form method="get" class="card border-0 shadow-sm rounded-4 mb-3"><div class="card-body row g-2 align-items-end"><div class="col-12 col-md-10"><label class="form-label fw-semibold" for="q">Search</label><input class="form-control" id="q" name="q" value="{{ search_query }}" placeholder="Title or description"></div><div class="col-12 col-md-2 d-grid"><button class="btn btn-outline-primary">Search</button></div></div></form>
+  <div class="card border-0 shadow-sm rounded-4"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th class="ps-3">Date</th><th>Title</th><th>Description</th><th class="text-end pe-3">Actions</th></tr></thead><tbody>{% for sop in sops %}<tr><td class="ps-3 text-nowrap">{{ sop.created_at|date:"m/d/Y" }}</td><td class="fw-semibold">{{ sop.title }}</td><td class="text-muted">{{ sop.description|default:"—"|truncatechars:100 }}</td><td class="text-end pe-3"><div class="btn-group btn-group-sm"><a class="btn btn-outline-primary" href="{{ sop.file.url }}" target="_blank" title="View"><i class="fa-solid fa-eye"></i></a><a class="btn btn-outline-success" href="{{ sop.file.url }}" download title="Download"><i class="fa-solid fa-download"></i></a><form method="post" action="{% url 'documents:delete_sop' sop.pk %}" onsubmit="return confirm('Delete {{ sop.title|escapejs }}?');">{% csrf_token %}<button class="btn btn-outline-danger" type="submit" title="Delete"><i class="fa-solid fa-trash"></i></button></form></div></td></tr>{% empty %}<tr><td colspan="4" class="text-center text-muted py-4">No SOP documents found.</td></tr>{% endfor %}</tbody></table></div></div>
+  {% include "documents/_pagination.html" %}
+</div>
+{% endblock %}

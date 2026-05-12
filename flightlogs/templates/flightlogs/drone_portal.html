@@ -1,0 +1,32 @@
+{% extends "index.html" %}
+{% load flightlog_extras %}
+
+{% block title %}Drone Portal{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <p class="text-uppercase text-muted small fw-bold mb-1">FlightPlan</p>
+      <h1 class="h3 mb-0">Drone Operations</h1>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{% url 'flightlogs:flightlog_upload' %}" class="btn btn-primary"><i class="fa-solid fa-upload me-1"></i> Upload CSV</a>
+      <a href="{% url 'flightlogs:flightlog_list' %}" class="btn btn-outline-primary"><i class="fa-solid fa-list me-1"></i> Flight Logs</a>
+      <a href="{% url 'flightlogs:flight_map' %}" class="btn btn-outline-secondary"><i class="fa-solid fa-map-location-dot me-1"></i> Map</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-muted small">Flights</div><div class="fs-3 fw-bold">{{ total_flights }}</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-muted small">Flight Time</div><div class="fs-3 fw-bold">{{ total_flight_time_seconds|duration_hm }}</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-muted small">Drones</div><div class="fs-3 fw-bold">{{ active_drones }}</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-muted small">Highest Altitude</div><div class="fs-3 fw-bold">{% if highest_altitude_flight %}{{ highest_altitude_flight.max_altitude_ft|floatformat:0 }} ft{% else %}—{% endif %}</div></div></div></div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-4"><div class="card h-100 shadow-sm"><div class="card-body d-flex flex-column"><h2 class="h5">Flight Logs</h2><p class="text-muted">Review, edit, export, and download PDFs for logged flights.</p><a href="{% url 'flightlogs:flightlog_list' %}" class="btn btn-success mt-auto">Open Logs</a></div></div></div>
+    <div class="col-md-4"><div class="card h-100 shadow-sm"><div class="card-body d-flex flex-column"><h2 class="h5">CSV Import</h2><p class="text-muted">Import flight data from AirData/FlightPlan CSV exports into the active business.</p><a href="{% url 'flightlogs:flightlog_upload' %}" class="btn btn-primary mt-auto">Upload CSV</a></div></div></div>
+    <div class="col-md-4"><div class="card h-100 shadow-sm"><div class="card-body d-flex flex-column"><h2 class="h5">Flight Map</h2><p class="text-muted">View logged takeoff locations grouped on an interactive map.</p><a href="{% url 'flightlogs:flight_map' %}" class="btn btn-outline-primary mt-auto">View Map</a></div></div></div>
+  </div>
+</div>
+{% endblock %}

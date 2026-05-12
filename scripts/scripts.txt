@@ -8,7 +8,7 @@ cp -R _MONEYPRO _MONEYPRO_backup
 
 cd into the root folder
 
-unzip ~/Downloads/travel_pdf_fix_patch.zip
+unzip ~/Downloads/12bytes_suite_pilot_patch.zip
 or:
 unzip ~/Downloads/MoneyPro_invite.zip -d /tmp/moneypro_invite
 rsync -av --progress /tmp/moneypro_invite/MoneyPro/ ./
@@ -53,3 +53,4 @@ Invoice Detail:
 Logins:
 
 admin   cassie2001
+tom@airborne-images.net 

@@ -1,0 +1,29 @@
+{% extends "index.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}New Incident Report | 12bytes Suite{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+  <div class="card border-0 shadow-sm rounded-4 mx-auto" style="max-width: 980px;">
+    <div class="card-header bg-transparent border-0 pt-4 px-4"><h1 class="h4 mb-1 text-secondary-brand">New Drone Incident Report</h1><div class="text-muted small">This report is saved to the active business.</div></div>
+    <div class="card-body p-4">
+      <form method="post" novalidate>{% csrf_token %}
+        <h2 class="h6 text-secondary-brand border-bottom pb-2 mb-3">General Information</h2>
+        <div class="row g-3 mb-4"><div class="col-12 col-md-3">{{ form.report_date|as_crispy_field }}</div><div class="col-12 col-md-3">{{ form.reported_by|as_crispy_field }}</div><div class="col-12 col-md-3">{{ form.contact|as_crispy_field }}</div><div class="col-12 col-md-3">{{ form.role|as_crispy_field }}</div></div>
+        <h2 class="h6 text-secondary-brand border-bottom pb-2 mb-3">Event Details</h2>
+        <div class="row g-3 mb-4"><div class="col-12 col-md-3">{{ form.event_date|as_crispy_field }}</div><div class="col-12 col-md-3">{{ form.event_time|as_crispy_field }}</div><div class="col-12 col-md-3">{{ form.event_type|as_crispy_field }}</div><div class="col-12 col-md-3">{{ form.location|as_crispy_field }}</div><div class="col-12">{{ form.description|as_crispy_field }}</div></div>
+        <h2 class="h6 text-secondary-brand border-bottom pb-2 mb-3">Impact</h2>
+        <div class="row g-3 mb-4"><div class="col-12 col-md-2">{{ form.injuries|as_crispy_field }}</div><div class="col-12 col-md-10">{{ form.injury_details|as_crispy_field }}</div><div class="col-12 col-md-2">{{ form.damage|as_crispy_field }}</div><div class="col-12 col-md-3">{{ form.damage_cost|as_crispy_field }}</div><div class="col-12 col-md-7">{{ form.damage_desc|as_crispy_field }}</div></div>
+        <h2 class="h6 text-secondary-brand border-bottom pb-2 mb-3">Equipment</h2>
+        <div class="row g-3 mb-4"><div class="col-12 col-md-4">{{ form.drone_model|as_crispy_field }}</div><div class="col-12 col-md-4">{{ form.registration|as_crispy_field }}</div><div class="col-12 col-md-4">{{ form.controller|as_crispy_field }}</div><div class="col-12 col-md-6">{{ form.payload|as_crispy_field }}</div><div class="col-12 col-md-6">{{ form.battery|as_crispy_field }}</div></div>
+        <h2 class="h6 text-secondary-brand border-bottom pb-2 mb-3">Conditions and Response</h2>
+        <div class="row g-3 mb-4"><div class="col-12 col-md-3">{{ form.weather|as_crispy_field }}</div><div class="col-12 col-md-3">{{ form.wind|as_crispy_field }}</div><div class="col-12 col-md-3">{{ form.temperature|as_crispy_field }}</div><div class="col-12 col-md-3">{{ form.lighting|as_crispy_field }}</div><div class="col-12 col-md-2">{{ form.witnesses|as_crispy_field }}</div><div class="col-12 col-md-10">{{ form.witness_details|as_crispy_field }}</div><div class="col-12 col-md-2">{{ form.emergency|as_crispy_field }}</div><div class="col-12 col-md-10">{{ form.agency_response|as_crispy_field }}</div><div class="col-12">{{ form.scene_action|as_crispy_field }}</div><div class="col-12 col-md-2">{{ form.faa_report|as_crispy_field }}</div><div class="col-12 col-md-10">{{ form.faa_ref|as_crispy_field }}</div></div>
+        <h2 class="h6 text-secondary-brand border-bottom pb-2 mb-3">Follow-up and Signature</h2>
+        <div class="row g-3"><div class="col-12 col-md-6">{{ form.cause|as_crispy_field }}</div><div class="col-12 col-md-6">{{ form.notes|as_crispy_field }}</div><div class="col-12 col-md-6">{{ form.signature|as_crispy_field }}</div><div class="col-12 col-md-6">{{ form.sign_date|as_crispy_field }}</div></div>
+        <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4"><a class="btn btn-outline-secondary" href="{% url 'documents:incident_reporting_system' %}">Cancel</a><button class="btn btn-brand" type="submit"><i class="fa-solid fa-floppy-disk me-1"></i> Save report</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

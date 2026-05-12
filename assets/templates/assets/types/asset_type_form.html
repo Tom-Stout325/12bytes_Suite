@@ -1,0 +1,51 @@
+{% extends "index.html" %}
+
+{% block title %}{% if object %}Edit Asset Type{% else %}Add Asset Type{% endif %} | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-0 text-secondary-brand">{% if object %}Edit Asset Type{% else %}Add Asset Type{% endif %}</h1>
+      <div class="text-muted small">Examples: Drone, Controller, Battery, Computer</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'assets:asset_type_list' %}">Back</a>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-body p-3 p-md-4">
+        <div class="row g-3">
+          <div class="col-12 col-md-8">
+            <label class="form-label">Name</label>
+            {{ form.name }}
+            {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors|striptags }}</div>{% endif %}
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">Sort order</label>
+            {{ form.sort_order }}
+            {% if form.sort_order.errors %}<div class="invalid-feedback d-block">{{ form.sort_order.errors|striptags }}</div>{% endif %}
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              {{ form.is_active }}
+              <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Active</label>
+            </div>
+            {% if form.is_active.errors %}<div class="invalid-feedback d-block">{{ form.is_active.errors|striptags }}</div>{% endif %}
+          </div>
+        </div>
+
+        <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
+          <a class="btn btn-outline-secondary" href="{% url 'assets:asset_type_list' %}">Cancel</a>
+          <button class="btn btn-brand" type="submit">
+            <i class="fa-solid fa-floppy-disk me-1"></i> Save
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

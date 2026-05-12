@@ -1,0 +1,69 @@
+{% extends "index.html" %}
+
+{% block title %}General Documents | 12bytes Suite{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-0 text-secondary-brand">General Documents</h1>
+      <div class="text-muted small">Business documents and compliance files</div>
+    </div>
+    <div class="d-grid d-md-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'documents:documents_portal' %}"><i class="fa-solid fa-arrow-left me-1"></i> Documents</a>
+      <a class="btn btn-brand" href="{% url 'documents:upload_general_document' %}"><i class="fa-solid fa-upload me-1"></i> Upload</a>
+    </div>
+  </div>
+
+  <form method="get" class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body row g-2 align-items-end">
+      <div class="col-12 col-md-5">
+        <label class="form-label fw-semibold" for="q">Search</label>
+        <input class="form-control" type="search" id="q" name="q" value="{{ search_query }}" placeholder="Title or description">
+      </div>
+      <div class="col-12 col-md-5">
+        <label class="form-label fw-semibold" for="category">Category</label>
+        <select class="form-select" name="category" id="category">
+          <option value="">All categories</option>
+          {% for value,label in categories %}
+            <option value="{{ value }}" {% if selected_category == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-2 d-grid"><button class="btn btn-outline-primary" type="submit">Apply</button></div>
+    </div>
+  </form>
+
+  <div class="card border-0 shadow-sm rounded-4">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Date</th><th>Document</th><th>Category</th><th>Description</th><th class="text-end pe-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in documents %}
+            <tr>
+              <td class="ps-3 text-nowrap">{{ doc.uploaded_at|date:"m/d/Y" }}</td>
+              <td class="fw-semibold">{{ doc.title }}</td>
+              <td>{{ doc.get_category_display }}</td>
+              <td class="text-muted">{{ doc.description|default:"—"|truncatechars:90 }}</td>
+              <td class="text-end pe-3">
+                <div class="btn-group btn-group-sm">
+                  <a class="btn btn-outline-primary" href="{{ doc.file.url }}" target="_blank" title="View"><i class="fa-solid fa-eye"></i></a>
+                  <a class="btn btn-outline-success" href="{{ doc.file.url }}" download title="Download"><i class="fa-solid fa-download"></i></a>
+                  <form method="post" action="{% url 'documents:delete_document' doc.pk %}" onsubmit="return confirm('Delete {{ doc.title|escapejs }}?');">{% csrf_token %}<button class="btn btn-outline-danger" type="submit" title="Delete"><i class="fa-solid fa-trash"></i></button></form>
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">No documents found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% include "documents/_pagination.html" %}
+</div>
+{% endblock %}

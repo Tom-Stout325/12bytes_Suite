@@ -1,0 +1,62 @@
+{% extends "index.html" %}
+
+{% block title %}Documents | 12bytes Suite{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-0 text-secondary-brand">Documents</h1>
+      <div class="text-muted small">Business-scoped drone operations documents, SOPs, and incident reports.</div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-4">
+      <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h2 class="h5 mb-1">General Documents</h2>
+              <div class="text-muted small">Insurance, waivers, registrations, legal, and compliance files.</div>
+            </div>
+            <i class="fa-solid fa-folder-open fs-3 text-secondary-brand"></i>
+          </div>
+          <div class="display-6 fw-bold my-3">{{ general_count }}</div>
+          <a class="btn btn-brand w-100" href="{% url 'documents:general_document_list' %}">Open documents</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-4">
+      <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h2 class="h5 mb-1">SOP Library</h2>
+              <div class="text-muted small">Standard operating procedures and reference files.</div>
+            </div>
+            <i class="fa-solid fa-clipboard-list fs-3 text-secondary-brand"></i>
+          </div>
+          <div class="display-6 fw-bold my-3">{{ sop_count }}</div>
+          <a class="btn btn-brand w-100" href="{% url 'documents:sop_list' %}">Open SOPs</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-4">
+      <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h2 class="h5 mb-1">Incident Reports</h2>
+              <div class="text-muted small">Create, view, and export drone incident reports.</div>
+            </div>
+            <i class="fa-solid fa-triangle-exclamation fs-3 text-secondary-brand"></i>
+          </div>
+          <div class="display-6 fw-bold my-3">{{ incident_count }}</div>
+          <a class="btn btn-brand w-100" href="{% url 'documents:incident_reporting_system' %}">Open incidents</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

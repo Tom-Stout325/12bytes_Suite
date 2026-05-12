@@ -1,0 +1,60 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Airborne Flight Map</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  {{ locations|json_script:"flight-locations" }}
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+  <script>
+    const map = L.map('map').setView([39.8283, -98.5795], 4);
+    const base = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+    base.addTo(map);
+
+    const data = JSON.parse(document.getElementById('flight-locations').textContent);
+    const markers = L.markerClusterGroup();
+
+    data.forEach(loc => {
+      const coords = loc.takeoff_latlong?.split(',').map(c => parseFloat(c.trim()));
+      if (coords && coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+        const marker = L.marker(coords);
+        const label = loc.takeoff_address || 'Flight';
+        marker.bindPopup(`<strong>${label}</strong><br>${loc.count} flight(s)`);
+        markers.addLayer(marker);
+      }
+    });
+
+    map.addLayer(markers);
+    if (markers.getLayers().length) {
+      map.fitBounds(markers.getBounds(), { padding: [20, 20] });
+    }
+  </script>
+</body>
+</html>

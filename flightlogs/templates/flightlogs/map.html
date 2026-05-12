@@ -1,0 +1,141 @@
+{% extends "index.html" %}
+{% load static %}
+
+{% block title %}Flight Map{% endblock %}
+
+{% block content %}
+
+
+
+<div class="container my-4">
+  <div class="card text-white shadow-sm mb-4" style="background-color: #1E2F52;">
+    <div class="card-body text-center">
+      <h6 class="text-uppercase fw-bold text-light mb-3">Flight Coverage</h6>
+      <div class="d-flex justify-content-center gap-4 align-items-center flex-wrap">
+        <div class="d-flex flex-column align-items-center">
+          <i class="fas fa-map-marker-alt" style="font-size: 1.5rem; color: #A51C30;"></i>
+          <div class="fw-bold mt-1">{{ num_cities }} Locations</div>
+        </div>
+        <div class="d-flex flex-column align-items-center">
+          <i class="fas fa-flag-usa" style="font-size: 1.5rem; color: #A51C30;"></i>
+          <div class="fw-bold mt-1">{{ num_states }} States</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="container my-4">
+  <div class="card shadow-lg">
+        <div class="card-header text-center bg-primary text-white">
+            <h5>Flight Map</h5>
+        </div>
+    <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+      <button id="reset-view" class="btn btn-sm btn-light text-primary fw-bold">Reset View</button>
+    </div>
+    <div class="card-body p-0">
+      <div id="map" style="height: 70vh; width: 100%;" class="rounded-bottom"></div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<!-- Embedded Flight Data -->
+{{ locations|json_script:"flight-locations" }}
+
+<script>
+  const data = JSON.parse(document.getElementById("flight-locations").textContent);
+
+  // Base tile layers
+  const street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  });
+
+  const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '&copy; Esri & contributors'
+  });
+
+  // Initialize map
+  const map = L.map('map', {
+    center: [39.8283, -98.5795],
+    zoom: 4,
+    layers: [street]
+  });
+
+  // Add basemap control
+  const baseMaps = {
+    "🗺️ Street": street,
+    "🛰️ Satellite": satellite
+  };
+  L.control.layers(baseMaps).addTo(map);
+
+  // Custom drone icon
+  const droneIcon = L.icon({
+    iconUrl: "{% static 'images/drone-marker.png' %}",
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32],
+    className: 'drone-marker'  // for animation
+  });
+
+  const markers = L.markerClusterGroup({ maxClusterRadius: 40 });
+  const bounds = [];
+
+  data.forEach(loc => {
+    if (!loc.takeoff_latlong) return;
+
+    const latlong = loc.takeoff_latlong.split(',').map(coord => parseFloat(coord.trim()));
+    if (latlong.length === 2 && !isNaN(latlong[0]) && !isNaN(latlong[1])) {
+      const label = loc.takeoff_address || `Flight (${loc.count})`;
+      const url = `{% url 'flightlogs:flightlog_list' %}?location=${encodeURIComponent(loc.takeoff_address || loc.takeoff_latlong)}`;
+      const marker = L.marker(latlong, { icon: droneIcon });
+
+      marker.bindPopup(`<a href="${url}" class="fw-bold text-decoration-none">${label}</a><br><span class="text-muted">Total flights: ${loc.count}</span>`);
+      markers.addLayer(marker);
+      bounds.push(latlong);
+
+      // animate marker drop after delay
+      setTimeout(() => {
+        marker._icon.classList.add('drop');
+      }, 100);
+    }
+  });
+
+  map.addLayer(markers);
+
+  const fullBounds = bounds.length > 0 ? L.latLngBounds(bounds) : null;
+  if (fullBounds) {
+    map.fitBounds(fullBounds, { padding: [30, 30] });
+  }
+
+  document.getElementById("reset-view").addEventListener("click", () => {
+    if (fullBounds) {
+      map.fitBounds(fullBounds, { padding: [30, 30] });
+    }
+  });
+</script>
+
+<!-- Drop animation CSS -->
+<style>
+  .drone-marker {
+    transform: translateY(-100px);
+    opacity: 0;
+    transition: all 0.6s ease;
+  }
+  .drone-marker.drop {
+    transform: translateY(0);
+    opacity: 1;
+  }
+</style>
+{% endblock %}

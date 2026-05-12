@@ -1,0 +1,16 @@
+{% extends "index.html" %}
+{% block title %}{% if log %}Edit Flight Log{% else %}Upload Flight Logs{% endif %}{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4"><h1 class="h3 mb-0">{% if log %}Edit Flight Log{% else %}Upload Flight Logs{% endif %}</h1><a href="{% url 'flightlogs:flightlog_list' %}" class="btn btn-outline-secondary btn-sm">Back to Logs</a></div>
+  <form method="post" enctype="multipart/form-data" class="card card-body shadow-sm">
+    {% csrf_token %}
+    {% if form.csv_file %}
+      <div class="mb-3"><label class="form-label" for="{{ form.csv_file.id_for_label }}">{{ form.csv_file.label }}</label>{{ form.csv_file }}{% for error in form.csv_file.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+    {% else %}
+      <div class="row g-3">{% for field in form %}<div class="col-md-6 {% if field.name == 'flight_description' or field.name == 'notes' %}col-md-12{% endif %}"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endfor %}</div>
+    {% endif %}
+    <div class="d-flex gap-2 mt-4"><button type="submit" class="btn btn-primary">{% if log %}Save Changes{% else %}Upload CSV{% endif %}</button><a href="{% url 'flightlogs:flightlog_list' %}" class="btn btn-outline-secondary">Cancel</a></div>
+  </form>
+</div>
+{% endblock %}
