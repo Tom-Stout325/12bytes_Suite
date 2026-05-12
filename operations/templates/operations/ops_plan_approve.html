@@ -1,0 +1,32 @@
+{% extends "index.html" %}
+{% block content %}
+<div class="container mt-5" style="max-width:720px;">
+  <h3 class="mb-4 text-center">Ops Plan Approval</h3>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h5>{{ plan.job_name }} — {{ plan.plan_year }}</h5>
+      <p class="text-muted small mb-2">
+        <strong>Location:</strong> {{ plan.address|default:"—" }}<br>
+        <strong>Dates:</strong> {{ plan.start_date }} – {{ plan.end_date }}
+      </p>
+
+      <div class="border rounded p-3 bg-light mb-3" style="white-space:pre-wrap;">
+        {{ plan.notes }}
+      </div>
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="form-check mb-3">
+          {{ form.approve }}
+          <label class="form-check-label" for="{{ form.approve.id_for_label }}">{{ form.approve.label }}</label>
+        </div>
+        <div class="mb-3">
+          {{ form.full_name }}
+        </div>
+        <button type="submit" class="btn btn-success w-100">Submit Approval</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

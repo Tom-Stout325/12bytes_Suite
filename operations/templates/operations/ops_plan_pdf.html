@@ -1,0 +1,169 @@
+{% load widget_tweaks %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ops Plan – {{ plan.job }}</title>
+<style>
+  /* Single page */
+  @page { size: A4; margin: 12mm 14mm 16mm 14mm; }
+
+  body{
+    font: 400 12.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:#111827;
+    margin:0; padding:0;
+  }
+  h1,h2{ margin:0 0 8px 0; }
+  h1{ font-weight:700; font-size:22px; text-align:center; }
+  h2{ font-weight:700; font-size:13.5px; }
+  .muted{ color:#6b7280; }
+  .small{ font-size:11px; }
+
+  .page{ max-width:170mm; margin:0 auto; }
+
+  .title-wrap{ text-align:center; margin-top:4mm; }
+  .logo{ height:26mm; display:block; margin:0 auto 3mm auto; }
+
+  .status-row{ margin:3mm 0 2mm 0; }
+  .status-pill{
+    display:inline-block; padding:2px 8px; border-radius:999px; font-size:10.5px; line-height:1.2;
+    background:#10b981; color:#fff; border:1px solid #059669;
+  }
+  .hr{ height:1px; background:#94a3b8; margin:2mm 0 4mm 0; }
+
+  .cols-table{ width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; }
+  .cols-table td{ vertical-align:top; width:50%; padding:0 3mm 0 0; }
+  .cols-table td:last-child{ padding-right:0; padding-left:3mm; }
+
+  table.kv{ width:100%; border-collapse:separate; border-spacing:0 2mm; table-layout:fixed; }
+  .kv .label{ width:34mm; font-weight:600; white-space:nowrap; }
+  .kv .value{ overflow-wrap:break-word; word-break:break-word; hyphens:auto; white-space:normal; line-height:1.35; }
+
+  .section{ margin:5mm 0 0 0; }
+  .box{ border:1px solid #84cc16; border-radius:6px; padding:9px; min-height:24mm; }
+
+  .approval{ border:1px dashed #64748b; border-radius:6px; padding:9px; margin-top:5mm; }
+  .approval .row{ width:100%; display:table; table-layout:fixed; }
+  .approval .cell{ display:table-cell; width:33%; padding-right:4mm; vertical-align:top; }
+  .approval .cell:last-child{ padding-right:0; }
+  .approval .meta{ margin-top:3mm; font-size:10.5px; color:#475569; }
+
+  /* Inline footer (no fixed positioning) */
+  .footer{
+    margin-top:6mm;
+    font-size:10.5px; color:#334155;
+  }
+  .footer table{ width:64mm; margin:0 auto; border-collapse:collapse; }
+  .footer td{ padding:0 8px; text-align:center; }
+</style>
+</head>
+<body>
+  <div class="page">
+    {% if logo_url %}
+      <img class="logo" src="{{ logo_url }}" alt="{{ brand_name|default:'Airborne Images' }} Logo">
+    {% endif %}
+
+    <div class="title-wrap">
+      <h1>{{ plan.job_name|default:plan.job }} — {{ plan.plan_year }}</h1>
+    </div>
+
+    <div class="status-row">
+      <span class="muted small">Status:</span>
+      {% if plan.status == 'Approved' %}
+        <span class="status-pill">Approved</span>
+      {% elif plan.status == 'In Review' %}
+        <span class="status-pill" style="background:#fde68a; color:#7c2d12; border-color:#f59e0b;">In&nbsp;Review</span>
+      {% elif plan.status == 'Archived' %}
+        <span class="status-pill" style="background:#e5e7eb; color:#374151; border-color:#d1d5db;">Archived</span>
+      {% else %}
+        <span class="status-pill" style="background:#bae6fd; color:#0c4a6e; border-color:#38bdf8;">Draft</span>
+      {% endif %}
+      {% if plan.waivers_required %}
+        <span class="status-pill" style="background:#fee2e2; color:#991b1b; border-color:#ef4444; margin-left:6px;">Waiver&nbsp;Required</span>
+      {% endif %}
+    </div>
+
+    <div class="hr"></div>
+
+    <table class="cols-table section">
+      <tr>
+        <td>
+          <h2>Location Details:</h2>
+          <table class="kv">
+            <tr><td class="label">Job:</td>    <td class="value">{{ plan.job }}</td></tr>
+            <tr><td class="label">Location:</td> <td class="value">{{ plan.address|default:"—" }}</td></tr>
+            <tr>
+              <td class="label">Dates:</td>
+              <td class="value">
+                {% if plan.start_date and plan.end_date and plan.start_date == plan.end_date %}
+                  {{ plan.start_date|date:"m/d/Y" }}
+                {% else %}
+                  {{ plan.start_date|date:"m/d/Y"|default:"—" }} — {{ plan.end_date|date:"m/d/Y"|default:"—" }}
+                {% endif %}
+              </td>
+            </tr>
+            <tr><td class="label">Client:</td>   <td class="value">{{ plan.client|default:"—" }}</td></tr>
+          </table>
+        </td>
+        <td>
+          <h2>Operation Details:</h2>
+          <table class="kv">
+            <tr><td class="label">RPIC:</td>            <td class="value">{{ plan.pilot_in_command|default:"—" }}</td></tr>
+            <tr><td class="label">Airspace Class:</td>  <td class="value">{{ plan.airspace_class|default:"—" }}</td></tr>
+            <tr><td class="label">Visual Observer:</td> <td class="value">{{ plan.visual_observers|default:"—" }}</td></tr>
+            <tr><td class="label">Nearest Airport:</td> <td class="value">{{ plan.airport|default:"—" }}</td></tr>
+            <tr><td class="label">Airport Phone:</td>   <td class="value">{{ plan.airport_phone|default:"—" }}</td></tr>
+            <tr><td class="label">Waiver Required:</td> <td class="value">{{ plan.waivers_required|yesno:"Yes,No" }}</td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <div class="section">
+      <h2>Notes:</h2>
+      <div class="box">{{ plan.notes|linebreaksbr|default:"&nbsp;"|safe }}</div>
+    </div>
+
+    <div class="section">
+      <h2>Emergency Procedures:</h2>
+      <div class="box">{{ plan.emergency_procedures|linebreaksbr|default:"&nbsp;"|safe }}</div>
+    </div>
+
+    <div class="section">
+      <h2>Client Approval:</h2>
+      <div class="box">{{ plan.client_approval_notes|linebreaksbr|default:"&nbsp;"|safe }}</div>
+    </div>
+
+    <div class="approval">
+      <h2>Approval Details</h2>
+      {% if plan.approved_at %}
+        <div class="row">
+          <div class="cell"><strong>Approved By</strong><br>{{ plan.approved_name|default:"—" }}</div>
+          <div class="cell"><strong>Email</strong><br>{{ plan.approved_email|default:"—" }}</div>
+          <div class="cell"><strong>Approved At</strong><br>{{ plan.approved_at|date:"m/d/Y g:i A" }}</div>
+        </div>
+        <div class="meta">
+          <strong>IP / User Agent:</strong>
+          {{ plan.approved_ip|default:"—" }}{% if plan.approved_user_agent %} — {{ plan.approved_user_agent }}{% endif %}<br>
+          <strong>Notes Snapshot:</strong> Stored with approval record.
+          {% if plan.attestation_hash %}<br><strong>Attestation Hash:</strong> {{ plan.attestation_hash }}{% endif %}
+        </div>
+      {% else %}
+        <div class="small muted">
+         <p>Signature:_______________________________ &nbsp;&nbsp;Date:____________________</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Inline footer (no fixed, so it won’t force a new page) -->
+    <div class="footer">
+      <table>
+        <tr>
+          <td><strong>Created By</strong><br>{{ plan.created_by|default:"—" }}</td>
+          <td><strong>Created On</strong><br>{{ plan.created_at|date:"m/d/Y" }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

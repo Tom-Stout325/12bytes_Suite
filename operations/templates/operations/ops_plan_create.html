@@ -1,0 +1,178 @@
+{% extends "index.html" %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h4 class="mb-0">
+        {% if view.object.job %}
+          New Ops Plan for: {{ view.object.job }}
+        {% elif plan %}
+          Edit Ops Plan — {{ plan.job }} ({{ plan.plan_year }})
+        {% else %}
+          Ops Plan
+        {% endif %}
+      </h4>
+      <div class="text-muted small">
+        {% if plan %}
+          Status: <span class="fw-medium">{{ plan.status }}</span> • Updated: {{ plan.updated_at|date:"m/d/Y" }}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      {% if view.object.job %}
+        <a href="{% url 'operations:ops_plan_index' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="fa-solid fa-arrow-left"></i> Back to List
+        </a>
+      {% elif plan %}
+        <a href="{% url 'operations:ops_plan_index' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="fa-solid fa-arrow-left"></i> Back to List
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      {# Post back to the same URL handled by Create/UpdateView #}
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Event Name</label>
+            {{ form.event_name|add_class:"form-control" }}
+            {% if form.event_name.errors %}<div class="text-danger small">{{ form.event_name.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Plan Year</label>
+            {{ form.plan_year|add_class:"form-control" }}
+            {% if form.plan_year.errors %}<div class="text-danger small">{{ form.plan_year.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Start</label>
+            {{ form.start_date|add_class:"form-control" }}
+            {% if form.start_date.errors %}<div class="text-danger small">{{ form.start_date.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">End</label>
+            {{ form.end_date|add_class:"form-control" }}
+            {% if form.end_date.errors %}<div class="text-danger small">{{ form.end_date.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Client</label>
+            {{ form.client|add_class:"form-select" }}
+            {% if form.client.errors %}<div class="text-danger small">{{ form.client.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Address</label>
+            {{ form.address|add_class:"form-control" }}
+            {% if form.address.errors %}<div class="text-danger small">{{ form.address.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Pilot in Command</label>
+            {{ form.pilot_in_command|add_class:"form-control" }}
+            {% if form.pilot_in_command.errors %}<div class="text-danger small">{{ form.pilot_in_command.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Visual Observers</label>
+            {{ form.visual_observers|add_class:"form-control" }}
+            {% if form.visual_observers.errors %}<div class="text-danger small">{{ form.visual_observers.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Airspace Class</label>
+            {{ form.airspace_class|add_class:"form-control" }}
+            {% if form.airspace_class.errors %}<div class="text-danger small">{{ form.airspace_class.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-md-3 d-flex align-items-center">
+            <div class="form-check mt-4">
+              {{ form.waivers_required|add_class:"form-check-input" }}
+              <label class="form-check-label">Waivers Required?</label>
+            </div>
+            {% if form.waivers_required.errors %}<div class="text-danger small ms-2">{{ form.waivers_required.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Airport</label>
+            {{ form.airport|add_class:"form-control" }}
+            {% if form.airport.errors %}<div class="text-danger small">{{ form.airport.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Airport Phone</label>
+            {{ form.airport_phone|add_class:"form-control" }}
+            {% if form.airport_phone.errors %}<div class="text-danger small">{{ form.airport_phone.errors }}</div>{% endif %}
+          </div>
+
+          <hr class="my-3">
+
+          <div class="col-12">
+            <label class="form-label fw-bold">Notes</label>
+            {{ form.notes|add_class:"form-control" }}
+            {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-12 mb-2">
+            <label class="form-label fw-bold">Emergency Procedures</label>
+            {{ form.emergency_procedures|add_class:"form-control" }}
+            {% if form.emergency_procedures.errors %}<div class="text-danger small">{{ form.emergency_procedures.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-bold">Client Approval Requirements</label>
+            {{ form.client_approval_notes|add_class:"form-control" }}
+            {% if form.client_approval_notes.errors %}<div class="text-danger small">{{ form.client_approval_notes.errors }}</div>{% endif %}
+          </div>
+
+          <hr class="my-3">
+
+          <div class="col-md-4">
+            <label class="form-label">Waiver (file)</label>
+            {{ form.waiver|add_class:"form-control" }}
+            {% if form.waiver.errors %}<div class="text-danger small">{{ form.waiver.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Location Map</label>
+            {{ form.location_map|add_class:"form-control" }}
+            {% if form.location_map.errors %}<div class="text-danger small">{{ form.location_map.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Client Approval (file)</label>
+            {{ form.client_approval|add_class:"form-control" }}
+            {% if form.client_approval.errors %}<div class="text-danger small">{{ form.client_approval.errors }}</div>{% endif %}
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+          {% if view.object.job %}
+            <a href="{% url 'operations:ops_plan_index' %}" class="btn btn-outline-secondary">
+              <i class="fa-solid fa-xmark"></i> Cancel
+            </a>
+          {% elif plan %}
+            <a href="{% url 'operations:ops_plan_index' %}" class="btn btn-outline-secondary">
+              <i class="fa-solid fa-xmark"></i> Cancel
+            </a>
+          {% else %}
+            <a href="javascript:history.back()" class="btn btn-outline-secondary">
+              <i class="fa-solid fa-xmark"></i> Cancel
+            </a>
+          {% endif %}
+
+          <button type="submit" class="btn btn-success">
+            <i class="fa-solid fa-save"></i> Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
