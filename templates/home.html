@@ -1,0 +1,127 @@
+{% extends "index.html" %}
+{% load static %}
+
+{% block title %}MoneyPro{% endblock %}
+
+{% block content %}
+<style>
+  .mp-splash-wrap {
+    padding: 1rem 0 2rem;
+  }
+
+  .mp-hero-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.5rem;
+    background: linear-gradient(180deg, #f7f9fc 0%, #eef3f8 100%);
+    box-shadow: 0 1rem 2rem rgba(31, 45, 61, 0.08);
+  }
+
+  .mp-hero-image {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .mp-hero-overlay {
+    position: absolute;
+    left: 50%;
+    bottom: 1.25rem;
+    transform: translateX(-50%);
+    z-index: 3;
+    width: calc(100% - 2rem);
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .mp-floating-btn {
+    min-width: 150px;
+    border-radius: 999px;
+    padding: 0.85rem 1.4rem;
+    font-weight: 600;
+    font-size: 1rem;
+    box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.12);
+  }
+
+  .mp-demo-btn {
+    background-color: rgba(255, 255, 255, 0.96);
+    border: 1px solid #2c5e86;
+    color: #2c5e86;
+    pointer-events: none;
+    cursor: default;
+  }
+
+  .mp-demo-btn:hover,
+  .mp-demo-btn:focus {
+    background-color: rgba(255, 255, 255, 0.96);
+    border-color: #2c5e86;
+    color: #2c5e86;
+  }
+
+  .mp-signed-in-actions {
+    padding: 1.25rem 1rem 0;
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .mp-signed-in-actions .btn {
+    min-width: 160px;
+    border-radius: 999px;
+  }
+
+  @media (min-width: 768px) {
+    .mp-splash-wrap {
+      padding: 1.5rem 0 2.5rem;
+    }
+
+    .mp-hero-overlay {
+      bottom: 2rem;
+      gap: 1rem;
+    }
+
+    .mp-floating-btn {
+      min-width: 180px;
+      font-size: 1.05rem;
+      padding: 0.95rem 1.8rem;
+    }
+  }
+</style>
+
+<div class="container py-3 py-md-4">
+  <div class="mp-splash-wrap">
+    <div class="mp-hero-card">
+      <img
+        src="{% static 'images/moneypro-splash.png' %}"
+        alt="MoneyPro hero banner"
+        class="mp-hero-image"
+      >
+
+      {% if not user.is_authenticated %}
+        <div class="mp-hero-overlay">
+          <a href="{% url 'account_login' %}" class="btn btn-primary mp-floating-btn">
+            Sign in
+          </a>
+          <button type="button" class="btn mp-floating-btn mp-demo-btn">
+            View Demo
+          </button>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if user.is_authenticated %}
+      <div class="mp-signed-in-actions">
+        <a href="#" class="btn btn-primary">
+          Go to Dashboard
+        </a>
+        <a href="{% url 'account_logout' %}" class="btn btn-outline-secondary">
+          Sign out
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,358 @@
+{% load humanize %}
+{% load formatting %}
+
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Invoice {{ invoice.invoice_number }}</title>
+  <style>
+    @page { size: Letter; margin: 0.6in; }
+
+    html, body {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 11px;
+      color: #111;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    .muted { color: #666; }
+    .small { font-size: 10px; }
+    .right { text-align: right; }
+    .spacer { height: 14px; }
+
+    .h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 4px 0;
+    }
+
+    .h2 {
+      font-size: 12px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .box {
+      border: 1px solid #e6e6e6;
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .header-table,
+    .info-table,
+    .items-table,
+    .totals-table,
+    .footer-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .header-left,
+    .header-right,
+    .info-left,
+    .info-right {
+      vertical-align: top;
+    }
+
+    .header-right {
+      text-align: right;
+      width: 210px;
+    }
+
+    .logo {
+      width: 120px;
+      height: auto;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .company-block {
+      line-height: 1.45;
+    }
+
+    .info-left,
+    .info-right {
+      width: 50%;
+    }
+
+    .info-split td {
+      vertical-align: top;
+      width: 50%;
+    }
+
+    .meta-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .meta-table td {
+      padding: 4px 0;
+      vertical-align: top;
+    }
+
+    .meta-table td:last-child {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .items-table th,
+    .items-table td {
+      padding: 8px 6px;
+      vertical-align: top;
+    }
+
+    .items-table thead th {
+      border-bottom: 1px solid #ddd;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: #555;
+      text-align: left;
+    }
+
+    .items-table tbody td {
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .items-table .num,
+    .totals-table .num {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .totals-wrap {
+      margin-top: 14px;
+    }
+
+    .totals-table {
+      width: 260px;
+      margin-left: auto;
+    }
+
+    .totals-table td {
+      border: none;
+      padding: 4px 0;
+    }
+
+    .totals-table .divider td {
+      padding: 0;
+      height: 8px;
+      border-top: 1px solid #cfcfcf;
+    }
+
+    .totals-table .label {
+      color: #666;
+    }
+
+    .totals-table .grand {
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .footer-space {
+      height: 24px;
+    }
+
+    .thanks {
+      text-align: center;
+      font-size: 12px;
+      color: #444;
+      margin-top: 18px;
+      margin-bottom: 10px;
+      letter-spacing: 0.2px;
+    }
+
+    .footer {
+      border-top: 1px solid #e9ecef;
+      padding-top: 10px;
+      text-align: center;
+      font-size: 11px;
+      color: #555;
+    }
+
+    .footer-divider {
+      margin: 0 10px;
+      color: #2b6cb0;
+      opacity: 0.55;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <table class="header-table">
+    <tr>
+      <td class="header-left">
+        {% if company and company.logo %}
+          <img class="logo" src="{{ company.logo.url }}" alt="Logo" />
+        {% endif %}
+
+        <div class="company-block">
+          <div class="h2">{% if company %}{{ company.company_name }}{% else %}{{ business.name }}{% endif %}</div>
+
+          {% if company %}
+            <div class="muted small">
+              {% if company.phone %}{{ company.phone_display }}{% endif %}
+              {% if company.billing_email %}<br>{{ company.billing_email }}{% endif %}
+              {% if company.website %}{{ company.website }}{% endif %}
+            </div>
+
+            {% if company.address_line1 or company.city %}
+              <div class="muted small" style="margin-top: 4px;">
+                {{ company.address_line1 }}{% if company.address_line2 %}, {{ company.address_line2 }}{% endif %}<br>
+                {{ company.city }}{% if company.state %}, {{ company.state }}{% endif %} {{ company.postal_code }}
+              </div>
+            {% endif %}
+          {% endif %}
+        </div>
+      </td>
+
+      <td class="header-right">
+        <div class="h1">Invoice</div>
+        <div class="h2"># {{ invoice.invoice_number|default:"(draft)" }}</div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="spacer"></div>
+
+  <table class="info-table info-split">
+    <tr>
+      <td class="info-left" style="padding-right: 9px;">
+        <div class="box">
+          <div class="h2">Bill To</div>
+          <div class="spacer" style="height:6px"></div>
+
+          {% if invoice.bill_to_name %}
+            <div><strong>{{ invoice.bill_to_name }}</strong></div>
+            {% if invoice.bill_to_email %}<div class="muted">{{ invoice.bill_to_email }}</div>{% endif %}
+            {% if invoice.bill_to_address1 %}<div class="muted">{{ invoice.bill_to_address1 }}</div>{% endif %}
+            {% if invoice.bill_to_address2 %}<div class="muted">{{ invoice.bill_to_address2 }}</div>{% endif %}
+            <div class="muted">
+              {{ invoice.bill_to_city }}{% if invoice.bill_to_state %}, {{ invoice.bill_to_state }}{% endif %} {{ invoice.bill_to_postal_code }}
+            </div>
+          {% else %}
+            <div><strong>{{ invoice.contact.display_name }}</strong></div>
+            {% if invoice.contact.email %}<div class="muted">{{ invoice.contact.email }}</div>{% endif %}
+            {% if invoice.contact.address1 %}<div class="muted">{{ invoice.contact.address1 }}</div>{% endif %}
+            {% if invoice.contact.address2 %}<div class="muted">{{ invoice.contact.address2 }}</div>{% endif %}
+            <div class="muted">
+              {{ invoice.contact.city }}{% if invoice.contact.state %}, {{ invoice.contact.state }}{% endif %} {{ invoice.contact.zip_code }}
+            </div>
+          {% endif %}
+        </div>
+      </td>
+
+      <td class="info-right" style="padding-left: 9px;">
+        <div class="box">
+          <div class="h2">Details</div>
+          <div class="spacer" style="height:6px"></div>
+
+          <table class="meta-table">
+            <tr>
+              <td class="muted">Issue date</td>
+              <td>{{ invoice.issue_date|date:"m/d/Y" }}</td>
+            </tr>
+            <tr>
+              <td class="muted">Due date</td>
+              <td>{% if invoice.due_date %}{{ invoice.due_date|date:"m/d/Y" }}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td class="muted">Job</td>
+              <td>{% if invoice.job %}{{ invoice.job.label }}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td class="muted">Location</td>
+              <td>{% if invoice.location %}{{ invoice.location }}{% else %}—{% endif %}</td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="spacer"></div>
+
+  <div class="box">
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="width: 48%;">Description</th>
+          <th style="width: 18%;">Category</th>
+          <th class="num" style="width: 10%;">Qty</th>
+          <th class="num" style="width: 12%;">Rate</th>
+          <th class="num" style="width: 12%;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in invoice.items.all %}
+          <tr>
+            <td>
+              <div><strong>{{ item.description }}</strong></div>
+              {% if invoice.memo and forloop.first %}
+                <div class="muted small" style="margin-top:4px;">{{ invoice.memo|linebreaksbr }}</div>
+              {% endif %}
+            </td>
+            <td class="muted">{% if item.subcategory %}{{ item.subcategory.name }}{% else %}—{% endif %}</td>
+            <td class="num">{{ item.qty|floatformat:2 }}</td>
+            <td class="num">${{ item.unit_price|floatformat:2|intcomma }}</td>
+            <td class="num"><strong>${{ item.line_total|floatformat:2|intcomma }}</strong></td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="muted">No line items.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="totals-wrap">
+      <table class="totals-table">
+        <tr class="divider">
+          <td colspan="2"></td>
+        </tr>
+        <tr>
+          <td class="label grand">Invoice Total</td>
+          <td class="num grand">${{ invoice.total|floatformat:2|intcomma }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="thanks">Thank you for your business!</div>
+
+  <div class="footer">
+    {% if company %}
+      {{ company.company_name }}
+    {% else %}
+      {{ invoice.business.company_profile.company_name }}
+    {% endif %}
+
+    {% with cp=invoice.business.company_profile %}
+      {% if cp.billing_email or cp.phone or cp.website %}
+        <span class="footer-divider">|</span>
+      {% endif %}
+
+      {% if cp.billing_email %}
+        <span>{{ cp.billing_email }}</span>
+      {% endif %}
+
+      {% if cp.phone %}
+        {% if cp.billing_email %}<span class="footer-divider">|</span>{% endif %}
+        <span>{{ cp.phone|phone_us }}</span>
+      {% endif %}
+
+      {% if cp.website %}
+        {% if cp.billing_email or cp.phone %}<span class="footer-divider">|</span>{% endif %}
+        <span>{{ cp.website }}</span>
+      {% endif %}
+    {% endwith %}
+  </div>
+
+</body>
+</html>

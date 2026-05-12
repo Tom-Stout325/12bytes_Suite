@@ -1,0 +1,248 @@
+{% extends "index.html" %}
+{% load crispy_forms_tags %}
+{% load humanize %}
+
+{% block title %}{% if invoice %}Edit Invoice{% else %}New Invoice{% endif %} | MoneyPro{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Hide inline delete checkboxes; toggle via JS */
+  input[type="checkbox"][name$="-DELETE"] { display: none !important; }
+  #items-table input.form-control,
+  #items-table select.form-select {
+    padding-top: .35rem;
+    padding-bottom: .35rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3" style="max-width: 980px;">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-0">{% if invoice %}Edit Invoice{% else %}New Invoice{% endif %}</h1>
+      <div class="text-muted small">Draft invoices are editable until sent.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'invoices:invoice_list' %}">Back</a>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-3 p-md-4">
+      <form method="post" novalidate autocomplete="off">
+        {% csrf_token %}
+
+        {{ formset.management_form }}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+        {% if formset.non_form_errors %}
+          <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
+        {% endif %}
+
+        <div class="mb-3">
+          {{ form|crispy }}
+        </div>
+
+        <hr class="my-4">
+
+        <div class="d-flex justify-content-between align-items-end gap-3 mb-2">
+          <div>
+            <h2 class="h6 mb-0">Line items</h2>
+            <p class="small text-muted mb-0">Add one or more items. Totals update as you type.</p>
+          </div>
+          <button type="button" class="btn btn-outline-primary btn-sm" id="add-line-item-btn">
+            + Add line item
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle" id="items-table">
+            <thead class="table-light">
+              <tr>
+                <th style="min-width: 260px;">Description</th>
+                <th style="min-width: 220px;">Sub Category</th>
+                <th class="text-end" style="width: 110px;">Qty</th>
+                <th class="text-end" style="width: 130px;">Price</th>
+                <th class="text-end" style="width: 140px;">Line total</th>
+                <th style="width: 60px;"></th>
+              </tr>
+            </thead>
+            <tbody id="items-tbody">
+              {% for f in formset.forms %}
+                <tr class="item-row">
+                  <td>
+                    {{ f.description }}
+                    {% if f.description.errors %}<div class="invalid-feedback d-block">{{ f.description.errors|striptags }}</div>{% endif %}
+                  </td>
+                  <td>
+                    {{ f.subcategory }}
+                    {% if f.subcategory.errors %}<div class="invalid-feedback d-block">{{ f.subcategory.errors|striptags }}</div>{% endif %}
+                  </td>
+                  <td class="text-end">
+                    {{ f.qty }}
+                    {% if f.qty.errors %}<div class="invalid-feedback d-block">{{ f.qty.errors|striptags }}</div>{% endif %}
+                  </td>
+                  <td class="text-end">
+                    {{ f.unit_price }}
+                    {% if f.unit_price.errors %}<div class="invalid-feedback d-block">{{ f.unit_price.errors|striptags }}</div>{% endif %}
+                  </td>
+                  <td class="text-end">
+                    <span class="line-total">$0.00</span>
+                  </td>
+                  <td class="text-end">
+                    {{ f.sort_order.as_hidden }}
+                    {{ f.id }}
+                    {{ f.DELETE }}
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-line-btn" title="Remove">
+                      &times;
+                    </button>
+                  </td>
+                </tr>
+              {% empty %}
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr class="table-light">
+                <td colspan="4" class="text-end fw-semibold">Total</td>
+                <td class="text-end fw-semibold" id="invoice-running-total">$0.00</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <template id="empty-form-template">
+          <tr class="item-row">
+            <td>__DESC__</td>
+            <td>__SUBCAT__</td>
+            <td class="text-end">__QTY__</td>
+            <td class="text-end">__PRICE__</td>
+            <td class="text-end"><span class="line-total">$0.00</span></td>
+            <td class="text-end">
+              __ORDER____ID____DEL__
+              <button type="button" class="btn btn-outline-danger btn-sm remove-line-btn" title="Remove">&times;</button>
+            </td>
+          </tr>
+        </template>
+
+        <div class="d-grid d-md-flex gap-2 mt-4">
+          <button type="submit" class="btn btn-primary">Save</button>
+          {% if invoice %}
+            <a class="btn btn-outline-secondary" href="{% url 'invoices:invoice_detail' invoice.pk %}">Cancel</a>
+          {% endif %}
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  const tbody = document.getElementById("items-tbody");
+  const addBtn = document.getElementById("add-line-item-btn");
+  const totalEl = document.getElementById("invoice-running-total");
+
+  const totalForms = document.getElementById("id_items-TOTAL_FORMS");
+  const emptyTemplate = document.getElementById("empty-form-template").innerHTML;
+
+  function money(n) {
+    const v = (isFinite(n) ? n : 0);
+    return "$" + v.toFixed(2);
+  }
+
+  function parseNumber(val) {
+    const n = parseFloat(String(val || "").replace(/[^0-9.\-]/g, ""));
+    return isFinite(n) ? n : 0;
+  }
+
+  function recalc() {
+    let sum = 0;
+    tbody.querySelectorAll("tr.item-row").forEach(row => {
+      const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+      if (del && del.checked) { 
+        row.classList.add("d-none");
+        return;
+      }
+      row.classList.remove("d-none");
+
+      const qtyInput = row.querySelector('input[name$="-qty"]');
+      const priceInput = row.querySelector('input[name$="-unit_price"]');
+      const qty = parseNumber(qtyInput && qtyInput.value);
+      const price = parseNumber(priceInput && priceInput.value);
+      const line = qty * price;
+      sum += line;
+      const lt = row.querySelector(".line-total");
+      if (lt) lt.textContent = money(line);
+    });
+    totalEl.textContent = money(sum);
+  }
+
+  function wireRow(row) {
+    row.querySelectorAll('input[name$="-qty"], input[name$="-unit_price"]').forEach(inp => {
+      inp.addEventListener("input", recalc);
+      inp.addEventListener("change", recalc);
+    });
+
+    const btn = row.querySelector(".remove-line-btn");
+    if (btn) {
+      btn.addEventListener("click", () => {
+        const del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+        if (del) {
+          del.checked = true;
+          recalc();
+        } else {
+          row.remove();
+          recalc();
+        }
+      });
+    }
+  }
+
+
+  // Wire existing rows
+  tbody.querySelectorAll("tr.item-row").forEach(wireRow);
+
+  // Build new row from server-rendered empty_form fields
+  function addNewRow() {
+    const idx = parseInt(totalForms.value, 10);
+    const prefix = "items-" + idx + "-";
+
+    const desc = `{{ formset.empty_form.description|escapejs }}`.replaceAll("__prefix__", String(idx));
+    const subcat = `{{ formset.empty_form.subcategory|escapejs }}`.replaceAll("__prefix__", String(idx));
+    const qty = `{{ formset.empty_form.qty|escapejs }}`.replaceAll("__prefix__", String(idx));
+    const price = `{{ formset.empty_form.unit_price|escapejs }}`.replaceAll("__prefix__", String(idx));
+    const order = `{{ formset.empty_form.sort_order.as_hidden|escapejs }}`.replaceAll("__prefix__", String(idx));
+    const hid = `{{ formset.empty_form.id|escapejs }}`.replaceAll("__prefix__", String(idx));
+    const del = `{{ formset.empty_form.DELETE|escapejs }}`.replaceAll("__prefix__", String(idx));
+
+    let html = emptyTemplate
+      .replace("__DESC__", desc)
+      .replace("__SUBCAT__", subcat)
+      .replace("__QTY__", qty)
+      .replace("__PRICE__", price)
+      .replace("__ORDER__", order)
+      .replace("__ID__", hid)
+      .replace("__DEL__", del);
+
+    const tmp = document.createElement("tbody");
+    tmp.innerHTML = html.trim();
+    const row = tmp.firstElementChild;
+    tbody.appendChild(row);
+
+    totalForms.value = String(idx + 1);
+    wireRow(row);
+    recalc();
+  }
+
+  if (addBtn) addBtn.addEventListener("click", addNewRow);
+
+  // initial totals
+  recalc();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,15 @@
+Dry run command:
+
+heroku run -a <APP_NAME> -- python manage.py import_invoices \
+  --business-id 1 \
+  --invoices-csv /app/invoices_clean_ready_for_import.csv \
+  --items-csv /app/invoice_items_clean_ready_for_import.csv \
+  --dry-run
+
+
+  import command:
+
+  heroku run -a <APP_NAME> -- python manage.py import_invoices \
+  --business-id 1 \
+  --invoices-csv /app/invoices_clean_ready_for_import.csv \
+  --items-csv /app/invoice_items_clean_ready_for_import.csv

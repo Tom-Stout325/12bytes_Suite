@@ -1,0 +1,132 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}Assets | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+
+  <!-- Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-0 text-secondary-brand">Assets</h1>
+      <div class="text-muted small">Track business property, receipts, and depreciation details</div>
+    </div>
+    <div class="d-grid d-md-flex gap-2">
+      <a class="btn btn-brand" href="{% url 'assets:asset_create' %}">
+        <i class="fa-solid fa-plus me-1"></i> Add asset
+      </a>
+      {% include "core/_export_button.html" %}
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card shadow-sm border-0 rounded-4 mb-3">
+    <div class="card-body p-3">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-md-4">
+          <label class="form-label small text-muted mb-1">Type</label>
+          <select name="type" class="form-select" onchange="this.form.submit()">
+            <option value="">All</option>
+            {% for value,label in type_choices %}
+              <option value="{{ value }}" {% if value == type_filter %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-8 d-flex justify-content-md-end">
+          {% if type_filter %}
+            <a class="btn btn-outline-secondary mt-2 mt-md-0" href="{% url 'assets:asset_list' %}">
+              Clear filter
+            </a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-0">
+
+      {% if assets %}
+        <!-- Mobile list -->
+        <div class="d-md-none">
+          <div class="list-group list-group-flush">
+            {% for a in assets %}
+              <a class="list-group-item list-group-item-action p-3" href="{% url 'assets:asset_detail' a.pk %}">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div>
+                    <div class="fw-semibold">{{ a.name }}</div>
+                    <div class="small text-muted">
+                      {{ a.get_asset_type_display }} • Purchased {{ a.purchase_date|date:"M j, Y" }}
+                      {% if a.vehicle %} • {{ a.vehicle.label }}{% endif %}
+                    </div>
+                  </div>
+                  <div class="text-end">
+                    <div class="fw-semibold">{{ a.purchase_price|floatformat:2|intcomma }}</div>
+                    <div class="small text-muted">Basis</div>
+                  </div>
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Desktop table -->
+        <div class="d-none d-md-block">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Purchased</th>
+                  <th class="text-end">Price</th>
+                  <th>Vehicle</th>
+                  <th class="text-end pe-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for a in assets %}
+                  <tr>
+                    <td class="ps-3">
+                      <a class="text-decoration-none fw-semibold" href="{% url 'assets:asset_detail' a.pk %}">
+                        {{ a.name }}
+                      </a>
+                    </td>
+                    <td>{{ a.get_asset_type_display }}</td>
+                    <td>{{ a.purchase_date|date:"Y-m-d" }}</td>
+                    <td class="text-end">{{ a.purchase_price|floatformat:2|intcomma }}</td>
+                    <td>{% if a.vehicle %}{{ a.vehicle.label }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                    <td class="text-end pe-3">
+                      <a class="btn btn-sm btn-outline-secondary" href="{% url 'assets:asset_update' a.pk %}">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                      </a>
+                      <a class="btn btn-sm btn-outline-danger" href="{% url 'assets:asset_delete' a.pk %}">
+                        <i class="fa-solid fa-trash"></i>
+                      </a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      {% else %}
+        <div class="p-4">
+          <div class="text-muted">No assets yet.</div>
+          <div class="mt-2">
+            <a class="btn btn-brand" href="{% url 'assets:asset_create' %}">
+              <i class="fa-solid fa-plus me-1"></i> Add your first asset
+            </a>
+          </div>
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

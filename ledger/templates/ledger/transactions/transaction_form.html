@@ -1,0 +1,195 @@
+
+{% extends "index.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if object %}Edit Transaction{% else %}Add Transaction{% endif %} | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+
+  <div class="card shadow-sm card-table-accent">
+    <div class="card-header dash-card-head d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="h5 mb-0">{% if object %}Edit Transaction{% else %}Add Transaction{% endif %}</h1>
+        <div class="text-muted small">Fields update based on Sub-Category.</div>
+      </div>
+
+      <div class="d-none d-md-flex gap-2">
+        <a href="{% url 'ledger:transaction_list' %}" class="btn btn-ghost btn-sm">Cancel</a>
+        <button form="transaction-form" type="submit" class="btn btn-brand btn-sm">Save</button>
+      </div>
+    </div>
+
+    <div class="card-body p-3 p-md-4">
+
+      <form id="transaction-form" method="post" enctype="multipart/form-data" novalidate
+            data-requirements-url-template="{% url 'ledger:subcategory_requirements' 0 %}">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <!-- Core details -->
+        <div class="row g-3">
+          <div class="col-12 col-md-4">
+            {{ form.date|as_crispy_field }}
+          </div>
+          <div class="col-12 col-md-4">
+            {{ form.amount|as_crispy_field }}
+          </div>
+          <div class="col-12 col-md-4">
+            {{ form.is_refund|as_crispy_field }}
+          </div>
+
+          <div class="col-12">
+            {{ form.subcategory|as_crispy_field }}
+            <small class="text-muted">Pick a Sub-Category to see required fields.</small>
+          </div>
+        </div>
+
+        <!-- Requirements panel -->
+        <div id="requirementsPanel" class="mt-3 p-3 rounded border bg-surface">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-semibold">Required for this selection</div>
+            <span id="requirementsBadge" class="badge bg-warning text-dark">Select a Sub-Category</span>
+          </div>
+
+          <ul id="requirementsList" class="small mb-2 ps-3">
+            <li data-key="description">Description</li>
+            <li data-key="amount">Amount</li>
+            <li data-key="date">Date</li>
+            <li data-key="contact" style="display:none;">Contact</li>
+            <li data-key="team" style="display:none;">Team</li>
+            <li data-key="job" style="display:none;">Job</li>
+            <li data-key="invoice_number" style="display:none;">Invoice Number</li>
+            <li data-key="receipt" style="display:none;">Receipt</li>
+            <li data-key="asset" style="display:none;">Asset</li>
+            <li data-key="transport" style="display:none;">Transport</li>
+            <li data-key="vehicle" style="display:none;">Vehicle</li>
+          </ul>
+
+          <div id="requirementsHints" class="small text-muted"></div>
+        </div>
+
+        <!-- Conditional fields -->
+        <div class="row g-3 mt-1">
+          <div class="col-12 col-md-4" id="transportWrap">
+            <div class="d-flex justify-content-between align-items-center">
+              <label for="id_transport_type" class="form-label mb-1">Transport <span id="transportReq" class="badge bg-danger d-none">Required</span></label>
+            </div>
+            {{ form.transport_type }}
+            {% if form.transport_type.errors %}
+              <div class="invalid-feedback d-block">{{ form.transport_type.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-12 col-md-4" id="vehicleWrap">
+            <div class="d-flex justify-content-between align-items-center">
+              <label for="id_vehicle" class="form-label mb-1">Vehicle <span id="vehicleReq" class="badge bg-danger d-none">Required</span></label>
+            </div>
+            {{ form.vehicle }}
+            {% if form.vehicle.errors %}
+              <div class="invalid-feedback d-block">{{ form.vehicle.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-12 col-md-4" id="contactWrap">
+            <div class="d-flex justify-content-between align-items-center">
+              <label for="id_contact" class="form-label mb-1">Contact <span id="contactReq" class="badge bg-danger d-none">Required</span></label>
+            </div>
+            {{ form.contact }}
+            {% if form.contact.errors %}
+              <div class="invalid-feedback d-block">{{ form.contact.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Invoice + description -->
+        <div class="row g-3 mt-1">
+          <div class="col-12 col-md-6" id="invoiceWrap">
+            <div class="d-flex justify-content-between align-items-center">
+              <label for="id_invoice_number" class="form-label mb-1">Invoice Number <span id="invoiceReq" class="badge bg-danger d-none">Required</span></label>
+              <button type="button" id="clearInvoiceBtn" class="btn btn-ghost btn-sm">Clear</button>
+            </div>
+            {{ form.invoice_number }}
+            {% if form.invoice_number.errors %}
+              <div class="invalid-feedback d-block">{{ form.invoice_number.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-12 col-md-6">
+            {{ form.description|as_crispy_field }}
+          </div>
+        </div>
+
+        <!-- Optional fields -->
+        <div class="accordion mt-3" id="optionalAccordion">
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="optHead">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#optCollapse">
+                More Details (optional)
+              </button>
+            </h2>
+            <div id="optCollapse" class="accordion-collapse collapse" data-bs-parent="#optionalAccordion">
+              <div class="accordion-body">
+                <div class="row g-3">
+                  <div class="col-12 col-md-3" id="teamWrap">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div class="fw-semibold small text-muted">Team</div>
+                      <span id="teamReq" class="badge bg-danger d-none">Required</span>
+                    </div>
+                    {{ form.team|as_crispy_field }}
+                  </div>
+                  <div class="col-12 col-md-3" id="jobWrap">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div class="fw-semibold small text-muted">Job</div>
+                      <span id="jobReq" class="badge bg-danger d-none">Required</span>
+                    </div>
+                    {{ form.job|as_crispy_field }}
+                  </div>
+                  <div class="col-12 col-md-3" id="receiptWrap">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div class="fw-semibold small text-muted">Receipt</div>
+                      <span id="receiptReq" class="badge bg-danger d-none">Required</span>
+                    </div>
+                    {{ form.receipt|as_crispy_field }}
+                  </div>
+                  <div class="col-12 col-md-3" id="assetWrap">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div class="fw-semibold small text-muted">Asset</div>
+                      <span id="assetReq" class="badge bg-danger d-none">Required</span>
+                    </div>
+                    {{ form.asset|as_crispy_field }}
+                  </div>
+                  <div class="col-12">{{ form.notes|as_crispy_field }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Desktop actions -->
+        <div class="d-none d-md-flex justify-content-end gap-2 mt-4">
+          <a href="{% url 'ledger:transaction_list' %}" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-brand">Save Transaction</button>
+        </div>
+
+        <!-- Mobile sticky actions -->
+        <div class="d-md-none fixed-bottom bg-surface border-top p-2">
+          <div class="d-flex gap-2">
+            <a href="{% url 'ledger:transaction_list' %}" class="btn btn-ghost w-50">Cancel</a>
+            <button type="submit" class="btn btn-brand w-50">Save</button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'ledger/js/transaction_requirements.js' %}"></script>
+{% endblock %}

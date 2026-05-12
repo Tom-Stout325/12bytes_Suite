@@ -1,0 +1,101 @@
+{% extends "index.html" %}
+
+{% block title %}Review W-9 | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3" style="max-width: 1200px;">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-3">
+    <div>
+      <div class="text-muted small"><a class="text-decoration-none" href="{% url 'contractor:w9_review_list' %}">W-9 Review</a> /</div>
+      <h1 class="h4 mb-0">{{ submission.contact.display_name|default:submission.contact.legal_name }}</h1>
+    </div>
+    <div class="d-grid d-sm-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'contractor:detail' submission.contact.pk %}">Contractor</a>
+      <a class="btn btn-outline-secondary" href="{% url 'contractor:w9_review_list' %}">&larr; Back</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        <div class="card-body p-3 p-md-4">
+          <h2 class="h6 mb-3">Submitted details</h2>
+          <div class="row g-3">
+            <div class="col-12 col-md-6"><div class="text-muted small">Full name</div><div class="fw-semibold">{{ submission.full_name }}</div></div>
+            <div class="col-12 col-md-6"><div class="text-muted small">Business name</div><div>{{ submission.business_name|default:"—" }}</div></div>
+            <div class="col-12 col-md-4"><div class="text-muted small">Entity type</div><div>{{ submission.entity_type|default:"—" }}</div></div>
+            <div class="col-12 col-md-4"><div class="text-muted small">TIN type</div><div>{{ submission.tin_type|upper|default:"—" }}</div></div>
+            <div class="col-12 col-md-4"><div class="text-muted small">TIN last 4</div><div>{% if submission.tin_last4 %}•••• {{ submission.tin_last4 }}{% else %}—{% endif %}</div></div>
+            <div class="col-12"><div class="text-muted small">Address</div><div>{{ submission.address_line1 }}{% if submission.address_line2 %}<br>{{ submission.address_line2 }}{% endif %}<br>{{ submission.city }}, {{ submission.state }} {{ submission.zip_code }}</div></div>
+            <div class="col-12 col-md-6"><div class="text-muted small">Signed by</div><div>{{ submission.signature_name|default:"—" }}</div></div>
+            <div class="col-12 col-md-6"><div class="text-muted small">Signed on</div><div>{{ submission.signature_date|default:"—" }}</div></div>
+            <div class="col-12 col-md-6"><div class="text-muted small">Certification accepted</div><div>{% if submission.certification_accepted %}Yes{% else %}No{% endif %}</div></div>
+            <div class="col-12 col-md-6"><div class="text-muted small">Portal document</div><div>{% if submission.uploaded_w9_document %}<a href="{{ submission.uploaded_w9_document.url }}" target="_blank" rel="noopener">Open uploaded W-9</a>{% else %}—{% endif %}</div></div>
+            {% if submission.signature_data %}
+            <div class="col-12">
+              <div class="text-muted small mb-1">Drawn signature</div>
+              <div class="border rounded-3 p-2 bg-light"><img src="{{ submission.signature_data }}" alt="Signature" style="max-width: 100%; height: auto;"></div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {% if history %}
+      <div class="card mt-3">
+        <div class="card-body p-3 p-md-4">
+          <h2 class="h6 mb-3">Earlier submissions</h2>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 table-soft table-zebra">
+              <thead><tr><th>Submitted</th><th>Review</th><th>Signer</th></tr></thead>
+              <tbody>
+                {% for s in history %}
+                  <tr><td>{{ s.submitted_at }}</td><td>{{ s.get_review_status_display }}</td><td>{{ s.signature_name|default:"—" }}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="card">
+        <div class="card-body p-3 p-md-4">
+          <h2 class="h6 mb-3">Review decision</h2>
+          <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label">{{ form.review_status.label }}</label>
+              {{ form.review_status }}
+              {% for e in form.review_status.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="mb-3">
+              <label class="form-label">{{ form.review_notes.label }}</label>
+              {{ form.review_notes }}
+              {% for e in form.review_notes.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="mb-3">
+              <label class="form-label">{{ form.replace_contact_w9_document.label }}</label>
+              {{ form.replace_contact_w9_document }}
+              <div class="form-text">{{ form.replace_contact_w9_document.help_text }}</div>
+            </div>
+            <div class="form-check mb-3">
+              {{ form.verify_and_update_contact }}
+              <label class="form-check-label" for="{{ form.verify_and_update_contact.id_for_label }}">{{ form.verify_and_update_contact.label }}</label>
+            </div>
+            <button class="btn btn-primary" type="submit">Save review</button>
+          </form>
+
+          <hr class="my-3">
+          <div class="text-muted small">
+            Reviewed by: {{ submission.reviewed_by_name|default:"—" }}<br>
+            Reviewed at: {{ submission.reviewed_at|default:"—" }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

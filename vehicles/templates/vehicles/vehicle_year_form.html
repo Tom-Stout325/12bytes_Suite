@@ -1,0 +1,147 @@
+{% extends "index.html" %}
+{% load static %}
+{% block title %}Annual Vehicle Record | MoneyPro{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'vehicles/vehicles.css' %}">{% endblock %}
+{% block content %}
+<div class="vehicle-shell">
+  <section class="vehicle-section-card">
+    <div class="vehicle-section-head">
+      <div>
+        <div class="vehicle-eyebrow">Annual record</div>
+        <h1 class="vehicle-title mb-1">{% if object %}Edit annual record{% else %}Create annual record{% endif %}</h1>
+        <div class="vehicle-subtitle">This drives business use %, other miles, deduction math, and optional vehicle-loan interest tracking.</div>
+      </div>
+      <a class="btn btn-outline-secondary" href="{% url 'vehicles:vehicle_year_list' %}?year={{ year }}">Back</a>
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="row g-3">
+        {% if form.non_field_errors %}
+          <div class="col-12">
+            <div class="alert alert-danger mb-0">
+              {{ form.non_field_errors }}
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="col-12 col-md-6">
+          {{ form.vehicle.label_tag }}
+          {{ form.vehicle }}
+          {% for error in form.vehicle.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="col-12 col-md-2">
+          {{ form.year.label_tag }}
+          {{ form.year }}
+          {% for error in form.year.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="col-12 col-md-4">
+          {{ form.deduction_method.label_tag }}
+          {{ form.deduction_method }}
+          {% for error in form.deduction_method.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+
+        <div class="col-12 col-md-4">
+          {{ form.odometer_start.label_tag }}
+          {{ form.odometer_start }}
+          <div class="form-text">Auto-filled from prior year when available.</div>
+          {% for error in form.odometer_start.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="col-12 col-md-4">
+          {{ form.odometer_end.label_tag }}
+          {{ form.odometer_end }}
+          {% for error in form.odometer_end.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="col-12 col-md-4">
+          {{ form.standard_mileage_rate.label_tag }}
+          {{ form.standard_mileage_rate }}
+          <div class="form-text">Used for standard mileage calculations.</div>
+          {% for error in form.standard_mileage_rate.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+
+        <div class="col-12">
+          <div class="border rounded-4 p-3 p-md-4 bg-light-subtle">
+            <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
+              <div>
+                <h2 class="h5 mb-1">Annual interest</h2>
+                <p class="text-muted mb-0">Enter the yearly interest manually, or leave it blank and use loan terms below to generate it from an amortization schedule.</p>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                {{ form.annual_interest_paid.label_tag }}
+                {{ form.annual_interest_paid }}
+                <div class="form-text">Optional manual total for the calendar year. Manual entry takes priority over generated interest.</div>
+                {% for error in form.annual_interest_paid.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="border rounded-4 p-3 p-md-4">
+            <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
+              <div>
+                <h2 class="h5 mb-1">Optional loan amortization generator</h2>
+                <p class="text-muted mb-0">Use this if you want MoneyPro to calculate yearly interest automatically for this vehicle.</p>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-12 col-md-3">
+                {{ form.loan_purchase_date.label_tag }}
+                {{ form.loan_purchase_date }}
+                {% for error in form.loan_purchase_date.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-12 col-md-3">
+                {{ form.loan_first_payment_date.label_tag }}
+                {{ form.loan_first_payment_date }}
+                <div class="form-text">Optional. If blank, MoneyPro uses the purchase date.</div>
+                {% for error in form.loan_first_payment_date.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-12 col-md-3">
+                {{ form.loan_amount.label_tag }}
+                {{ form.loan_amount }}
+                {% for error in form.loan_amount.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-12 col-md-3">
+                {{ form.loan_interest_rate.label_tag }}
+                {{ form.loan_interest_rate }}
+                <div class="form-text">Annual rate, for example 7.2500.</div>
+                {% for error in form.loan_interest_rate.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-12 col-md-3">
+                {{ form.loan_number_of_payments.label_tag }}
+                {{ form.loan_number_of_payments }}
+                <div class="form-text">Monthly payment count, for example 60.</div>
+                {% for error in form.loan_number_of_payments.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-12">
+                <div class="form-check mt-2">
+                  {{ form.regenerate_amortization }}
+                  <label class="form-check-label ms-2" for="{{ form.regenerate_amortization.id_for_label }}">{{ form.regenerate_amortization.label }}</label>
+                </div>
+                {% for error in form.regenerate_amortization.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="form-check mt-2">
+            {{ form.is_locked }}
+            <label class="form-check-label ms-2" for="{{ form.is_locked.id_for_label }}">Lock this annual record</label>
+          </div>
+          {% for error in form.is_locked.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+
+        <div class="col-12 d-flex justify-content-end gap-2">
+          <a class="btn btn-outline-secondary" href="{% url 'vehicles:vehicle_year_list' %}?year={{ year }}">Cancel</a>
+          <button class="btn btn-primary">Save annual record</button>
+        </div>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

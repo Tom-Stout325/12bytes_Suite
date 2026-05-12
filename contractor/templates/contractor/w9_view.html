@@ -1,0 +1,82 @@
+{% extends "index.html" %}
+
+{% block title %}W-9 | {{ contractor.display_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3" style="max-width: 1100px;">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+    <div>
+      <div class="text-muted small"><a class="text-decoration-none" href="{% url 'contractor:detail' contractor.pk %}">Contractor</a> /</div>
+      <h1 class="h4 mb-0">W-9 workflow</h1>
+    </div>
+    <div class="d-grid d-sm-flex gap-2">
+      <a class="btn btn-outline-primary" href="{% url 'contractor:w9_review_list' %}">Review Queue</a>
+      <a class="btn btn-outline-secondary" href="{% url 'contractor:detail' contractor.pk %}">&larr; Back</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card h-100">
+        <div class="card-body p-3 p-md-4">
+          <h2 class="h6 mb-3">Contractor record</h2>
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="text-muted small">Contractor</div>
+              <div class="fw-semibold">{{ contractor.display_name }}</div>
+              {% if contractor.email %}<div class="text-muted small">{{ contractor.email }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+              <div class="text-muted small">Status</div>
+              <div class="fw-semibold">{{ contractor.get_w9_status_display|default:contractor.w9_status|title }}</div>
+              <div class="text-muted small">Sent: {{ contractor.w9_sent_date|default:"—" }} · Received: {{ contractor.w9_received_date|default:"—" }}</div>
+            </div>
+            <div class="col-12">
+              <div class="text-muted small">Stored document</div>
+              {% if contractor.w9_document %}
+                <a class="btn btn-sm btn-outline-primary mt-1" href="{{ contractor.w9_document.url }}" target="_blank" rel="noopener">View stored W-9</a>
+              {% else %}
+                <div class="text-muted">No W-9 document stored yet.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        <div class="card-body p-3 p-md-4">
+          <h2 class="h6 mb-3">Submission history</h2>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 table-soft table-zebra">
+              <thead>
+                <tr>
+                  <th>Submitted</th>
+                  <th>Signed by</th>
+                  <th>Certification</th>
+                  <th>Review</th>
+                  <th class="text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in w9_history %}
+                  <tr>
+                    <td>{{ s.submitted_at }}</td>
+                    <td>{{ s.signature_name|default:"—" }}</td>
+                    <td>{% if s.certification_accepted %}Yes{% else %}No{% endif %}</td>
+                    <td>{{ s.get_review_status_display }}</td>
+                    <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'contractor:w9_review_detail' s.pk %}">Open</a></td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5" class="text-center text-muted py-4">No W-9 submissions yet.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,182 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}{{ contractor.display_name|default:contractor.legal_name }} | Contractors | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+    <div>
+      <div class="text-muted small"><a href="{% url 'contractor:list' %}" class="text-decoration-none">Contractors</a> /</div>
+      <h1 class="h4 mb-0">{{ contractor.display_name|default:contractor.legal_name }}</h1>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'contractor:contractor_1099_center' contractor.pk %}?year={{ year }}">1099 Center</a>
+      <a class="btn btn-outline-secondary" href="{% url 'ledger:contact_update' contractor.pk %}">Edit</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <!-- Contractor card -->
+    <div class="col-12 col-lg-5">
+      <div class="card mp-card p-3">
+        <div class="d-flex align-items-start justify-content-between gap-2">
+          <div>
+            <h2 class="h5 mb-1">{{ contractor.display_name|default:contractor.legal_name }}</h2>
+            <div class="text-muted small">
+              Contractor # {% if contractor.contractor_number %}{{ contractor.contractor_number }}{% else %}{{ contractor.id }}{% endif %}
+            </div>
+            <div class="text-muted small">
+              Tax classification:
+              {% if contractor.entity_type %}{{ contractor.get_entity_type_display }}{% else %}—{% endif %}
+            </div>
+          </div>
+          <div class="text-end">
+            <a href="{% url 'contractor:list' %}" class="btn btn-sm btn-outline-secondary">&larr; Back</a>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="row g-2">
+          <div class="col-12">
+            <div class="text-muted small">Email</div>
+            <div>{{ contractor.email|default:"—" }}</div>
+          </div>
+          <div class="col-12">
+            <div class="text-muted small">Phone</div>
+            <div>{{ contractor.phone|default:"—" }}</div>
+          </div>
+          <div class="col-12">
+            <div class="text-muted small">Address</div>
+            <div>
+              {{ contractor.address1|default:"" }}{% if contractor.address2 %}<br>{{ contractor.address2 }}{% endif %}
+              {% if contractor.city or contractor.state or contractor.zip_code %}<br>{% endif %}
+              {{ contractor.city|default:"" }}{% if contractor.city and contractor.state %}, {% endif %}{{ contractor.state|default:"" }} {{ contractor.zip_code|default:"" }}
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="text-muted small">E‑Deliver consent</div>
+            <div class="d-flex align-items-center gap-2">
+              {% if contractor.edelivery_consent %}
+                <span class="badge text-bg-success">Consented</span>
+              {% else %}
+                <span class="badge text-bg-light">Not consented</span>
+              {% endif %}
+              <span class="text-muted small">{% if contractor.edelivery_consent_date %}{{ contractor.edelivery_consent_date }}{% else %}—{% endif %}</span>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="text-muted small">TIN (last 4)</div>
+            <div>{% if contractor.tin_last4 %}{{ contractor.get_tin_type_display }} •••• {{ contractor.tin_last4 }}{% else %}—{% endif %}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- W-9 card -->
+      <div class="card mp-card p-3 mt-3">
+        <div class="d-flex justify-content-between align-items-start gap-2">
+          <div>
+            <h3 class="h6 mb-1">W‑9</h3>
+            <div class="text-muted small">
+              Status: <span class="fw-semibold">{{ contractor.get_w9_status_display|default:contractor.w9_status|title }}</span>
+              {% if contractor.w9_sent_date %} • Sent {{ contractor.w9_sent_date }}{% endif %}
+              {% if contractor.w9_received_date %} • Received {{ contractor.w9_received_date }}{% endif %}
+            </div>
+          </div>
+          <div class="text-end">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'contractor:w9_view' contractor.pk %}">View W‑9</a>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <form method="post" action="{% url 'contractor:send_w9_email' contractor.pk %}" class="m-0">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-primary" type="submit">Send W‑9</button>
+          </form>
+          <form method="post" action="{% url 'contractor:mark_w9_requested' contractor.pk %}" class="m-0">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-outline-secondary" type="submit">Mark Requested</button>
+          </form>
+          <div class="ms-auto text-muted small">
+            Portal link: <a href="{{ w9_portal_url }}" target="_blank" rel="noopener">open</a><br>
+            W-9 PDF attachment is included when sending the email.
+          </div>
+        </div>
+      </div>
+
+      <!-- 1099-NEC card -->
+      <div class="card mp-card p-3 mt-3">
+        <div class="d-flex justify-content-between align-items-start gap-2">
+          <div>
+            <h3 class="h6 mb-1">1099‑NEC</h3>
+            <div class="text-muted small">Tax year {{ year }} • Box 1 total: <span class="fw-semibold">${{ total_1099|floatformat:2|intcomma }}</span></div>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'contractor:1099_preview' contractor.pk %}?year={{ year }}">View</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'contractor:1099_store' contractor.pk %}?year={{ year }}">Store</a>
+          <a class="btn btn-sm btn-primary" href="{% url 'contractor:1099_email_copy_b' contractor.pk %}?year={{ year }}">Send Copy B</a>
+          <a class="btn btn-sm btn-outline-secondary ms-auto" href="{% url 'contractor:1099_pdf' contractor.pk %}?year={{ year }}">Download PDF</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Linked transactions -->
+    <div class="col-12 col-lg-7">
+      <div class="card mp-card">
+        <div class="card-body p-2 p-md-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <h3 class="h6 mb-0">Linked transactions</h3>
+              <div class="text-muted small">Expenses marked 1099‑reportable for {{ year }}</div>
+            </div>
+            <form method="get" class="d-flex gap-2 align-items-center">
+              <label class="text-muted small mb-0">Year</label>
+              <input type="number" name="year" value="{{ year }}" class="form-control form-control-sm" style="width:110px;">
+              <button class="btn btn-sm btn-outline-secondary">Go</button>
+            </form>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th class="d-none d-md-table-cell">Subcategory</th>
+                  <th class="text-end">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for t in linked_transactions %}
+                  <tr>
+                    <td class="text-muted">{{ t.date }}</td>
+                    <td>
+                      <div class="fw-semibold">{{ t.description }}</div>
+                    </td>
+                    <td class="d-none d-md-table-cell text-muted">{{ t.subcategory.name }}</td>
+                    <td class="text-end fw-semibold">${{ t.amount|floatformat:2|intcomma }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="4" class="text-center text-muted py-4">No 1099-reportable transactions for this year.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

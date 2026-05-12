@@ -1,0 +1,73 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}1099-NEC Preview | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3" style="max-width: 980px;">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+    <div>
+      <div class="text-muted small">
+        <a href="{% url 'contractor:1099_home' %}?year={{ year }}" class="text-decoration-none">1099 Center</a> /
+        <a href="{% url 'contractor:detail' contact.id %}?year={{ year }}" class="text-decoration-none">{{ contact.display_name }}</a> /
+      </div>
+      <h1 class="h4 mb-0">1099-NEC Preview ({{ year }})</h1>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'contractor:1099_pdf' contact.id year %}">Download PDF</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="card mp-card p-3">
+        <h2 class="h6 mb-3">Form Values</h2>
+
+        <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <div class="text-muted small mb-1">Payer (name/address)</div>
+            <pre class="mb-0" style="white-space:pre-wrap">{{ values.payer_block }}</pre>
+          </div>
+          <div class="col-12 col-md-6">
+            <div class="text-muted small mb-1">Payer TIN</div>
+            <div class="fw-semibold">{{ values.payer_tin|default:"—" }}</div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div class="text-muted small mb-1">Recipient</div>
+            <div class="fw-semibold">{{ values.recipient_name }}</div>
+            <div class="text-muted small">{{ values.recipient_street }}</div>
+            <div class="text-muted small">{{ values.recipient_city }}</div>
+          </div>
+          <div class="col-12 col-md-6">
+            <div class="text-muted small mb-1">Recipient TIN</div>
+            <div class="fw-semibold">{{ values.recipient_tin|default:"—" }}</div>
+            <div class="text-muted small">Masked (last4 only)</div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div class="text-muted small mb-1">Tax year</div>
+            <div class="fw-semibold">{{ values.tax_year }}</div>
+          </div>
+          <div class="col-12 col-md-6">
+            <div class="text-muted small mb-1">Box 1 — Nonemployee compensation</div>
+            <div class="display-6">${{ total|floatformat:2|intcomma }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="card mp-card p-3">
+        <h2 class="h6 mb-2">Next steps</h2>
+        <ul class="mb-0 text-muted">
+          <li>Verify contractor details (legal name + address)</li>
+          <li>Verify W-9 status and last4 (or store full TIN in a secure workflow if required)</li>
+          <li>Download the PDF and review positioning</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

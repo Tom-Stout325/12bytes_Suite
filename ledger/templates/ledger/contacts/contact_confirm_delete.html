@@ -1,0 +1,31 @@
+{% extends "index.html" %}
+
+{% block title %}Delete Contact | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h5 mb-2">Delete Contact</h1>
+      <div class="text-muted small">This cannot be undone.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'ledger:contact_list' %}">Back</a>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-3 p-md-4">
+      <p class="mb-3">Are you sure you want to delete <span class="fw-semibold">{{ object.display_name }}</span>?</p>
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="d-grid d-sm-flex gap-2 justify-content-sm-end">
+          <a class="btn btn-outline-secondary w-100 w-sm-auto py-2" href="{% url 'ledger:contact_list' %}">Cancel</a>
+          <button class="btn btn-danger w-100 w-sm-auto py-2" type="submit">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

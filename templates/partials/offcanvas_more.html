@@ -1,0 +1,37 @@
+{# Global Offcanvas: More #}
+<div class="offcanvas offcanvas-end" tabindex="-1" id="appMore" aria-labelledby="appMoreLabel">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="appMoreLabel">More</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+
+    <div class="mb-3">
+      <div class="text-muted small mb-2">Shortcuts</div>
+
+      <div class="list-group">
+        <a class="list-group-item list-group-item-action" href="{% url 'vehicles:vehicle_miles_list' %}">
+          <i class="fa-solid fa-route me-2"></i> Mileage Log
+        </a>
+
+        <a class="list-group-item list-group-item-action" href="{% url 'ledger:job_list' %}">
+          <i class="fa-solid fa-briefcase me-2"></i> Jobs
+        </a>
+
+        <a class="list-group-item list-group-item-action" href="{% url 'vehicles:vehicle_list' %}">
+          <i class="fa-solid fa-car me-2"></i> Vehicles
+        </a>
+
+
+        <a class="list-group-item list-group-item-action" href="{% url 'assets:asset_list' %}">
+          <i class="fa-solid fa-toolbox me-2"></i> Assets
+        </a>
+
+        <a class="list-group-item list-group-item-action" href="{% url 'ledger:contact_list' %}">
+          <i class="fa-solid fa-address-book me-2"></i> Contacts
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>

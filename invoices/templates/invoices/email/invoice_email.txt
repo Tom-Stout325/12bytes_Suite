@@ -1,0 +1,18 @@
+Hello {{ invoice.bill_to_name|default:invoice.contact.display_name }},
+
+Your invoice {{ invoice.invoice_number }} from {{ email_settings.display_name|default:business.name }} is attached as a PDF.
+
+Invoice total: ${{ invoice.total_amount|floatformat:2 }}
+Issue date: {{ invoice.issue_date }}
+{% if invoice.due_date %}Due date: {{ invoice.due_date }}
+{% endif %}
+{% if invoice.memo %}
+Notes:
+{{ invoice.memo }}
+{% endif %}
+{% if email_settings.payment_questions_email %}
+Questions about payment: {{ email_settings.payment_questions_email }}
+{% endif %}
+{% if email_settings.email_signature %}
+{{ email_settings.email_signature }}
+{% endif %}

@@ -1,0 +1,15 @@
+/* Keep inputs comfortable on mobile */
+.auth-form input[type="text"],
+.auth-form input[type="email"],
+.auth-form input[type="password"]{
+  padding-top: .6rem;
+  padding-bottom: .6rem;
+}
+
+/* Make checkboxes align nicely */
+.auth-form .form-check{
+  margin-top: .25rem;
+}
+.auth-form .form-check-input{
+  margin-top: .35rem;
+}

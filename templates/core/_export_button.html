@@ -1,0 +1,42 @@
+{% if request %}
+  {% with p=request.path %}
+    {% if p|slice:":10" == "/invoices/" %}
+      <a href="/exports/invoices/csv/" class="btn btn-outline-secondary">
+        <i class="fa-solid fa-file-csv me-1"></i> Export CSV
+      </a>
+    {% elif p|slice:":14" == "/transactions/" %}
+      <a href="/exports/transactions/csv/" class="btn btn-outline-secondary">
+        <i class="fa-solid fa-file-csv me-1"></i> Export CSV
+      </a>
+    {% elif p|slice:":10" == "/vehicles/" %}
+      <a href="/exports/vehicles/csv/" class="btn btn-outline-secondary">
+        <i class="fa-solid fa-file-csv me-1"></i> Export CSV
+      </a>
+    {% elif p|slice:":9" == "/mileage/" or p|slice:":7" == "/miles/" %}
+      <a href="/exports/mileage/csv/" class="btn btn-outline-secondary">
+        <i class="fa-solid fa-file-csv me-1"></i> Export CSV
+      </a>
+    {% elif p|slice:":10" == "/contacts/" %}
+      <a href="/exports/contacts/csv/" class="btn btn-outline-secondary">
+        <i class="fa-solid fa-file-csv me-1"></i> Export CSV
+      </a>
+    {% elif p|slice:":6" == "/jobs/" %}
+      <a href="/exports/jobs/csv/" class="btn btn-outline-secondary">
+        <i class="fa-solid fa-file-csv me-1"></i> Export CSV
+      </a>
+    {% elif p|slice:":8" == "/payees/" %}
+      <a href="/exports/payees/csv/" class="btn btn-outline-secondary">
+        <i class="fa-solid fa-file-csv me-1"></i> Export CSV
+      </a>
+    {% elif p|slice:":7" == "/teams/" %}
+      <a href="/exports/teams/csv/" class="btn btn-outline-secondary">
+        <i class="fa-solid fa-file-csv me-1"></i> Export CSV
+      </a>
+    {% elif p|slice:":8" == "/assets/" %}
+      <a href="/exports/assets/csv/" class="btn btn-outline-secondary">
+        <i class="fa-solid fa-file-csv me-1"></i> Export CSV
+      </a>
+    {% endif %}
+  {% endwith %}
+{% endif %}
+

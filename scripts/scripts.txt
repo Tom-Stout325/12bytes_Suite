@@ -1,0 +1,55 @@
+chmod +x scripts/zip_project.sh
+./scripts/zip_project.sh
+
+Heroku Django Shell:  heroku run -a moneypro -- python manage.py shell
+
+Backup the poject:
+cp -R _MONEYPRO _MONEYPRO_backup
+
+cd into the root folder
+
+unzip ~/Downloads/travel_pdf_fix_patch.zip
+or:
+unzip ~/Downloads/MoneyPro_invite.zip -d /tmp/moneypro_invite
+rsync -av --progress /tmp/moneypro_invite/MoneyPro/ ./
+
+
+
+
+
+
+
+HEROKU COMMANDS
+
+Restart Server:   heroku ps:restart -a moneypro    
+Logs:             heroku logs --tail -a moneypro          
+
+Postgresql shell:
+heroku run -a moneypro -- python manage.py dbshell
+heroku run -a moneypro -- python manage.py migrate
+
+View Databases in production:
+heroku pg:psql -a moneypro
+\dt *invoice*;    Or
+\dt *flightlog*;
+
+
+heroku pg:psql -a moneypro
+
+Local Shell:
+python manage.py dbshell
+
+
+Run Migrations on Heroku:
+heroku run -a moneypro -- python manage.py migrate
+
+
+Invoices aren't calculating Mileage in taxable amount:  See Bristol 2025
+Invoice Detail:  
+    Add Days To Pay button in place of SubTotal
+    
+
+
+Logins:
+
+admin   cassie2001

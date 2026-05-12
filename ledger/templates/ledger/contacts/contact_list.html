@@ -1,0 +1,100 @@
+{% extends "index.html" %}
+
+{% block title %}Contacts | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-0">Contacts</h1>
+      <div class="text-muted small">Customers (invoices), vendors, and contractors (1099).</div>
+    </div>
+    <div class="d-grid d-md-flex gap-2">
+      <a class="btn btn-primary" href="{% url 'ledger:contact_create' %}">New contact</a>
+    </div>
+    {% include "core/_export_button.html" %}
+  </div>
+
+  <form method="get" class="row g-2 mb-3">
+    <div class="col-12 col-md-6">
+      <input class="form-control" name="q" value="{{ q }}" placeholder="Search contacts…">
+    </div>
+    <div class="col-12 col-md-4">
+      <select class="form-select" name="role">
+        <option value="" {% if not role %}selected{% endif %}>All roles</option>
+        <option value="customer" {% if role == "customer" %}selected{% endif %}>Customers</option>
+        <option value="vendor" {% if role == "vendor" %}selected{% endif %}>Vendors</option>
+        <option value="contractor" {% if role == "contractor" %}selected{% endif %}>Contractors</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-2 d-grid">
+      <button class="btn btn-outline-secondary">Filter</button>
+    </div>
+  </form>
+
+  <!-- Mobile list -->
+  <div class="d-md-none">
+    <div class="list-group shadow-sm">
+      {% for c in contacts %}
+        <a href="{% url 'ledger:contact_update' c.pk %}" class="list-group-item list-group-item-action">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div class="me-auto">
+              <div class="fw-semibold">{{ c.display_name }}</div>
+              <div class="small text-muted">
+                {% if c.email %}{{ c.email }}{% endif %}
+                {% if c.email and c.phone %} • {% endif %}
+                {% if c.phone %}{{ c.phone }}{% endif %}
+              </div>
+              <div class="mt-2">
+                {% if c.is_customer %}<span class="badge text-bg-primary me-1">Customer</span>{% endif %}
+                {% if c.is_vendor %}<span class="badge text-bg-light border me-1">Vendor</span>{% endif %}
+                {% if c.is_contractor %}<span class="badge text-bg-warning">Contractor</span>{% endif %}
+              </div>
+            </div>
+            <span class="btn btn-sm btn-outline-primary">Edit</span>
+          </div>
+        </a>
+      {% empty %}
+        <div class="list-group-item text-center text-muted py-4">No contacts yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Desktop table -->
+  <div class="card shadow-sm d-none d-md-block">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Name</th>
+            <th class="text-muted">Email</th>
+            <th class="text-muted">Roles</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in contacts %}
+          <tr>
+            <td class="fw-semibold">{{ c.display_name }}</td>
+            <td class="text-muted small">{{ c.email|default:"—" }}</td>
+            <td>
+              {% if c.is_customer %}<span class="badge text-bg-primary me-1">Customer</span>{% endif %}
+              {% if c.is_vendor %}<span class="badge text-bg-light border me-1">Vendor</span>{% endif %}
+              {% if c.is_contractor %}<span class="badge text-bg-warning">Contractor</span>{% endif %}
+            </td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'ledger:contact_update' c.pk %}">Edit</a>
+              <a class="btn btn-sm btn-outline-danger" href="{% url 'ledger:contact_delete' c.pk %}">Delete</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted py-4">No contacts yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

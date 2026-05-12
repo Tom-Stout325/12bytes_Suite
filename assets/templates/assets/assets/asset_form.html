@@ -1,0 +1,266 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}{% if object %}Edit Asset{% else %}Add Asset{% endif %} | MoneyPro{% endblock %}
+
+{% block extra_css %}
+<style>
+  .mp-dropzone{
+    border: 2px dashed rgba(0,0,0,.15);
+    border-radius: 1rem;
+    padding: 1rem;
+    background: var(--mp-surface);
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+    cursor: pointer;
+  }
+  [data-theme="dark"] .mp-dropzone{
+    border-color: rgba(255,255,255,.18);
+  }
+  .mp-dropzone.is-dragover{
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 .25rem rgba(123,150,105,.25);
+    transform: translateY(-1px);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-0 text-secondary-brand">{% if object %}Edit Asset{% else %}Add Asset{% endif %}</h1>
+      <div class="text-muted small">Track purchases, receipts, and depreciation details</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'assets:asset_list' %}">Back</a>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-body p-3 p-md-4">
+
+        <div class="row g-3">
+          <!-- Asset info -->
+          <div class="col-12">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <i class="fa-solid fa-boxes-stacked text-primary-brand"></i>
+              <div class="fw-semibold">Asset info</div>
+            </div>
+            <div class="text-muted small mb-2">Basics about the item you purchased.</div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Name</label>
+            {{ form.name }}
+            {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Type</label>
+            {{ form.asset_type }}
+            {% if form.asset_type.errors %}<div class="invalid-feedback d-block">{{ form.asset_type.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label">Purchase date</label>
+            {{ form.purchase_date }}
+            {% if form.purchase_date.errors %}<div class="invalid-feedback d-block">{{ form.purchase_date.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label">Placed in service</label>
+            {{ form.placed_in_service_date }}
+            <div class="form-text">Defaults to purchase date if blank.</div>
+            {% if form.placed_in_service_date.errors %}<div class="invalid-feedback d-block">{{ form.placed_in_service_date.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label">Purchase price</label>
+            {{ form.purchase_price }}
+            {% if form.purchase_price.errors %}<div class="invalid-feedback d-block">{{ form.purchase_price.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Linked vehicle (optional)</label>
+            {{ form.vehicle }}
+            <div class="form-text">Link to an existing vehicle for mileage-related tracking.</div>
+            {% if form.vehicle.errors %}<div class="invalid-feedback d-block">{{ form.vehicle.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <!-- Depreciation -->
+          <div class="col-12 mt-2">
+            <hr class="my-2">
+          </div>
+          <div class="col-12">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <i class="fa-solid fa-chart-line text-success-brand"></i>
+              <div class="fw-semibold">Depreciation</div>
+            </div>
+            <div class="text-muted small mb-2">Choose how you want to treat this asset for tax/book tracking.</div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Method</label>
+            {{ form.depreciation_method }}
+            {% if form.depreciation_method.errors %}<div class="invalid-feedback d-block">{{ form.depreciation_method.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">Useful life (years)</label>
+            {{ form.useful_life_years }}
+            {% if form.useful_life_years.errors %}<div class="invalid-feedback d-block">{{ form.useful_life_years.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">Section 179 amount</label>
+            {{ form.section_179_amount }}
+            {% if form.section_179_amount.errors %}<div class="invalid-feedback d-block">{{ form.section_179_amount.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <!-- Receipt -->
+          <div class="col-12 mt-2">
+            <hr class="my-2">
+          </div>
+          <div class="col-12">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <i class="fa-solid fa-receipt text-warning-brand"></i>
+              <div class="fw-semibold">Receipt</div>
+            </div>
+            <div class="text-muted small mb-2">Drag & drop a file or click to select (PDF or image).</div>
+          </div>
+
+          <div class="col-12">
+            {{ form.receipt }}
+
+            <div id="receiptDropzone" class="mp-dropzone">
+              <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                <div>
+                  <div class="fw-semibold">Upload receipt</div>
+                  <div class="small text-muted" id="receiptHelp">
+                    {% if object and object.receipt %}
+                      Current: <span class="fw-semibold text-break">{{ object.receipt.name }}</span>
+                    {% else %}
+                      No file selected
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="d-grid d-md-flex gap-2">
+                  <button class="btn btn-outline-secondary" type="button" id="receiptChooseBtn">
+                    <i class="fa-solid fa-folder-open me-1"></i> Choose file
+                  </button>
+                  {% if object and object.receipt %}
+                    <a class="btn btn-outline-primary" href="{{ object.receipt.url }}" target="_blank" rel="noopener">
+                      <i class="fa-solid fa-up-right-from-square me-1"></i> View
+                    </a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            {% if form.receipt.errors %}<div class="invalid-feedback d-block mt-1">{{ form.receipt.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <!-- Disposal -->
+          <div class="col-12 mt-2">
+            <hr class="my-2">
+          </div>
+          <div class="col-12">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <i class="fa-solid fa-right-left text-danger-brand"></i>
+              <div class="fw-semibold">Disposal (optional)</div>
+            </div>
+            <div class="text-muted small mb-2">If you sold or disposed of the asset.</div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Disposed date</label>
+            {{ form.disposed_date }}
+            {% if form.disposed_date.errors %}<div class="invalid-feedback d-block">{{ form.disposed_date.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Disposal price</label>
+            {{ form.disposal_price }}
+            {% if form.disposal_price.errors %}<div class="invalid-feedback d-block">{{ form.disposal_price.errors|striptags }}</div>{% endif %}
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Notes</label>
+            {{ form.notes }}
+            {% if form.notes.errors %}<div class="invalid-feedback d-block">{{ form.notes.errors|striptags }}</div>{% endif %}
+          </div>
+
+        </div>
+
+        <div class="d-flex flex-column flex-sm-row justify-content-end gap-2 mt-4">
+          <a class="btn btn-outline-secondary" href="{% url 'assets:asset_list' %}">Cancel</a>
+          <button class="btn btn-brand" type="submit">
+            <i class="fa-solid fa-floppy-disk me-1"></i> Save
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </form>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function() {
+    const input = document.getElementById("id_receipt");
+    const zone = document.getElementById("receiptDropzone");
+    const btn  = document.getElementById("receiptChooseBtn");
+    const help = document.getElementById("receiptHelp");
+
+    if (!input || !zone || !btn || !help) return;
+
+    function setHelpFromFile(file) {
+      if (!file) return;
+      help.innerHTML = 'Selected: <span class="fw-semibold text-break">' + file.name + '</span>';
+    }
+
+    btn.addEventListener("click", function() { input.click(); });
+    zone.addEventListener("click", function(e) {
+      // Avoid double-trigger when clicking the button
+      if (e.target && (e.target.closest && e.target.closest("#receiptChooseBtn"))) return;
+      input.click();
+    });
+
+    input.addEventListener("change", function() {
+      const file = input.files && input.files[0];
+      if (file) setHelpFromFile(file);
+    });
+
+    ["dragenter","dragover"].forEach(evt => {
+      zone.addEventListener(evt, function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        zone.classList.add("is-dragover");
+      });
+    });
+
+    ["dragleave","drop"].forEach(evt => {
+      zone.addEventListener(evt, function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        zone.classList.remove("is-dragover");
+      });
+    });
+
+    zone.addEventListener("drop", function(e) {
+      const dt = e.dataTransfer;
+      if (!dt || !dt.files || !dt.files.length) return;
+      input.files = dt.files;
+      setHelpFromFile(dt.files[0]);
+    });
+  })();
+</script>
+{% endblock %}

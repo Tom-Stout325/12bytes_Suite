@@ -1,0 +1,185 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}Admin Backups | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+    <div>
+      <div class="small text-muted mb-1">
+        <a href="{% url 'dashboard:home' %}" class="text-decoration-none">Dashboard</a>
+        <span class="mx-1">/</span>
+        Admin Backups
+      </div>
+      <h1 class="h2 mb-1 text-secondary-brand">Admin Backups</h1>
+      <div class="text-muted small">
+        Export business-scoped MoneyPro tables for <strong>{{ business.name }}</strong>.
+      </div>
+    </div>
+
+    <div class="d-grid d-sm-flex gap-2">
+      <a class="btn btn-primary" href="{% url 'dashboard:business_backup_all_xlsx' %}">
+        <i class="fa-solid fa-file-excel me-1"></i> Download All
+      </a>
+      <form method="post" action="{% url 'dashboard:business_backup_send_to_s3' %}" class="d-grid">
+        {% csrf_token %}
+        <button class="btn btn-outline-primary" type="submit">
+          <i class="fa-solid fa-cloud-arrow-up me-1"></i> Save to S3
+        </button>
+      </form>
+      <form method="post" action="{% url 'dashboard:business_backup_cleanup' %}" class="d-grid">
+        {% csrf_token %}
+        <button class="btn btn-outline-danger" type="submit">
+          <i class="fa-solid fa-broom me-1"></i> Cleanup
+        </button>
+      </form>
+      <a class="btn btn-outline-secondary" href="{% url 'dashboard:home' %}">
+        <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
+      </a>
+    </div>
+  </div>
+
+  <div class="alert alert-info small" role="alert">
+    <div class="fw-semibold mb-1">What this exports</div>
+    Individual downloads are CSV files. <strong>Download All</strong> creates one Excel workbook with a manifest tab and one tab per table. <strong>Save to S3</strong> stores that workbook in your configured media storage and keeps backup history. Old successful backups are deleted after the retention period.
+  </div>
+
+  <div class="card table-head-accent table-head-accent-secondary">
+    <div class="card-body p-3 p-md-4">
+      <div class="dash-card-head">
+        <div>
+          <h2 class="h5 dash-card-title mb-0">Tables</h2>
+          <div class="dash-card-subtitle">Download each table individually or export the full workbook.</div>
+        </div>
+      </div>
+
+      <div class="d-md-none">
+        <div class="list-group list-group-soft">
+          {% for row in table_rows %}
+            <div class="list-group-item">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                  <div class="fw-semibold">{{ row.spec.verbose_name }}</div>
+                  <div class="list-meta">
+                    {{ row.spec.label }} · {{ row.spec.table_name }}
+                  </div>
+                  <div class="small text-muted mt-1">
+                    Rows: {% if row.row_count is None %}Unknown{% else %}{{ row.row_count|intcomma }}{% endif %}
+                  </div>
+                </div>
+                <a class="btn btn-sm btn-outline-primary text-nowrap" href="{% url 'dashboard:business_backup_table_csv' row.spec.slug %}">
+                  CSV
+                </a>
+              </div>
+            </div>
+          {% empty %}
+            <div class="text-muted small">No business-scoped tables were found.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="table-responsive d-none d-md-block">
+        <table class="table table-sm align-middle mb-0 table-soft table-zebra">
+          <thead>
+            <tr>
+              <th>Table</th>
+              <th>Model</th>
+              <th>Database table</th>
+              <th class="text-end">Rows</th>
+              <th class="text-end">Download</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in table_rows %}
+              <tr>
+                <td class="fw-semibold">{{ row.spec.verbose_name }}</td>
+                <td><code>{{ row.spec.label }}</code></td>
+                <td><code>{{ row.spec.table_name }}</code></td>
+                <td class="text-end">
+                  {% if row.row_count is None %}Unknown{% else %}{{ row.row_count|intcomma }}{% endif %}
+                </td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'dashboard:business_backup_table_csv' row.spec.slug %}">
+                    <i class="fa-solid fa-download me-1"></i> CSV
+                  </a>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" class="text-muted small">No business-scoped tables were found.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card table-head-accent table-head-accent-primary mt-3">
+    <div class="card-body p-3 p-md-4">
+      <div class="dash-card-head">
+        <div>
+          <h2 class="h5 dash-card-title mb-0">Backup History</h2>
+          <div class="dash-card-subtitle">Recent S3/local storage backup runs for this business.</div>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 table-soft table-zebra">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Status</th>
+              <th class="text-end">Rows</th>
+              <th class="text-end">Tables</th>
+              <th class="text-end">Size</th>
+              <th>File</th>
+              <th class="text-end">Download</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in backup_history %}
+              <tr>
+                <td>{{ item.log.created_at|date:"M j, Y g:i A" }}</td>
+                <td>
+                  {% if item.log.status == "success" %}
+                    <span class="badge text-bg-success">Success</span>
+                  {% elif item.log.status == "failed" %}
+                    <span class="badge text-bg-danger">Failed</span>
+                  {% elif item.log.status == "deleted" %}
+                    <span class="badge text-bg-secondary">Deleted</span>
+                  {% else %}
+                    <span class="badge text-bg-warning">Running</span>
+                  {% endif %}
+                  {% if item.log.error_message %}
+                    <div class="small text-danger mt-1">{{ item.log.error_message|truncatechars:120 }}</div>
+                  {% endif %}
+                </td>
+                <td class="text-end">{{ item.log.row_count|intcomma }}</td>
+                <td class="text-end">{{ item.log.table_count|intcomma }}</td>
+                <td class="text-end">{{ item.log.size_mb }} MB</td>
+                <td><code class="small">{{ item.log.filename }}</code></td>
+                <td class="text-end">
+                  {% if item.download_url %}
+                    <a class="btn btn-sm btn-outline-primary" href="{{ item.download_url }}">
+                      <i class="fa-solid fa-download me-1"></i> Download
+                    </a>
+                  {% else %}
+                    <span class="text-muted small">Unavailable</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="7" class="text-muted small">No S3/local storage backups have been created yet.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

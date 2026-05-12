@@ -1,0 +1,242 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}Transactions | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+
+  <!-- Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-0 text-primary-brand">Transactions</h1>
+      <div class="text-muted small">Track income and operating expenses</div>
+    </div>
+    <div class="d-grid d-md-flex gap-2">
+      <a class="btn btn-brand" href="{% url 'ledger:transaction_create' %}">
+        <i class="fa-solid fa-plus me-1"></i> Add transaction
+      </a>
+      {% include "core/_export_button.html" %}
+    </div>
+  </div>
+
+  {# Quick type pills (mobile-first). Uses your existing query vars. #}
+  <div class="pillbar" aria-label="Quick transaction filters">
+    {% with qv=q cv=category sv=subcategory %}
+      <a class="pill {% if not type %}is-active{% endif %}"
+         href="?{% if qv %}q={{ qv|urlencode }}&{% endif %}{% if cv %}category={{ cv|urlencode }}&{% endif %}{% if sv %}subcategory={{ sv|urlencode }}&{% endif %}">
+        <i class="fa-solid fa-layer-group"></i> All
+      </a>
+
+      <a class="pill pill--paid {% if type == 'income' %}is-active{% endif %}"
+         href="?type=income{% if qv %}&q={{ qv|urlencode }}{% endif %}{% if cv %}&category={{ cv|urlencode }}{% endif %}{% if sv %}&subcategory={{ sv|urlencode }}{% endif %}">
+        <i class="fa-regular fa-circle-check"></i> Income
+      </a>
+
+      <a class="pill pill--void {% if type == 'expense' %}is-active{% endif %}"
+         href="?type=expense{% if qv %}&q={{ qv|urlencode }}{% endif %}{% if cv %}&category={{ cv|urlencode }}{% endif %}{% if sv %}&subcategory={{ sv|urlencode }}{% endif %}">
+        <i class="fa-regular fa-circle-xmark"></i> Expense
+      </a>
+    {% endwith %}
+  </div>
+
+  <!-- Filters -->
+  <form method="get" class="card report-card report-accent-secondary mb-3">
+    <div class="card-body p-3 p-md-4">
+
+      <div class="dash-card-head">
+        <div>
+          <h2 class="h6 dash-card-title mb-0">Filters</h2>
+          <div class="dash-card-subtitle">Search and narrow by type, category, and subcategory</div>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-ghost btn-sm" type="submit" title="Apply filters">
+            <i class="fa-solid fa-filter"></i><span class="visually-hidden">Apply</span>
+          </button>
+          <a class="btn btn-ghost btn-sm" href="{% url 'ledger:transaction_list' %}" title="Clear filters">
+            <i class="fa-solid fa-rotate-left"></i><span class="visually-hidden">Clear</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="row g-2 g-md-3 align-items-end">
+        <div class="col-12 col-md-5">
+          <label class="form-label small text-muted mb-1">Search</label>
+          <input class="form-control" name="q" value="{{ q }}" placeholder="Search description, notes, team, category...">
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label small text-muted mb-1">Type</label>
+          <select class="form-select" name="type">
+            <option value="">All</option>
+            <option value="income" {% if type == "income" %}selected{% endif %}>Income</option>
+            <option value="expense" {% if type == "expense" %}selected{% endif %}>Expense</option>
+          </select>
+        </div>
+
+        <div class="col-6 col-md-2">
+          <label class="form-label small text-muted mb-1">Category</label>
+          <select class="form-select" name="category">
+            <option value="">All</option>
+            {% for c in categories %}
+              <option value="{{ c.id }}" {% if category == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label class="form-label small text-muted mb-1">Subcategory</label>
+          <select class="form-select" name="subcategory">
+            <option value="">All</option>
+            {% for s in subcategories %}
+              <option value="{{ s.id }}" {% if subcategory == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12">
+          <div class="d-grid d-md-flex gap-2">
+            <button class="btn btn-brand" type="submit">
+              <i class="fa-solid fa-magnifying-glass me-1"></i> Apply
+            </button>
+
+            {% if q or type or category or subcategory %}
+              <a class="btn btn-ghost" href="{% url 'ledger:transaction_list' %}">
+                <i class="fa-solid fa-rotate-left me-1"></i> Clear
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </form>
+
+  <!-- Table -->
+  <div class="card card-table-accent">
+    <div class="card-body p-0">
+
+      <div class="px-3 px-md-4 pt-3 pt-md-4 pb-2">
+        <div class="dash-card-head mb-0">
+          <div>
+            <h2 class="h6 dash-card-title mb-0">Transaction list</h2>
+            <div class="dash-card-subtitle">
+              {% if is_paginated %}
+                Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+              {% else %}
+                Showing {{ transactions|length }} transaction{{ transactions|length|pluralize }}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 table-soft table-zebra">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th class="d-none d-md-table-cell">Invoice #</th>
+              <th class="d-none d-md-table-cell">Subcategory</th>
+              <th class="text-end">Amount</th>
+              <th class="text-end" style="width: 1%;">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for t in transactions %}
+              <tr>
+                <td class="text-nowrap">{{ t.date }}</td>
+
+                <td>
+                  <div class="fw-semibold">
+                    {{ t.description }}
+
+                    {% if t.trans_type == "income" %}
+                      <span class="badge badge-income ms-1">Income</span>
+                    {% endif %}
+
+                    {% if t.is_refund %}
+                      <span class="badge badge-refund ms-1">Refund</span>
+                    {% endif %}
+                  </div>
+
+                  <div class="text-muted small d-md-none">
+                    {% if t.invoice_number %}Invoice {{ t.invoice_number }} · {% endif %}
+                    {{ t.subcategory.name }}
+                    {% if t.team %} · {{ t.team.name }}{% endif %}
+                  </div>
+                </td>
+
+                <td class="d-none d-md-table-cell">
+                  {% if t.invoice_number %}{{ t.invoice_number }}{% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+
+                <td class="d-none d-md-table-cell">{{ t.subcategory.name }}</td>
+
+                <td class="text-end text-nowrap">
+                  <span class="amount {% if t.trans_type == 'income' %}amount-income{% endif %}">
+                    {% if t.is_refund %}-{% endif %}${{ t.amount|floatformat:2|intcomma }}
+                  </span>
+                </td>
+
+                <td class="text-end text-nowrap table-actions">
+                  <div class="d-inline-flex gap-1">
+                    <a class="btn btn-sm btn-ghost" href="{% url 'ledger:transaction_detail' t.pk %}" title="View">
+                      <i class="fa-regular fa-eye"></i><span class="visually-hidden">View</span>
+                    </a>
+                    <a class="btn btn-sm btn-ghost" href="{% url 'ledger:transaction_update' t.pk %}" title="Edit">
+                      <i class="fa-regular fa-pen-to-square"></i><span class="visually-hidden">Edit</span>
+                    </a>
+                    <a class="btn btn-sm btn-ghost" href="{% url 'ledger:transaction_delete' t.pk %}" title="Delete">
+                      <i class="fa-regular fa-trash-can"></i><span class="visually-hidden">Delete</span>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" class="p-4 text-center text-muted">
+                  No transactions yet. Add your first one.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    {% if is_paginated %}
+      <div class="card-footer">
+        <nav aria-label="Transaction pagination">
+          <ul class="pagination pagination-sm mb-0 justify-content-end">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if qs %}&{{ qs }}{% endif %}">Prev</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">Prev</span></li>
+            {% endif %}
+
+            <li class="page-item disabled">
+              <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            </li>
+
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if qs %}&{{ qs }}{% endif %}">Next</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">Next</span></li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+    {% endif %}
+
+  </div>
+
+</div>
+{% endblock %}

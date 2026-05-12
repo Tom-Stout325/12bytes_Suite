@@ -1,0 +1,827 @@
+/* ==========================================================================
+   MoneyPro — main.css
+   Mobile-first • Design Tokens • Dark Mode • SaaS UI Components
+   ========================================================================== */
+
+/* ==========================================================================
+   1) DESIGN TOKENS
+   ========================================================================== */
+
+:root {
+  /* ------------------------------------------------------------------------
+     Brand palette (raw)
+     ------------------------------------------------------------------------ */
+  --color-primary:   #7B9669;
+  --color-secondary: #2C4C5C;
+  --color-success:   #3C9EA4;
+  --color-danger:    #D6794D;
+  --color-warning:   #DDB05E;
+  --color-info:      #BAC8B1;
+
+  /* ------------------------------------------------------------------------
+     Neutrals (raw)
+     ------------------------------------------------------------------------ */
+  --color-bg:        #f8f9fa;
+  --color-surface:   #ffffff;
+  --color-text:      #1f2933;
+  --color-muted:     #6c757d;
+
+  /* ------------------------------------------------------------------------
+     Layout + elevation
+     ------------------------------------------------------------------------ */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+  --shadow-md: 0 4px 10px rgba(0,0,0,.08);
+
+  /* ------------------------------------------------------------------------
+     Semantic tokens (use THESE in components)
+     ------------------------------------------------------------------------ */
+  --mp-bg: var(--color-bg);
+  --mp-surface: var(--color-surface);
+  --mp-text: var(--color-text);
+  --mp-muted: var(--color-muted);
+
+  --mp-border: color-mix(in srgb, var(--mp-text), transparent 88%);
+  --mp-border-strong: color-mix(in srgb, var(--mp-text), transparent 78%);
+
+  --mp-link: var(--color-primary);
+  --mp-link-hover: color-mix(in srgb, var(--color-primary), #000 15%);
+
+  /* Card tokens */
+  --mp-card-bg: var(--mp-surface);
+  --mp-card-border: var(--mp-border);
+  --mp-card-shadow: var(--shadow-sm);
+  --mp-card-shadow-hover: var(--shadow-md);
+
+  /* Focus */
+  --mp-focus-ring: 0 0 0 0.2rem color-mix(in srgb, var(--color-primary), transparent 70%);
+
+  /* Accents (for KPI/report lines) */
+  --mp-accent: var(--color-primary);
+  --mp-accent-2: var(--color-secondary);
+
+  /* Buttons */
+  --mp-btn-radius: var(--radius-md);
+  --mp-btn-shadow: 0 6px 14px rgba(0,0,0,.08);
+  --mp-btn-shadow-hover: 0 10px 22px rgba(0,0,0,.12);
+
+  /* KPI */
+  --mp-kpi-radius: var(--radius-lg);
+  --mp-kpi-shadow: var(--shadow-sm);
+  --mp-kpi-shadow-hover: var(--shadow-md);
+
+  /* ------------------------------------------------------------------------
+     Bootstrap theme mapping (Bootstrap 5.3 reads these at runtime)
+     ------------------------------------------------------------------------ */
+  --bs-primary:   var(--color-primary);
+  --bs-secondary: var(--color-secondary);
+  --bs-success:   var(--color-success);
+  --bs-danger:    var(--color-danger);
+  --bs-warning:   var(--color-warning);
+  --bs-info:      var(--color-info);
+}
+
+/* ==========================================================================
+   2) DARK MODE
+   Toggle by setting data-theme="dark" on <html> or <body>
+   Example: <html data-theme="dark">
+   ========================================================================== */
+
+[data-theme="dark"] {
+  --mp-bg: #0f1720;
+  --mp-surface: #111c26;
+  --mp-text: #e6edf3;
+  --mp-muted: #aab4bf;
+
+  --mp-border: color-mix(in srgb, var(--mp-text), transparent 86%);
+  --mp-border-strong: color-mix(in srgb, var(--mp-text), transparent 74%);
+
+  --mp-accent: color-mix(in srgb, var(--color-primary), #fff 10%);
+  --mp-accent-2: color-mix(in srgb, var(--color-secondary), #fff 18%);
+
+  --mp-card-shadow: 0 8px 18px rgba(0,0,0,.35);
+  --mp-card-shadow-hover: 0 14px 28px rgba(0,0,0,.45);
+
+  --mp-btn-shadow: 0 10px 22px rgba(0,0,0,.35);
+  --mp-btn-shadow-hover: 0 16px 34px rgba(0,0,0,.45);
+
+  --mp-kpi-shadow: 0 8px 18px rgba(0,0,0,.35);
+  --mp-kpi-shadow-hover: 0 14px 28px rgba(0,0,0,.45);
+}
+
+/* ==========================================================================
+   3) BASE TYPOGRAPHY + GLOBAL ELEMENTS
+   ========================================================================== */
+
+body {
+  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI",
+               Roboto, Helvetica, Arial, sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+
+  background-color: var(--mp-bg);
+  color: var(--mp-text);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--mp-text);
+}
+
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.2rem; }
+
+a {
+  color: var(--mp-link);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--mp-link-hover);
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   4) BOOTSTRAP OVERRIDES (buttons, forms, cards)
+   ========================================================================== */
+
+/* Buttons: mobile-friendly tap targets */
+.btn {
+  padding: 0.55rem 0.95rem;
+  border-radius: var(--mp-btn-radius);
+}
+
+/* Filled buttons (keep Bootstrap compatibility) */
+.btn-primary {
+  --bs-btn-bg: var(--color-primary);
+  --bs-btn-border-color: color-mix(in srgb, var(--color-primary), #000 10%);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--color-primary), #000 14%);
+  --bs-btn-hover-border-color: color-mix(in srgb, var(--color-primary), #000 18%);
+  --bs-btn-focus-shadow-rgb: 123,150,105; /* fallback */
+}
+.btn-secondary {
+  --bs-btn-bg: var(--color-secondary);
+  --bs-btn-border-color: color-mix(in srgb, var(--color-secondary), #000 10%);
+}
+.btn-success { --bs-btn-bg: var(--color-success); --bs-btn-border-color: var(--color-success); }
+.btn-danger  { --bs-btn-bg: var(--color-danger);  --bs-btn-border-color: var(--color-danger); }
+.btn-warning { --bs-btn-bg: var(--color-warning); --bs-btn-border-color: var(--color-warning); --bs-btn-color: #1f2933; }
+.btn-info    { --bs-btn-bg: var(--color-info);    --bs-btn-border-color: var(--color-info); --bs-btn-color: #1f2933; }
+
+/* Outline buttons: force brand palette (fixes “Bootstrap green” issue) */
+.btn-outline-primary {
+  --bs-btn-color: var(--color-primary);
+  --bs-btn-border-color: var(--color-primary);
+  --bs-btn-hover-bg: var(--color-primary);
+  --bs-btn-hover-border-color: var(--color-primary);
+  --bs-btn-hover-color: #0b1410;
+  --bs-btn-active-bg: var(--color-primary);
+  --bs-btn-active-border-color: var(--color-primary);
+  --bs-btn-active-color: #0b1410;
+}
+.btn-outline-secondary {
+  --bs-btn-color: var(--color-secondary);
+  --bs-btn-border-color: var(--color-secondary);
+  --bs-btn-hover-bg: var(--color-secondary);
+  --bs-btn-hover-border-color: var(--color-secondary);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-active-bg: var(--color-secondary);
+  --bs-btn-active-border-color: var(--color-secondary);
+  --bs-btn-active-color: #fff;
+}
+.btn-outline-success {
+  --bs-btn-color: var(--color-success);
+  --bs-btn-border-color: var(--color-success);
+  --bs-btn-hover-bg: var(--color-success);
+  --bs-btn-hover-border-color: var(--color-success);
+  --bs-btn-hover-color: #072226;
+  --bs-btn-active-bg: var(--color-success);
+  --bs-btn-active-border-color: var(--color-success);
+  --bs-btn-active-color: #072226;
+}
+.btn-outline-danger {
+  --bs-btn-color: var(--color-danger);
+  --bs-btn-border-color: var(--color-danger);
+  --bs-btn-hover-bg: var(--color-danger);
+  --bs-btn-hover-border-color: var(--color-danger);
+  --bs-btn-hover-color: #1f2933;
+  --bs-btn-active-bg: var(--color-danger);
+  --bs-btn-active-border-color: var(--color-danger);
+  --bs-btn-active-color: #1f2933;
+}
+.btn-outline-warning {
+  --bs-btn-color: color-mix(in srgb, var(--color-warning), #000 25%);
+  --bs-btn-border-color: var(--color-warning);
+  --bs-btn-hover-bg: var(--color-warning);
+  --bs-btn-hover-border-color: var(--color-warning);
+  --bs-btn-hover-color: #1f2933;
+  --bs-btn-active-bg: var(--color-warning);
+  --bs-btn-active-border-color: var(--color-warning);
+  --bs-btn-active-color: #1f2933;
+}
+.btn-outline-info {
+  --bs-btn-color: color-mix(in srgb, var(--color-info), #000 35%);
+  --bs-btn-border-color: var(--color-info);
+  --bs-btn-hover-bg: var(--color-info);
+  --bs-btn-hover-border-color: var(--color-info);
+  --bs-btn-hover-color: #1f2933;
+  --bs-btn-active-bg: var(--color-info);
+  --bs-btn-active-border-color: var(--color-info);
+  --bs-btn-active-color: #1f2933;
+}
+
+/* Custom SaaS buttons */
+.btn-brand {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-primary), #fff 10%),
+    var(--color-primary)
+  );
+  border: 1px solid color-mix(in srgb, var(--color-primary), #000 10%);
+  color: #0b1410;
+  box-shadow: var(--mp-btn-shadow);
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+.btn-brand:hover {
+  filter: brightness(0.98);
+  transform: translateY(-1px);
+  box-shadow: var(--mp-btn-shadow-hover);
+  color: #0b1410;
+}
+.btn-brand:focus {
+  box-shadow: var(--mp-focus-ring), var(--mp-btn-shadow);
+}
+
+.btn-soft {
+  background-color: color-mix(in srgb, var(--color-primary), transparent 88%);
+  border: 1px solid color-mix(in srgb, var(--color-primary), transparent 70%);
+  color: var(--mp-text);
+}
+.btn-soft:hover {
+  background-color: color-mix(in srgb, var(--color-primary), transparent 82%);
+  border-color: color-mix(in srgb, var(--color-primary), transparent 55%);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--mp-border);
+  color: var(--mp-text);
+}
+.btn-ghost:hover {
+  background: color-mix(in srgb, var(--mp-text), transparent 94%);
+  border-color: var(--mp-border-strong);
+}
+
+/* Forms */
+.form-control,
+.form-select {
+  border-radius: var(--radius-md);
+  border-color: var(--mp-border);
+  background-color: var(--mp-surface);
+  color: var(--mp-text);
+}
+.form-control::placeholder {
+  color: color-mix(in srgb, var(--mp-muted), transparent 15%);
+}
+.form-control:focus,
+.form-select:focus {
+  border-color: color-mix(in srgb, var(--color-primary), transparent 10%);
+  box-shadow: var(--mp-focus-ring);
+}
+.form-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--mp-text);
+}
+
+/* Cards */
+.card {
+  background-color: var(--mp-card-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--mp-card-border);
+  box-shadow: var(--mp-card-shadow);
+}
+.card + .card { margin-top: 1rem; }
+
+/* Alerts */
+.alert { border-radius: var(--radius-md); }
+
+/* Navbar */
+.navbar-brand {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+/* App navbar color (keeps Bootstrap's navbar-dark contrast) */
+.mp-navbar {
+  background-color: var(--color-secondary);
+}
+
+.mp-navbar .nav-link.active {
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   5) UTILITIES
+   ========================================================================== */
+
+.text-muted { color: var(--mp-muted) !important; }
+.bg-surface { background-color: var(--mp-surface); }
+
+.text-primary-brand   { color: var(--color-primary) !important; }
+.text-secondary-brand { color: var(--color-secondary) !important; }
+.text-success-brand   { color: var(--color-success) !important; }
+.text-danger-brand    { color: var(--color-danger) !important; }
+.text-warning-brand   { color: var(--color-warning) !important; }
+.text-info-brand      { color: var(--color-info) !important; }
+
+/* Amount emphasis */
+.amount {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.amount-income { color: var(--color-success); }
+
+/* ==========================================================================
+   6) DASHBOARD / PAGE COMPONENTS
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Card header row inside card-body
+   -------------------------------------------------------------------------- */
+.dash-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .75rem;
+  padding-bottom: .75rem;
+  margin-bottom: .75rem;
+  border-bottom: 1px solid var(--mp-border);
+}
+.dash-card-title {
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.dash-card-subtitle {
+  margin-top: .15rem;
+  font-size: .85rem;
+  color: var(--mp-muted);
+}
+
+
+.subcat-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.subcat-card:hover {
+  transform: translateY(-1px);
+}
+
+.subcat-section {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 1rem;
+  padding: 1rem;
+}
+
+.subcat-section-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: 0.65rem;
+}
+
+html[data-theme="dark"] .subcat-section,
+body.dark-mode .subcat-section {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* --------------------------------------------------------------------------
+   Chart polish
+   -------------------------------------------------------------------------- */
+.chart-frame {
+  border: 1px solid var(--mp-border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--mp-surface), #fff 6%),
+      var(--mp-surface)
+    );
+  padding: .75rem;
+}
+.chart-frame-inner {
+  border: 1px solid color-mix(in srgb, var(--mp-border), transparent 20%);
+  border-radius: calc(var(--radius-lg) - 4px);
+  padding: .5rem;
+}
+
+/* Segmented controls */
+.btn-segment .btn {
+  border-radius: 999px;
+  padding: .42rem .75rem;
+}
+.btn-check:checked + .btn-ghost {
+  background: color-mix(in srgb, var(--color-secondary), transparent 88%);
+  border-color: color-mix(in srgb, var(--color-secondary), transparent 55%);
+  color: var(--mp-text);
+}
+.select-compact {
+  border-radius: 999px;
+  padding-left: .75rem;
+  padding-right: 2rem;
+}
+
+/* Reports shell */
+.reports-shell {
+  border: 1px solid var(--mp-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--mp-surface);
+}
+.reports-shell .accordion-item { border: 0; }
+.reports-shell .accordion-button {
+  background: var(--mp-surface);
+  color: var(--mp-text);
+  font-weight: 700;
+}
+.reports-shell .accordion-button:not(.collapsed) {
+  background: color-mix(in srgb, var(--mp-text), transparent 95%);
+  box-shadow: none;
+}
+.reports-shell .accordion-button:focus {
+  box-shadow: var(--mp-focus-ring);
+}
+
+.tip-card {
+  border: 1px solid var(--mp-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-info), transparent 86%);
+  padding: .85rem .95rem;
+  color: var(--mp-text);
+}
+
+/* --------------------------------------------------------------------------
+   KPI Cards
+   Usage: .kpi-card + .kpi-accent-success / .kpi-accent-danger / etc.
+   -------------------------------------------------------------------------- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+@media (min-width: 768px) {
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+}
+
+.kpi-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--mp-surface);
+  border: 1px solid var(--mp-border);
+  border-radius: var(--mp-kpi-radius);
+  box-shadow: var(--mp-kpi-shadow);
+  padding: 1.05rem 1.1rem;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.kpi-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--mp-kpi-shadow-hover);
+  border-color: var(--mp-border-strong);
+}
+.kpi-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--mp-accent);
+  opacity: .95;
+}
+
+.kpi-label {
+  font-size: 0.84rem;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+  color: var(--mp-muted);
+  margin-bottom: 0.25rem;
+}
+.kpi-value {
+  font-size: 1.7rem;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  color: var(--mp-text);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.kpi-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--mp-accent), transparent 88%);
+  border: 1px solid color-mix(in srgb, var(--mp-accent), transparent 72%);
+  color: var(--mp-text);
+}
+
+/* KPI accent variants */
+.kpi-accent-primary::before   { background: var(--color-primary); }
+.kpi-accent-secondary::before { background: var(--color-secondary); }
+.kpi-accent-success::before   { background: var(--color-success); }
+.kpi-accent-danger::before    { background: var(--color-danger); }
+.kpi-accent-warning::before   { background: var(--color-warning); }
+.kpi-accent-info::before      { background: var(--color-info); }
+
+.kpi-accent-success .kpi-icon {
+  background: color-mix(in srgb, var(--color-success), transparent 88%);
+  border-color: color-mix(in srgb, var(--color-success), transparent 72%);
+}
+.kpi-accent-danger .kpi-icon {
+  background: color-mix(in srgb, var(--color-danger), transparent 88%);
+  border-color: color-mix(in srgb, var(--color-danger), transparent 72%);
+}
+.kpi-accent-primary .kpi-icon {
+  background: color-mix(in srgb, var(--color-primary), transparent 88%);
+  border-color: color-mix(in srgb, var(--color-primary), transparent 72%);
+}
+
+.kpi-accent-success .kpi-value { color: color-mix(in srgb, var(--color-success), var(--mp-text) 65%); }
+.kpi-accent-danger  .kpi-value { color: color-mix(in srgb, var(--color-danger),  var(--mp-text) 65%); }
+
+@media (hover: none) {
+  .kpi-card:hover { transform: none; }
+}
+
+/* --------------------------------------------------------------------------
+   Reports accent bar
+   -------------------------------------------------------------------------- */
+.report-card {
+  position: relative;
+  overflow: hidden;
+}
+.report-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--mp-accent-2);
+  opacity: 0.9;
+}
+.report-accent-primary::before   { background: var(--color-primary); }
+.report-accent-secondary::before { background: var(--color-secondary); }
+.report-accent-success::before   { background: var(--color-success); }
+.report-accent-warning::before   { background: var(--color-warning); }
+.report-accent-danger::before    { background: var(--color-danger); }
+
+.report-section {
+  border-top: 1px solid var(--mp-border);
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+}
+.report-metric {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+}
+.report-metric strong { font-weight: 800; }
+
+/* ==========================================================================
+   7) TABLE SYSTEM (dashboard + lists)
+   ========================================================================== */
+
+.table-soft thead {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--mp-surface), #fff 4%),
+    var(--mp-surface)
+  );
+}
+
+.table.table-soft thead th {
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 800;
+  color: var(--color-secondary) !important;
+  border-bottom: 2px solid color-mix(in srgb, var(--color-secondary), transparent 70%) !important;
+  padding-top: .7rem;
+  padding-bottom: .7rem;
+}
+
+.table-soft tbody td {
+  border-top: 1px solid var(--mp-border) !important;
+  padding-top: .65rem;
+  padding-bottom: .65rem;
+  vertical-align: middle;
+}
+
+.table-soft tbody tr:hover {
+  background: color-mix(in srgb, var(--mp-text), transparent 96%);
+}
+
+.table-soft.table-zebra tbody tr:nth-child(odd) {
+  background: color-mix(in srgb, var(--mp-text), transparent 98%);
+}
+
+.table-actions .btn {
+  padding: .36rem .55rem;
+  border-radius: .6rem;
+}
+
+/* Table card accent bar */
+.card-table-accent {
+  position: relative;
+  overflow: hidden;
+}
+.card-table-accent::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--color-secondary);
+  opacity: .85;
+}
+
+/* Optional: subtle fade at bottom of table cards */
+.card-table-fade {
+  background: linear-gradient(
+    180deg,
+    var(--mp-surface) 85%,
+    color-mix(in srgb, var(--mp-text), transparent 98%)
+  );
+}
+
+/* ==========================================================================
+   8) BADGES (Invoices + Transactions)
+   ========================================================================== */
+
+/* Invoice statuses */
+.badge-status {
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: .32rem .62rem;
+  font-size: .68rem;
+  line-height: 1;
+  border: 1px solid var(--mp-border);
+  color: var(--mp-text);
+}
+.badge-draft {
+  background: color-mix(in srgb, var(--mp-text), transparent 92%);
+  border-color: color-mix(in srgb, var(--mp-text), transparent 84%);
+  color: var(--mp-muted);
+}
+.badge-sent {
+  background: color-mix(in srgb, var(--color-secondary), transparent 86%);
+  border-color: color-mix(in srgb, var(--color-secondary), transparent 70%);
+}
+.badge-paid {
+  background: color-mix(in srgb, var(--color-success), transparent 82%);
+  border-color: color-mix(in srgb, var(--color-success), transparent 66%);
+}
+.badge-void {
+  background: color-mix(in srgb, var(--color-danger), transparent 88%);
+  border-color: color-mix(in srgb, var(--color-danger), transparent 72%);
+}
+
+/* Transaction type badges */
+.badge-income {
+  background: color-mix(in srgb, var(--color-success), transparent 84%);
+  border: 1px solid color-mix(in srgb, var(--color-success), transparent 65%);
+  color: var(--mp-text);
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  font-size: .68rem;
+  border-radius: 999px;
+  padding: .32rem .62rem;
+}
+.badge-refund {
+  background: color-mix(in srgb, var(--color-warning), transparent 82%);
+  border: 1px solid color-mix(in srgb, var(--color-warning), transparent 62%);
+  color: var(--mp-text);
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  font-size: .68rem;
+  border-radius: 999px;
+  padding: .32rem .62rem;
+}
+.badge-expense {
+  background: color-mix(in srgb, var(--mp-text), transparent 92%);
+  border: 1px solid var(--mp-border);
+  color: var(--mp-muted);
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  font-size: .68rem;
+  border-radius: 999px;
+  padding: .32rem .62rem;
+}
+
+/* ==========================================================================
+   9) PILL TOOLBAR (Invoices + Transactions)
+   ========================================================================== */
+
+.pillbar {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: .25rem .1rem;
+  margin-bottom: .75rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pillbar::-webkit-scrollbar { height: 6px; }
+.pillbar::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--mp-text), transparent 85%);
+  border-radius: 999px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  white-space: nowrap;
+  padding: .42rem .75rem;
+  border-radius: 999px;
+  border: 1px solid var(--mp-border);
+  background: var(--mp-surface);
+  color: var(--mp-text);
+  font-weight: 800;
+  font-size: .75rem;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+
+.pill:hover {
+  background: color-mix(in srgb, var(--mp-text), transparent 96%);
+  border-color: var(--mp-border-strong);
+  transform: translateY(-1px);
+}
+
+.pill.is-active {
+  background: color-mix(in srgb, var(--color-secondary), transparent 86%);
+  border-color: color-mix(in srgb, var(--color-secondary), transparent 62%);
+}
+
+.pill--draft.is-active {
+  background: color-mix(in srgb, var(--mp-text), transparent 92%);
+  border-color: color-mix(in srgb, var(--mp-text), transparent 84%);
+  color: var(--mp-muted);
+}
+
+.pill--sent.is-active {
+  background: color-mix(in srgb, var(--color-secondary), transparent 86%);
+  border-color: color-mix(in srgb, var(--color-secondary), transparent 62%);
+}
+
+.pill--paid.is-active {
+  background: color-mix(in srgb, var(--color-success), transparent 84%);
+  border-color: color-mix(in srgb, var(--color-success), transparent 64%);
+}
+
+.pill--void.is-active {
+  background: color-mix(in srgb, var(--color-danger), transparent 88%);
+  border-color: color-mix(in srgb, var(--color-danger), transparent 70%);
+}
+
+@media (hover: none) {
+  .pill:hover { transform: none; }
+}
+
+/* ==========================================================================
+   10) MISC
+   ========================================================================== */
+
+button[aria-expanded="true"] i {
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
+}
+
+/* Desktop enhancements */
+@media (min-width: 768px) {
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.3rem; }
+
+  .card + .card { margin-top: 1.25rem; }
+}

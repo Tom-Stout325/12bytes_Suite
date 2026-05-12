@@ -1,0 +1,112 @@
+{% load humanize %}
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    @page { size: Letter; margin: 0.5in; }
+    html, body { margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11px; color: #111; }
+    * { box-sizing: border-box; }
+
+    .topbar {
+      background: #87a7c6;
+      color: #fff;
+      padding: 12px 14px;
+      border-radius: 6px;
+    }
+    .topbar .row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    .topbar .title { font-size: 18px; font-weight: 800; line-height: 1.1; }
+    .topbar .sub { font-size: 10px; opacity: .95; margin-top: 3px; }
+    .topbar .company { font-weight: 700; }
+    .muted { opacity: .95; }
+
+    .meta { margin-top: 10px; font-size: 10px; color: #555; }
+
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; }
+    th, td { padding: 6px 6px; border-bottom: 1px solid #ddd; vertical-align: top; }
+    th { text-align: left; font-size: 10px; color: #555; border-bottom: 2px solid #222; }
+    .num { text-align: right; white-space: nowrap; }
+
+    .section { background: #e9eff6; font-weight: 800; }
+    .strong { font-weight: 800; }
+
+    .indent { padding-left: 18px; color: #333; }
+    .less { color: #444; }
+    .totalrow td { border-bottom: 2px solid #222; }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="row">
+      <div>
+        <div class="company">{{ company_name }}</div>
+        <div class="sub muted">Profit and Loss Report</div>
+      </div>
+      <div class="right">
+        <div class="title">Profit and Loss</div>
+        <div class="sub">Tax Year {{ selected_year }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="meta">
+    {% if company_profile %}
+      {% if company_profile.address_line1 %}{{ company_profile.address_line1 }}{% endif %}
+      {% if company_profile.city %}{% if company_profile.address_line1 %}, {% endif %}{{ company_profile.city }}{% endif %}
+      {% if company_profile.state %}, {{ company_profile.state }}{% endif %}
+      {% if company_profile.postal_code %} {{ company_profile.postal_code }}{% endif %}
+    {% endif %}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 70%">Profit and Loss Report</th>
+        <th class="num" style="width: 30%">{{ selected_year }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="section"><td colspan="2">Revenue</td></tr>
+      <tr>
+        <td>Sales</td>
+        <td class="num">${{ pl.sales|floatformat:2|intcomma }}</td>
+      </tr>
+      <tr>
+        <td class="indent less">Less: Returns &amp; Allowances</td>
+        <td class="num">${{ pl.returns_allowances|floatformat:2|intcomma }}</td>
+      </tr>
+      <tr class="strong totalrow">
+        <td>Net Sales</td>
+        <td class="num">${{ pl.net_sales|floatformat:2|intcomma }}</td>
+      </tr>
+
+      <tr class="section"><td colspan="2">Operating Expenses</td></tr>
+      {% for cat in pl.expense_rows %}
+        <tr>
+          <td class="strong">{{ cat.category }}</td>
+          <td class="num strong">${{ cat.amount|floatformat:2|intcomma }}</td>
+        </tr>
+        {% for r in cat.breakdown %}
+          <tr>
+            <td class="indent">{{ r.sub_cat|default:"(none)" }}</td>
+            <td class="num">${{ r.amount|floatformat:2|intcomma }}</td>
+          </tr>
+        {% endfor %}
+      {% endfor %}
+      <tr class="strong totalrow">
+        <td>Total Operating Expenses</td>
+        <td class="num">${{ pl.total_expenses|floatformat:2|intcomma }}</td>
+      </tr>
+
+      <tr class="section"><td colspan="2">Net</td></tr>
+      <tr class="strong totalrow">
+        <td>Net Profit</td>
+        <td class="num">${{ pl.net_profit|floatformat:2|intcomma }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+</body>
+</html>

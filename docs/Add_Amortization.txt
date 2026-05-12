@@ -1,0 +1,21 @@
+To add amortization tables to an existing vehicle, do this after applying the patch and running migrations:
+Go to the vehicle’s Annual Record page for the year you want.
+Open the annual record for that vehicle, or create one if it does not exist yet.
+Leave Annual Interest Paid blank if you want MoneyPro to calculate interest automatically.
+Fill in the loan fields:
+purchase date
+first payment date if you have it
+loan amount
+annual interest rate
+number of payments
+Check Generate or refresh amortization schedule.
+Save the annual record.
+What happens next:
+MoneyPro creates the amortization rows for that vehicle loan.
+It totals the interest for the selected calendar year.
+It calculates the business portion using that year’s business-use percent.
+For a vehicle that already exists, you do not need to recreate the vehicle itself. You just add the loan details through the annual record and save with generation turned on.
+A couple of practical notes:
+If you already typed a manual annual interest amount, that manual amount takes priority over the generated amount.
+If you want the system-generated number, clear out the manual interest field first.
+If the vehicle has multiple years, you can create annual records for each year and the generated schedule will feed the year-specific interest totals.

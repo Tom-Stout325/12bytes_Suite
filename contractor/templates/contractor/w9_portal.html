@@ -1,0 +1,157 @@
+{% extends "public_portal_base.html" %}
+
+{% block title %}W-9 Portal | MoneyPro{% endblock %}
+
+{% block extra_css %}
+<style>
+.signature-pad-wrap { border: 1px dashed rgba(44,76,92,.35); border-radius: 1rem; background: rgba(255,255,255,.85); }
+.signature-pad { width: 100%; height: 220px; display:block; touch-action:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto" style="max-width: 980px;">
+  <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+    <div class="card-body p-3 p-md-4 p-lg-5">
+      <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+        <div>
+          <div class="text-muted small text-uppercase mb-1">W-9 Portal</div>
+          <h1 class="h3 mb-1 text-secondary-brand">{{ business.name }}</h1>
+          <div class="text-muted">Contractor: <span class="fw-semibold">{{ contact.display_name|default:contact.legal_name }}</span></div>
+        </div>
+        <div class="align-self-start">
+          <span class="badge text-bg-light border px-3 py-2">
+            <i class="fa-solid fa-shield-halved me-1"></i> Secure submission
+          </span>
+        </div>
+      </div>
+
+      {% if request.user.is_authenticated %}
+        <div class="alert alert-warning d-flex gap-2 align-items-start mb-3" role="alert">
+          <i class="fa-solid fa-circle-info mt-1"></i>
+          <div>
+            You are signed in to MoneyPro in this browser, but this page is a public contractor form. Internal navigation is intentionally hidden here.
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="alert alert-info mb-3">
+        Complete the W-9 intake form below. We store only the last 4 digits of your TIN. You may also upload a signed W-9 document.
+      </div>
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>
+      {% endif %}
+
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-12 col-md-6"><label class="form-label">{{ form.full_name.label }}</label>{{ form.full_name }}{% for e in form.full_name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-12 col-md-6"><label class="form-label">{{ form.business_name.label }}</label>{{ form.business_name }}{% for e in form.business_name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-12"><label class="form-label">{{ form.address1.label }}</label>{{ form.address1 }}{% for e in form.address1.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-12"><label class="form-label">{{ form.address2.label }}</label>{{ form.address2 }}{% for e in form.address2.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-12 col-md-5"><label class="form-label">{{ form.city.label }}</label>{{ form.city }}{% for e in form.city.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-6 col-md-3"><label class="form-label">{{ form.state.label }}</label>{{ form.state }}{% for e in form.state.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-6 col-md-4"><label class="form-label">{{ form.zip_code.label }}</label>{{ form.zip_code }}{% for e in form.zip_code.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-12 col-md-4"><label class="form-label">{{ form.entity_type.label }}</label>{{ form.entity_type }}{% for e in form.entity_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-12 col-md-4"><label class="form-label">{{ form.taxpayer_id_type.label }}</label>{{ form.taxpayer_id_type }}{% for e in form.taxpayer_id_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-12 col-md-8"><label class="form-label">{{ form.tin.label }}</label>{{ form.tin }}<div class="form-text">{{ form.tin.help_text }}</div>{% for e in form.tin.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-12"><label class="form-label">{{ form.upload_w9_document.label }}</label>{{ form.upload_w9_document }}<div class="form-text">{{ form.upload_w9_document.help_text }}</div>{% for e in form.upload_w9_document.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-12 col-md-6"><label class="form-label">{{ form.signature_name.label }}</label>{{ form.signature_name }}{% for e in form.signature_name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-12 col-md-6"><label class="form-label">{{ form.signature_date.label }}</label>{{ form.signature_date }}{% for e in form.signature_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          <div class="col-12">
+            <label class="form-label">Draw signature</label>
+            <div class="signature-pad-wrap p-2">
+              <canvas id="signaturePad" class="signature-pad"></canvas>
+            </div>
+            {{ form.signature_data }}
+            <div class="d-flex justify-content-between align-items-center mt-2">
+              <div class="text-muted small">Use your finger or mouse to sign.</div>
+              <button class="btn btn-sm btn-outline-secondary" type="button" id="clearSignature">Clear</button>
+            </div>
+            {% for e in form.signature_data.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              {{ form.certification_accepted }}
+              <label class="form-check-label" for="{{ form.certification_accepted.id_for_label }}">{{ form.certification_accepted.label }}</label>
+            </div>
+            {% for e in form.certification_accepted.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-12 d-grid d-sm-flex gap-2">
+            <button class="btn btn-primary" type="submit">Submit W-9</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const canvas = document.getElementById('signaturePad');
+  const input = document.getElementById('{{ form.signature_data.id_for_label }}');
+  const clearBtn = document.getElementById('clearSignature');
+  if (!canvas || !input) return;
+
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+
+  function resizeCanvas() {
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * ratio;
+    canvas.height = rect.height * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#1f2937';
+  }
+
+  function getPos(event) {
+    const rect = canvas.getBoundingClientRect();
+    const point = event.touches ? event.touches[0] : event;
+    return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+  }
+
+  function start(event) {
+    drawing = true;
+    const pos = getPos(event);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    event.preventDefault();
+  }
+
+  function move(event) {
+    if (!drawing) return;
+    const pos = getPos(event);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    input.value = canvas.toDataURL('image/png');
+    event.preventDefault();
+  }
+
+  function end(event) {
+    drawing = false;
+    input.value = canvas.toDataURL('image/png');
+    event && event.preventDefault();
+  }
+
+  clearBtn.addEventListener('click', function () {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    input.value = '';
+  });
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  window.addEventListener('touchend', end, { passive: false });
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+})();
+</script>
+{% endblock %}

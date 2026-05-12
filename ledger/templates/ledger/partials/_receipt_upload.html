@@ -1,0 +1,109 @@
+{% comment %} 
+  Receipt upload block
+  - Uses the bound form field `form.receipt`
+  - Provides drag & drop + click-to-select
+  - Shows existing receipt link (edit view) {% endcomment %}
+
+
+<hr class="my-4">
+<div class="fw-semibold mb-2">Receipt</div>
+
+<div class="row g-3">
+  <div class="col-12">
+
+
+    <div class="d-none">
+      {{ form.receipt }}
+    </div>
+
+    <div
+      id="receiptDrop"
+      class="border rounded-3 p-3 bg-light"
+      style="border-style: dashed; cursor: pointer;"
+      role="button"
+      tabindex="0"
+      aria-label="Upload receipt"
+    >
+      <div class="d-flex align-items-start gap-3">
+        <div class="fs-4 text-muted"><i class="fa-regular fa-file-lines"></i></div>
+        <div class="flex-grow-1">
+          <div class="fw-semibold">Drag & drop a receipt here</div>
+          <div class="text-muted small">or click to select a file (images or PDF)</div>
+
+          <div class="mt-2">
+            <span class="badge text-bg-secondary" id="receiptName">No file selected</span>
+          </div>
+
+          {% if form.instance and form.instance.pk and form.instance.receipt %}
+            <div class="mt-2 small">
+              Current: <a href="{{ form.instance.receipt.url }}" target="_blank" rel="noopener">View receipt</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if form.receipt.errors %}
+      <div class="invalid-feedback d-block mt-1">{{ form.receipt.errors|striptags }}</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+(function () {
+  const input = document.getElementById("id_receipt");
+  const drop = document.getElementById("receiptDrop");
+  const name = document.getElementById("receiptName");
+  if (!input || !drop || !name) return;
+
+  function setNameFromFiles(files) {
+    if (!files || !files.length) {
+      name.textContent = "No file selected";
+      name.classList.remove("text-bg-success");
+      name.classList.add("text-bg-secondary");
+      return;
+    }
+    name.textContent = files[0].name;
+    name.classList.remove("text-bg-secondary");
+    name.classList.add("text-bg-success");
+  }
+
+  drop.addEventListener("click", () => input.click());
+  drop.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      input.click();
+    }
+  });
+
+  input.addEventListener("change", () => setNameFromFiles(input.files));
+
+  ;["dragenter", "dragover"].forEach((evt) => {
+    drop.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.add("border-primary");
+    });
+  });
+  ;["dragleave", "drop"].forEach((evt) => {
+    drop.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.remove("border-primary");
+    });
+  });
+
+  drop.addEventListener("drop", (e) => {
+    const files = e.dataTransfer?.files;
+    if (!files || !files.length) return;
+    input.files = files;
+    setNameFromFiles(files);
+  });
+
+  // Initialize with existing file name if present
+  if (input.value) {
+    const bits = input.value.split(/[/\\]/);
+    name.textContent = bits[bits.length - 1] || "Receipt";
+  }
+})();
+</script>

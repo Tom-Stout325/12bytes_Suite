@@ -1,0 +1,21 @@
+<p>Hello {{ invoice.bill_to_name|default:invoice.contact.display_name }},</p>
+
+<p>Your invoice <strong>{{ invoice.invoice_number }}</strong> from <strong>{{ email_settings.display_name|default:business.name }}</strong> is attached as a PDF.</p>
+
+<ul>
+  <li><strong>Invoice total:</strong> ${{ invoice.total_amount|floatformat:2 }}</li>
+  <li><strong>Issue date:</strong> {{ invoice.issue_date }}</li>
+  {% if invoice.due_date %}<li><strong>Due date:</strong> {{ invoice.due_date }}</li>{% endif %}
+</ul>
+
+{% if invoice.memo %}
+  <p><strong>Notes:</strong><br>{{ invoice.memo|linebreaksbr }}</p>
+{% endif %}
+
+{% if email_settings.payment_questions_email %}
+  <p><strong>Questions about payment:</strong> {{ email_settings.payment_questions_email }}</p>
+{% endif %}
+
+{% if email_settings.email_signature %}
+  <p>{{ email_settings.email_signature|linebreaksbr }}</p>
+{% endif %}

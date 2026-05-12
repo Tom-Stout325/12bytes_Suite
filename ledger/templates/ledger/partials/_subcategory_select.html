@@ -1,0 +1,33 @@
+<div class="row g-3">
+  <p><!-- USING _subcategory_select.html --></p>
+
+  <div class="col-12">
+    <label class="form-label">Subcategory</label>
+    <select name="{{ form.subcategory.name }}" id="id_subcategory" class="form-select">
+      <option value="">— Select —</option>
+      {% for sc in form.fields.subcategory.queryset %}
+        <option value="{{ sc.pk }}"
+                {% if form.subcategory.value|stringformat:"s" == sc.pk|stringformat:"s" %}selected{% endif %}
+                data-category-name="{{ sc.category.name|default:'' }}"
+                data-category-type="{{ sc.category.category_type|default:'' }}"
+                data-requires-contact="{{ sc.requires_contact|yesno:'1,0' }}"
+                data-contact-role="{{ sc.contact_role }}"
+                data-requires-transport="{{ sc.requires_transport|yesno:'1,0' }}"
+                data-requires-vehicle="{{ sc.requires_vehicle|yesno:'1,0' }}">
+          {{ sc.name }}
+        </option>
+      {% endfor %}
+    </select>
+
+    {% if form.subcategory.errors %}
+      <div class="invalid-feedback d-block">{{ form.subcategory.errors|striptags }}</div>
+    {% endif %}
+
+    <div class="d-flex flex-wrap gap-2 mt-2" id="subcatDerivedWrap" style="display:none;">
+      <span class="badge rounded-pill text-bg-primary" id="subcatTypeBadge">Type: —</span>
+      <span class="badge rounded-pill text-bg-secondary" id="subcatCategoryBadge">Category: —</span>
+    </div>
+
+    <div class="form-text">This controls whether Contact/Transport is required.</div>
+  </div>
+</div>

@@ -1,0 +1,131 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}Transaction | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-0">Transaction</h1>
+      <div class="text-muted small">{{ transaction.date }}{% if transaction.invoice_number %} • Invoice {{ transaction.invoice_number }}{% endif %}</div>
+    </div>
+    <div class="d-grid d-md-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'ledger:transaction_list' %}">Back</a>
+      <a class="btn btn-primary" href="{% url 'ledger:transaction_update' transaction.pk %}">Edit</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div class="text-muted">Amount</div>
+            <div class="fw-semibold {% if transaction.trans_type == 'income' %}text-success{% endif %}">
+              {% if transaction.is_refund %}-{% endif %}${{ transaction.amount|floatformat:2|intcomma }}
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between mt-1">
+            <div class="text-muted">Type</div>
+            <div class="fw-semibold">
+              {{ transaction.get_trans_type_display|default:transaction.trans_type|title }}
+              {% if transaction.is_refund %}<span class="badge rounded-pill text-bg-warning ms-2">Refund</span>{% endif %}
+            </div>
+          </div>
+
+          <hr>
+
+          <div class="mb-2">
+            <div class="text-muted small">Description</div>
+            <div class="fw-semibold">{{ transaction.description }}</div>
+          </div>
+
+          {% if transaction.subcategory %}
+            <div class="mb-2">
+              <div class="text-muted small">Subcategory</div>
+              <div>{{ transaction.subcategory.name }}</div>
+            </div>
+          {% endif %}
+
+          {% if transaction.category %}
+            <div class="mb-2">
+              <div class="text-muted small">Category</div>
+              <div>{{ transaction.category.name }}</div>
+            </div>
+          {% endif %}
+
+          {% if transaction.invoice_number %}
+            <div class="mb-2">
+              <div class="text-muted small">Invoice number</div>
+              <div>{{ transaction.invoice_number }}</div>
+            </div>
+          {% endif %}
+
+          {% if transaction.contact %}
+            <div class="mb-2">
+              <div class="text-muted small">Contact</div>
+              <div>{{ transaction.contact.display_name }}</div>
+            </div>
+          {% endif %}
+
+          {% if transaction.team %}
+            <div class="mb-2">
+              <div class="text-muted small">Team</div>
+              <div>{{ transaction.team.name }}</div>
+            </div>
+          {% endif %}
+
+          {% if transaction.job %}
+            <div class="mb-2">
+              <div class="text-muted small">Job</div>
+              <div>{{ transaction.job.label }}</div>
+            </div>
+          {% endif %}
+
+          {% if transaction.transport_type %}
+            <div class="mb-2">
+              <div class="text-muted small">Transport</div>
+              <div>{{ transaction.get_transport_type_display|default:transaction.transport_type }}</div>
+            </div>
+          {% endif %}
+
+          {% if transaction.vehicle %}
+            <div class="mb-2">
+              <div class="text-muted small">Vehicle</div>
+              <div>{{ transaction.vehicle.label|default:transaction.vehicle }}</div>
+            </div>
+          {% endif %}
+
+          {% if transaction.notes %}
+            <hr>
+            <div class="text-muted small">Notes</div>
+            <div class="small">{{ transaction.notes|linebreaksbr }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-header bg-white">
+          <div class="fw-semibold">Receipt</div>
+        </div>
+        <div class="card-body">
+          {% if transaction.receipt %}
+            <a class="btn btn-outline-secondary" href="{{ transaction.receipt.url }}" target="_blank" rel="noopener">
+              <i class="fa-regular fa-file-lines me-1"></i> View receipt
+            </a>
+            <div class="text-muted small mt-2">Uploaded: {{ transaction.updated_at|date:"m/d/Y" }}</div>
+          {% else %}
+            <div class="text-muted">No receipt uploaded.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

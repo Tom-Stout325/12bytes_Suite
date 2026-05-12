@@ -1,0 +1,27 @@
+You (admin) create an Invitation
+  Go to /admin/
+  Open Invitations → Add
+  Enter the user’s email, set invited_by (you), save
+  You send the invite email
+  In Invitations list, select the invite → Action: Send invite email
+
+User receives a link like /accounts/invite/<token>/
+  User registers from the invite link
+  User clicks the link
+The app stores the invite in their session and redirects them to allauth signup
+Email is prefilled + locked to the invited email
+User sets password (and any other required fields) and submits
+Invite is marked as accepted
+On successful signup, the invitation records accepted_user / accepted_at
+User is immediately forced into Business Setup
+After signup/login, your ActiveBusinessMiddleware detects no active business
+User is redirected to /business/onboarding/
+User creates their Business
+They enter business name → submit
+App creates Business + BusinessMembership (active)
+User is logged out on completion
+After business creation, the app logs them out
+Redirects to login with a success message
+User logs back in
+Now they have an active business membership
+They land in the app normally (no onboarding redirect)

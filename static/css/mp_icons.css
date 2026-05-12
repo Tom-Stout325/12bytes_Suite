@@ -1,0 +1,128 @@
+/* ==========================================================================
+   MoneyPro — Custom SVG Icon System
+   Airborne Images drone logo icon utilities
+   Inline SVG version
+   ========================================================================== */
+
+:root {
+  --mp-icon-size: 1rem;
+  --mp-icon-radius: 0.75rem;
+  --mp-icon-soft-bg: color-mix(in srgb, var(--color-primary, #7B9669), white 88%);
+  --mp-icon-soft-border: color-mix(in srgb, var(--color-primary, #7B9669), transparent 72%);
+  --mp-icon-shadow: 0 8px 20px rgba(36, 64, 101, 0.10);
+}
+
+.mp-icon,
+i.mp-icon,
+span.mp-icon {
+  --_icon-size: var(--mp-icon-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--_icon-size);
+  height: var(--_icon-size);
+  min-width: var(--_icon-size);
+  min-height: var(--_icon-size);
+  vertical-align: -0.125em;
+  flex: 0 0 auto;
+  line-height: 1;
+}
+
+.mp-icon svg,
+i.mp-icon svg,
+span.mp-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.mp-icon-drone,
+.mp-icon-airborne,
+.mp-icon-brand,
+.mp-icon-logo {
+  /* alias hooks for compatibility */
+}
+
+.mp-icon-xs { --_icon-size: 0.875rem; }
+.mp-icon-sm { --_icon-size: 1rem; }
+.mp-icon-md { --_icon-size: 1.25rem; }
+.mp-icon-lg { --_icon-size: 1.5rem; }
+.mp-icon-xl { --_icon-size: 2rem; }
+.mp-icon-2xl { --_icon-size: 2.5rem; }
+.mp-icon-3xl { --_icon-size: 3rem; }
+.mp-icon-4xl { --_icon-size: 4rem; }
+
+.mp-icon-soft,
+.mp-icon-circle,
+.mp-icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+.mp-icon-soft {
+  padding: 0.5rem;
+  border-radius: var(--mp-icon-radius);
+  background: var(--mp-icon-soft-bg);
+  border: 1px solid var(--mp-icon-soft-border);
+  box-shadow: var(--mp-icon-shadow);
+}
+
+.mp-icon-circle {
+  padding: 0.5rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.82));
+  border: 1px solid color-mix(in srgb, var(--color-secondary, #2C4C5C), transparent 84%);
+  box-shadow: var(--mp-icon-shadow);
+}
+
+.mp-icon-tile {
+  padding: 0.65rem;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(247,249,251,.92));
+  border: 1px solid color-mix(in srgb, var(--color-secondary, #2C4C5C), transparent 84%);
+  box-shadow: var(--mp-icon-shadow);
+}
+
+.mp-icon-inline { margin-right: 0.5rem; }
+.mp-icon-inline-sm { margin-right: 0.35rem; }
+
+.btn .mp-icon,
+.nav-link .mp-icon,
+.dropdown-item .mp-icon,
+.card-title .mp-icon,
+.section-title .mp-icon,
+h1 .mp-icon,
+h2 .mp-icon,
+h3 .mp-icon,
+h4 .mp-icon,
+h5 .mp-icon,
+h6 .mp-icon {
+  margin-right: 0.5rem;
+}
+
+.mp-icon-pop {
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.mp-icon-pop:hover,
+.btn:hover .mp-icon-pop,
+.nav-link:hover .mp-icon-pop,
+.card:hover .mp-icon-pop {
+  transform: translateY(-1px) scale(1.03);
+  filter: drop-shadow(0 8px 16px rgba(36, 64, 101, 0.14));
+}
+
+[data-theme="dark"] .mp-icon-soft {
+  background: color-mix(in srgb, var(--color-primary, #7B9669), #0f1720 86%);
+  border-color: color-mix(in srgb, var(--color-primary, #7B9669), transparent 74%);
+}
+
+[data-theme="dark"] .mp-icon-circle,
+[data-theme="dark"] .mp-icon-tile {
+  background: linear-gradient(180deg, rgba(17, 28, 38, .95), rgba(17, 28, 38, .82));
+  border-color: color-mix(in srgb, white, transparent 88%);
+  box-shadow: 0 10px 22px rgba(0,0,0,.36);
+}

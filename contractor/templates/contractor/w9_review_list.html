@@ -1,0 +1,58 @@
+{% extends "index.html" %}
+
+{% block title %}W-9 Review | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-3">
+    <div>
+      <h1 class="h2 mb-0 text-secondary-brand">W-9 Review</h1>
+      <div class="text-muted small">Review contractor submissions, verify details, and store the final document.</div>
+    </div>
+    <div class="d-grid d-sm-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'contractor:list' %}"><i class="fa-solid fa-users me-1"></i> Contractors</a>
+    </div>
+  </div>
+
+  <div class="kpi-grid mb-3">
+    <div class="kpi-card kpi-accent-warning h-100"><div class="kpi-label">Pending</div><p class="kpi-value">{{ pending_count }}</p></div>
+    <div class="kpi-card kpi-accent-success h-100"><div class="kpi-label">Verified</div><p class="kpi-value">{{ verified_count }}</p></div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-3 p-md-4">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 table-soft table-zebra">
+          <thead>
+            <tr>
+              <th>Contractor</th>
+              <th>Submitted</th>
+              <th>Signature</th>
+              <th>Document</th>
+              <th>Status</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in submissions %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ s.contact.display_name|default:s.contact.legal_name }}</div>
+                  <div class="text-muted small">{% if s.tin_last4 %}{{ s.tin_type|upper }} •••• {{ s.tin_last4 }}{% else %}No TIN saved{% endif %}</div>
+                </td>
+                <td>{{ s.submitted_at }}</td>
+                <td>{{ s.signature_name|default:"—" }}</td>
+                <td>{% if s.uploaded_w9_document %}<span class="badge text-bg-success">Uploaded</span>{% else %}<span class="badge text-bg-secondary">None</span>{% endif %}</td>
+                <td>{{ s.get_review_status_display }}</td>
+                <td class="text-end"><a class="btn btn-sm btn-primary" href="{% url 'contractor:w9_review_detail' s.pk %}">Review</a></td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="text-center text-muted py-4">No W-9 submissions found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

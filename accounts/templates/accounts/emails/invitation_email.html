@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitation to {{ app_name }}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fb;padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(15,23,42,.08);">
+            <tr>
+              <td style="background:#0f172a;padding:28px 32px;">
+                <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#cbd5e1;">{{ app_name }}</div>
+                <h1 style="margin:10px 0 0;font-size:28px;line-height:1.2;color:#ffffff;">You're invited</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px;">
+                <p style="margin:0 0 16px;font-size:16px;line-height:1.7;">You've been invited to create an account for <strong>{{ app_name }}</strong>.</p>
+                <p style="margin:0 0 24px;font-size:16px;line-height:1.7;">Use the button below to finish setting up your account.</p>
+
+                <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+                  <tr>
+                    <td style="border-radius:10px;background:#2563eb;">
+                      <a href="{{ invite_url }}" style="display:inline-block;padding:14px 22px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;">Create account</a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0 0 12px;font-size:14px;line-height:1.7;color:#475569;">If the button does not work, copy and paste this link into your browser:</p>
+                <p style="margin:0 0 24px;font-size:14px;line-height:1.7;word-break:break-word;"><a href="{{ invite_url }}" style="color:#2563eb;text-decoration:none;">{{ invite_url }}</a></p>
+
+                <div style="margin:0 0 24px;padding:16px;border-radius:12px;background:#eff6ff;font-size:14px;line-height:1.7;color:#1e3a8a;">
+                  This invitation expires on <strong>{{ expires_at|date:"F j, Y g:i A T" }}</strong>.
+                </div>
+
+                <p style="margin:0;font-size:14px;line-height:1.7;color:#64748b;">If you were not expecting this email, you can safely ignore it.{% if support_email %} Questions? Reply to <a href="mailto:{{ support_email }}" style="color:#2563eb;text-decoration:none;">{{ support_email }}</a>.{% endif %}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

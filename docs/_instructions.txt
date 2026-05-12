@@ -1,0 +1,217 @@
+
+Next Steps: Test new seeding
+Create SuperUser
+Create Invite
+Setup Up Airborne Images User/business
+
+Test Seeding:
+python manage.py shell
+python manage.py import_subcategories_csv --business-id 1 --csv "/docs/SubCategories.csv" --dry-run
+python manage.py import_subcategories_csv --business-id 1 --csv "/path/to/SubCategories.csv"
+
+
+Create a Job Review section
+  add a profitability scale to job analsys
+
+Dress up Invoice Review
+
+
+🥇 Tier 1 — High Leverage (Big UX / Value Gains)
+1️⃣ Job Profitability View
+You already have:
+Job
+Transactions linked to Job
+Invoices linked to Job
+Mileage linked to Job
+You’re one step away from:
+💼 Job Profitability Dashboard
+For each Job:
+Total income (from invoices or income transactions)
+Total expenses (job-linked expenses)
+Total mileage (business miles)
+Net profit
+Cost per mile (if applicable)
+This turns MoneyPro into a real business intelligence tool.
+2️⃣ Smart Alerts / Dashboard Insights
+Add small intelligence like:
+⚠️ Unlinked transactions (no job)
+⚠️ Transactions without subcategory
+⚠️ Jobs with expenses but no invoice
+⚠️ Unpaid invoices older than 30 days
+⚠️ Mileage logs without job
+These make it feel like an assistant, not just a ledger.
+3️⃣ Invoice + Mileage Intelligence
+If mileage is linked to invoice:
+Show mileage total on invoice detail
+Optionally auto-add reimbursable mileage line item
+Toggle: “Bill mileage at IRS rate”
+This becomes very powerful for service businesses.
+🥈 Tier 2 — Professional Polish
+4️⃣ Budget vs Actual (Monthly)
+Simple version:
+Monthly income target
+Monthly expense target
+Show variance on dashboard
+Advanced:
+Budget per category
+5️⃣ Year-End Report Package
+Single button:
+“Generate Year-End Package”
+Includes:
+Profit & Loss (Books)
+Schedule C (Tax)
+Mileage summary
+Invoice summary
+Expense by category
+CSV export
+This is accountant gold.
+6️⃣ Transaction Bulk Edit
+For power users:
+Select multiple transactions
+Assign job
+Assign subcategory
+Mark as tax-related
+Add invoice number
+Huge timesaver.
+🥉 Tier 3 — Strategic Growth Features
+7️⃣ Contractor Management
+You already think tax-compliance-first.
+Add:
+Contractor profiles
+1099 tracking
+Auto-sum payments
+W-9 document upload
+1099 summary export
+That becomes a strong differentiator.
+8️⃣ Asset Tracking + Depreciation
+You already track vehicles and equipment.
+Add:
+Purchase price
+Placed in service date
+Section 179 toggle
+Straight-line depreciation calculation
+Form 4562 helper
+Now you're competing with real accounting tools.
+9️⃣ Client Portal (Long-Term Vision)
+For invoices:
+View invoices
+Pay online (Stripe)
+View invoice history
+Download PDF
+That’s SaaS territory.
+🔥 Hidden Gold Feature (High ROI for You)
+“Next Step” AI Workflow Engine
+You already built Help with dynamic completion.
+Take it further:
+At top of dashboard:
+“Next Recommended Action: Create your first job.”
+Based on:
+No jobs → suggest job
+Jobs but no transactions → suggest transaction
+Transactions but no invoices → suggest invoice
+Invoices but unpaid → suggest follow-up
+That makes MoneyPro feel smart.
+🧠 My Personal Recommendation
+Given where you are right now:
+Build next:
+Job Profitability View
+Smart Alerts on Dashboard
+Invoice ↔ Mileage intelligence
+That gives you:
+Analytical depth
+Practical usefulness
+Clear differentiation
+If you want, tell me:
+Are you building MoneyPro primarily for yourself?
+Or is this intended to become a product?
+That changes which features we prioritize next.
+
+Zip Process:
+
+zip -r MoneyPro.zip . \
+  -x "venv/*" \
+  -x ".git/*" \
+  -x "__pycache__/*" \
+  -x "*.pyc" \
+  -x ".DS_Store" \
+  -x "__MACOSX/*" \
+  -x "staticfiles/*"
+
+
+
+
+
+
+primary = #7B9669
+secondary = #2C4C5C
+success = #3C9EA4
+danger = #D6794D
+warning = #DDB05E
+info = #BAC8B1
+
+text-light = #E6E6E6
+text-dark
+text-muted
+
+
+#404E3B
+#D6794D
+#6C8480
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+
+
+
+.nunito-<uniquifier> {
+  font-family: "Nunito", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: <weight>;
+  font-style: normal;
+}
+
+
+
+
+
+----- I C O N  S Y S T E M -----
+
+<i class="mp-icon mp-icon-drone mp-icon-sm" aria-hidden="true"></i>
+
+Heading:
+<h5>
+  <i class="mp-icon mp-icon-drone mp-icon-md mp-icon-pop"></i>
+  Invoice Review
+</h5>
+
+Button:
+<a class="btn btn-primary" href="#">
+  <i class="mp-icon mp-icon-drone mp-icon-sm"></i>
+  New Flight
+</a>
+
+
+Reusable Django Partial:
+{% include "partials/icon.html" with name="drone" size="lg" class="me-2 mp-icon-pop" %}
+
+Wrapped Styles:
+{% include "partials/icon.html" with name="drone" size="md" wrapper="soft" class="me-2" %}
+{% include "partials/icon.html" with name="drone" size="md" wrapper="circle" class="me-2" %}
+{% include "partials/icon.html" with name="drone" size="md" wrapper="tile" class="me-2" %}
+
+
+Available icon aliases:
+mp-icon-drone
+mp-icon-airborne
+mp-icon-brand
+mp-icon-logo
+Available sizes:
+mp-icon-xs
+mp-icon-sm
+mp-icon-md
+mp-icon-lg
+mp-icon-xl
+mp-icon-2xl
+mp-icon-3xl
+mp-icon-4xl

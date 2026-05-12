@@ -1,0 +1,58 @@
+﻿Category,SubCategory,Slug,Is Active,Sort Order,Book Enabled,Tax Enabled,Schedule C Line,Deduction Rule,Account Type,is 1099 Reportable Default,Is Capitalizable,Requires Contact,Contact Role,Requires Receipt,Requires Team,Requires Job,Requires Invoice Number,Requires Transport,Requires Vehicle,Requires Asset
+Advertising,Advertising,,yes,0,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+Car & Truck Expenses,Vehicle: Equipment Purchases,,yes,1,yes,no,,Not Deductible,Expense,no,no,no,,no,no,no,no,no,yes,yes
+,Vehicle: Gas,,yes,2,yes,no,,Not Deductible,Expense,no,no,no,,no,no,no,no,no,yes,yes
+,Vehicle: Loan Interest,,yes,3,yes,no,,Not Deductible,Expense,no,no,no,,no,no,no,no,no,yes,yes
+,Vehicle: Loan Payments,,yes,4,yes,no,,Not Deductible,Expense,no,no,no,,no,no,no,no,no,yes,yes
+,Vehicle: Maintenance,,yes,5,yes,no,,Not Deductible,Expense,no,no,no,,no,no,no,no,no,yes,yes
+,Vehicle: Repairs,,yes,6,yes,no,,Not Deductible,Expense,no,no,no,,no,no,no,no,no,yes,yes
+,Vehicle: Other Expenses,,yes,7,yes,no,,Not Deductible,Expense,no,no,no,,no,no,no,no,no,yes,yes
+Commissions & Fees,Commissions & Fees,,yes,0,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+Contract Labor,Contractors,,yes,0,yes,yes,,100% Deductible,Expense,yes,no,yes,contractor,no,no,yes,yes,no,no,no
+Depletion,Depletion,,yes,0,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+Depreciation & Section 179,Depreciation,,yes,1,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+,Section 179,,yes,2,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+Employee Benefits,Insurance: Health,,yes,0,yes,yes,,100% Deductible,Expense,yes,no,no,employee,no,no,no,no,no,no,no
+Insurance,Insurance: Aviation,,yes,1,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+,Insurance: Business,,yes,2,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+,Insurance: Liability,,yes,3,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+Interest: Mortgage,Mortgage Interest,,yes,0,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+Interes: Other,Other Interest,,yes,0,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+Legal & Professional,Accounting Services,,yes,1,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+,Legal Services,,yes,2,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+Office Expenses,Office Supplies,,yes,1,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+,Postage & Shipping,,yes,2,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+Pension & Profit Sharing,Employee Retirement Contributions,,yes,0,yes,yes,,100% Deductible,Expense,no,no,yes,employee,no,no,no,no,no,no,no
+Rent or Lease: Vehicles & Machinery,Rental: Machinery,,yes,0,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+Rent or Lease: Other Business Property,Rental: Drone Equipment,,yes,1,yes,yes,,100% Deductible,Expense,no,no,no,,no,yes,yes,yes,no,no,no
+,Rental: Photography Equipment,,yes,2,yes,yes,,100% Deductible,Expense,no,no,no,,no,yes,yes,yes,no,no,no
+Repairs & Maintenance,Repairs: Drone Equipment,,yes,0,yes,yes,,100% Deductible,Expense,no,no,no,,no,yes,no,no,no,no,no
+Supplies,Materials & Supplies,,yes,1,yes,yes,,100% Deductible,Expense,no,no,no,,no,yes,no,no,no,no,no
+,Supplies: Photography,,yes,2,yes,yes,,100% Deductible,Expense,no,no,no,,no,yes,no,no,no,no,no
+Taxes & Licenses,Sales Tax Paid,,yes,1,yes,yes,,100% Deductible,passthrough,no,no,no,vendor,yes,yes,no,no,no,no,no
+,Sales Tax Collected,,yes,2,yes,yes,,Not Deductible,Liability,no,no,yes,Customer,yes,yes,no,no,no,no,no
+,Licensing Fees,,yes,2,yes,yes,,100% Deductible,Expense,no,no,yes,vendor,yes,yes,no,no,no,no,no
+Travel & Meals: Travel,Travel: Airfare,,yes,1,yes,yes,,100% Deductible,Expense,no,no,yes,vendor,no,yes,yes,yes,no,no,no
+,Travel: Car Rental,,yes,2,yes,yes,,100% Deductible,Expense,no,no,yes,vendor,no,yes,yes,yes,no,no,no
+,Travel: Gas,,yes,3,yes,yes,,100% Deductible,Expense,no,no,yes,vendor,no,yes,yes,yes,yes,no,no
+,Travel: Hotels,,yes,4,yes,yes,,100% Deductible,Expense,no,no,yes,vendor,no,yes,yes,yes,no,no,no
+,Travel: Other,,yes,5,yes,yes,,100% Deductible,Expense,no,no,yes,vendor,no,yes,yes,yes,no,no,no
+,Travel: Parking & Tolls,,yes,6,yes,yes,,100% Deductible,Expense,no,no,yes,vendor,no,yes,yes,yes,no,no,no
+Travel & Meals: Meals,Travel: Meals,,yes,0,yes,yes,,Meals (50%),Expense,no,no,yes,vendor,no,yes,yes,yes,no,no,no
+Utilities,Cellular Services,,yes,1,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+,Internet,,yes,2,yes,yes,,100% Deductible,Expense,no,no,no,,no,no,no,no,no,no,no
+Wages,Wages,,yes,0,yes,yes,,100% Deductible,Expense,yes,no,yes,employee,no,yes,no,no,no,no,no
+Energy Efficient Buildings,Energy Efficient Buildings,,yes,0,yes,yes,,100% Deductible,Expense,no,no,no, ,no,no,no,no,no,no,no
+Other Expenses,Bank Fees,,yes,1,yes,yes,,100% Deductible,Expense,no,no,yes,vendor,no,no,no,no,no,no,no
+,Business Meals,,yes,2,yes,yes,,100% Deductible,Expense,no,no,no, ,yes,yes,no,no,no,no,no
+,Web Hosting,,yes,3,yes,yes,,100% Deductible,Expense,no,no,no, ,no,no,no,no,no,no,no
+,Education,,yes,4,yes,yes,,100% Deductible,Expense,no,no,no, ,no,yes,no,no,no,no,no
+,Equipment: Computer,,yes,5,yes,yes,,100% Deductible,Expense,no,yes,no, ,yes,yes,no,no,no,no,yes
+,Equipment: Drones,,yes,6,yes,yes,,100% Deductible,Expense,no,yes,no, ,yes,yes,no,no,no,no,yes
+,Equipment: Office,,yes,7,yes,yes,,100% Deductible,Expense,no,yes,no, ,yes,yes,no,no,no,no,yes
+,Equipment: Photography,,yes,8,yes,yes,,100% Deductible,Expense,no,yes,no, ,yes,yes,no,no,no,no,yes
+,Software,,yes,9,yes,yes,,100% Deductible,Expense,no,no,no, ,no,no,no,no,no,no,no
+Gross Receipts,Drone Services,,yes,1,yes,yes,,,Income,no,no,yes,customer,no,yes,yes,yes,no,no,no
+,Photography Services,,yes,2,yes,yes,,,Income,no,no,yes,customer,no,yes,yes,yes,no,no,no
+,Sales  ,,yes,3,yes,yes,,,Income,no,no,yes,customer,no,yes,yes,yes,no,no,no
+Returns & Allowances,Returns & Allowances,,yes,0,yes,yes,,100% Deductible,Income,no,no,yes,customer,no,yes,yes,yes,no,no,no

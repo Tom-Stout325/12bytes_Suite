@@ -1,0 +1,63 @@
+{% extends "index.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if object %}Edit Job{% else %}New Job{% endif %} | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-0">{% if object %}Edit Job{% else %}New Job{% endif %}</h1>
+      <div class="text-muted small">Jobs link transactions + invoices for profitability reporting.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'ledger:job_list' %}">Back</a>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-3 p-md-4">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if object and object.job_number %}
+          <div class="alert alert-light border mb-3">
+            <div class="small text-muted">Job Number</div>
+            <div class="fw-semibold">{{ object.job_number }}</div>
+          </div>
+        {% endif %}
+
+        <div class="row g-3">
+          <div class="col-12 col-md-8">{{ form.label|as_crispy_field }}</div>
+          <div class="col-12 col-md-4">{{ form.job_year|as_crispy_field }}</div>
+
+          <div class="col-12 col-md-6">{{ form.client|as_crispy_field }}</div>
+          <div class="col-12 col-md-6">{{ form.job_type|as_crispy_field }}</div>
+
+          <div class="col-12 col-md-6">{{ form.city|as_crispy_field }}</div>
+          <div class="col-12 col-md-6">{{ form.address|as_crispy_field }}</div>
+
+          <div class="col-12">{{ form.notes|as_crispy_field }}</div>
+
+          <div class="col-12">
+            <div class="form-check">
+              {{ form.is_active }}
+              <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Active</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn btn-primary" type="submit">Save</button>
+          <a class="btn btn-outline-secondary" href="{% url 'ledger:job_list' %}">Cancel</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <div class="text-muted small mt-3">
+    Note: the Client dropdown shows Contacts marked as <span class="fw-semibold">Customer</span>.
+  </div>
+
+</div>
+{% endblock %}

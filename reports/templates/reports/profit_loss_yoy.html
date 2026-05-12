@@ -1,0 +1,115 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}Profit &amp; Loss YoY{% endblock %}
+
+{% block content %}
+<div class="container my-4" style="max-width: 1100px;">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-3">
+
+    <div class="flex-grow-1">
+      <h1 class="h4 mb-1">Profit &amp; Loss (3-Year YoY)</h1>
+      <p class="text-muted mb-0 small">Books totals (actual income &amp; expenses) for the ending year.</p>
+    </div>
+
+    <div class="d-flex flex-column gap-2 align-items-stretch" style="min-width: 280px;">
+      <form method="get" class="d-flex align-items-center gap-2">
+        <label for="id_year" class="small text-muted mb-0" style="min-width: 72px;">Ending year</label>
+        <select id="id_year" name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% for y in year_choices %}
+            <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+        <noscript>
+          <button class="btn btn-sm btn-primary" type="submit">Go</button>
+        </noscript>
+      </form>
+
+      <div class="btn-group w-100" role="group" aria-label="P&amp;L View">
+        <a class="btn btn-sm w-50 btn-outline-dark" href="{% url 'reports:profit_loss' %}?year={{ selected_year }}">Single Year</a>
+        <a class="btn btn-sm w-50 btn-dark" href="{% url 'reports:profit_loss_yoy' %}?year={{ selected_year }}">YOY (3-Year)</a>
+      </div>
+
+      <div class="d-flex gap-2">
+        <a class="btn btn-sm btn-outline-secondary flex-fill" href="{% url 'reports:profit_loss_yoy_pdf_preview' %}?year={{ selected_year }}" target="_blank" rel="noopener">
+          <i class="fa-solid fa-file-pdf me-1"></i> Preview
+        </a>
+        <a class="btn btn-sm btn-primary flex-fill" href="{% url 'reports:profit_loss_yoy_pdf_download' %}?year={{ selected_year }}">
+          <i class="fa-solid fa-download me-1"></i> Download
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Section</th>
+              {% for y in yoy.years %}
+                <th class="text-end" style="width: 170px;">{{ y }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="table-secondary">
+              <td class="fw-semibold">Revenue</td>
+              {% for y in yoy.years %}<td></td>{% endfor %}
+            </tr>
+            <tr>
+              <td>{{ yoy.sales.label }}</td>
+              {% for v in yoy.sales.totals_list %}
+                <td class="text-end">${{ v|floatformat:2|intcomma }}</td>
+              {% endfor %}
+            </tr>
+            <tr>
+              <td class="text-muted">{{ yoy.returns_allowances.label }}</td>
+              {% for v in yoy.returns_allowances.totals_list %}
+                <td class="text-end text-muted">${{ v|floatformat:2|intcomma }}</td>
+              {% endfor %}
+            </tr>
+            <tr class="fw-semibold">
+              <td>{{ yoy.net_sales.label }}</td>
+              {% for v in yoy.net_sales.totals_list %}
+                <td class="text-end">${{ v|floatformat:2|intcomma }}</td>
+              {% endfor %}
+            </tr>
+
+            <tr class="table-secondary">
+              <td class="fw-semibold">Expenses</td>
+              {% for y in yoy.years %}<td></td>{% endfor %}
+            </tr>
+            {% for row in yoy.expense_rows %}
+              <tr>
+                <td>{{ row.label }}</td>
+                {% for v in row.totals_list %}
+                  <td class="text-end">${{ v|floatformat:2|intcomma }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+            <tr class="fw-semibold">
+              <td>{{ yoy.total_expenses.label }}</td>
+              {% for v in yoy.total_expenses.totals_list %}
+                <td class="text-end">${{ v|floatformat:2|intcomma }}</td>
+              {% endfor %}
+            </tr>
+
+            <tr class="table-secondary">
+              <td class="fw-semibold">Net</td>
+              {% for y in yoy.years %}<td></td>{% endfor %}
+            </tr>
+            <tr class="fw-bold">
+              <td>{{ yoy.net_profit.label }}</td>
+              {% for v in yoy.net_profit.totals_list %}
+                <td class="text-end">${{ v|floatformat:2|intcomma }}</td>
+              {% endfor %}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

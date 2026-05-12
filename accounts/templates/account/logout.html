@@ -1,0 +1,17 @@
+{% extends "account/base.html" %}
+
+{% block account_content %}
+  <h1 class="h5 mb-2 text-center">Sign Out</h1>
+  <p class="text-muted small text-center mb-3">Are you sure you want to sign out?</p>
+
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-outline-danger w-100">
+      Sign Out
+    </button>
+  </form>
+
+  <div class="text-center mt-3">
+    <a class="small" href="/">Cancel</a>
+  </div>
+{% endblock %}

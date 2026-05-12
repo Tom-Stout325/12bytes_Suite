@@ -1,0 +1,175 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}Profit &amp; Loss{% endblock %}
+
+{% block content %}
+<div class="container my-4" style="max-width: 1100px;">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-3">
+
+    <div class="flex-grow-1">
+      <h1 class="h4 mb-1">Profit &amp; Loss</h1>
+      <p class="text-muted mb-0 small">Books totals (actual income &amp; expenses) for the selected year.</p>
+    </div>
+
+    <div class="d-flex flex-column gap-2 align-items-stretch" style="min-width: 280px;">
+      <form method="get" class="d-flex align-items-center gap-2">
+        <label for="id_year" class="small text-muted mb-0" style="min-width: 72px;">Ending year</label>
+        <select id="id_year" name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% for y in year_choices %}
+            <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+        <noscript>
+          <button class="btn btn-sm btn-primary" type="submit">Go</button>
+        </noscript>
+      </form>
+
+      <div class="btn-group w-100" role="group" aria-label="P&amp;L View">
+        <a class="btn btn-sm w-50 btn-dark" href="{% url 'reports:profit_loss' %}?year={{ selected_year }}">Single Year</a>
+        <a class="btn btn-sm w-50 btn-outline-dark" href="{% url 'reports:profit_loss_yoy' %}?year={{ selected_year }}">YOY (3-Year)</a>
+      </div>
+
+      <div class="d-flex gap-2">
+        <a class="btn btn-sm btn-outline-secondary flex-fill" href="{% url 'reports:profit_loss_pdf_preview' %}?year={{ selected_year }}" target="_blank" rel="noopener">
+          <i class="fa-solid fa-file-pdf me-1"></i> Preview
+        </a>
+        <a class="btn btn-sm btn-primary flex-fill" href="{% url 'reports:profit_loss_pdf_download' %}?year={{ selected_year }}">
+          <i class="fa-solid fa-download me-1"></i> Download
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="">
+          Net Profit | {{ selected_year }}
+          <div class="text-muted small">Net Sales − Total Expenses</div>
+        </div>
+        <div class="h5 mb-0">${{ pl.net_profit|floatformat:2|intcomma }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-semibold">Revenue</div>
+            <div class="small text-muted">{{ selected_year }}</div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <tbody>
+                <tr>
+                  <td>Sales</td>
+                  <td class="text-end">${{ pl.sales|floatformat:2|intcomma }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">Less: Returns &amp; Allowances</td>
+                  <td class="text-end text-muted">${{ pl.returns_allowances|floatformat:2|intcomma }}</td>
+                </tr>
+                <tr class="fw-semibold">
+                  <td>Net Sales</td>
+                  <td class="text-end">${{ pl.net_sales|floatformat:2|intcomma }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-semibold">Expenses</div>
+            <div class="fw-semibold">${{ pl.total_expenses|floatformat:2|intcomma }}</div>
+          </div>
+          <div class="d-flex justify-content-end">
+            <button class="btn btn-sm btn-outline-secondary" type="button" id="plExpandAll">Expand all</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Category</th>
+                <th class="text-end" style="width: 180px;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cat in pl.expense_rows %}
+                <tr>
+                  <td class="fw-semibold">
+                    {{ cat.category }}
+                    <div>
+                      <details class="pl-details" data-open="0">
+                        <summary class="small text-muted">Show breakdown</summary>
+                        <div class="mt-2">
+                          <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                              <thead>
+                                <tr class="small text-muted">
+                                  <th>Sub-category</th>
+                                  <th class="text-end">Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {% for r in cat.breakdown %}
+                                  <tr class="small">
+                                    <td>
+                                      {{ r.sub_cat|default:"(none)" }}
+                                    </td>
+                                    <td class="text-end">${{ r.amount|floatformat:2|intcomma }}</td>
+                                  </tr>
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                  <td class="text-end fw-semibold">${{ cat.amount|floatformat:2|intcomma }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="2" class="text-center text-muted py-4">No expense categories found for {{ selected_year }}.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function(){
+    const btn = document.getElementById('plExpandAll');
+    if(!btn) return;
+    const details = Array.from(document.querySelectorAll('details.pl-details'));
+    const anyClosed = () => details.some(d => !d.open);
+
+    const syncLabel = () => {
+      btn.textContent = anyClosed() ? 'Expand all' : 'Collapse all';
+    };
+
+    btn.addEventListener('click', () => {
+      const open = anyClosed();
+      details.forEach(d => d.open = open);
+      syncLabel();
+    });
+
+    details.forEach(d => d.addEventListener('toggle', syncLabel));
+    syncLabel();
+  })();
+</script>
+{% endblock %}

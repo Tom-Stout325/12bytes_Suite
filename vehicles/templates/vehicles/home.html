@@ -1,0 +1,123 @@
+{% extends "index.html" %}
+{% load humanize static %}
+{% block title %}Vehicles | MoneyPro{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'vehicles/vehicles.css' %}">{% endblock %}
+{% block content %}
+<div class="vehicle-shell">
+  <section class="vehicle-section-card mb-3">
+    <div class="vehicle-section-head">
+      <div>
+        <div class="vehicle-eyebrow">Fleet & mileage</div>
+        <h1 class="vehicle-title mb-1">Vehicles Dashboard</h1>
+        <div class="vehicle-subtitle">Annual vehicle records, mileage, deductions, and expense tracking in one place.</div>
+      </div>
+      <div class="d-grid d-md-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{% url 'vehicles:vehicle_list' %}"><i class="fa-solid fa-list me-1"></i>Vehicles</a>
+        <a class="btn btn-outline-secondary" href="{% url 'vehicles:vehicle_year_list' %}?year={{ year }}"><i class="fa-solid fa-calendar-days me-1"></i>Annual records</a>
+        <a class="btn btn-primary" href="{% url 'vehicles:vehicle_add' %}"><i class="fa-solid fa-plus me-1"></i>Add vehicle</a>
+      </div>
+    </div>
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-12 col-md-3">
+        <label class="form-label">Year</label>
+        <select class="form-select" name="year" onchange="this.form.submit()">
+          {% for y in year_choices %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+      </div>
+    </form>
+  </section>
+
+  <section class="vehicle-kpi-grid mb-3">
+    <article class="vehicle-kpi-card"><div class="label">Business miles</div><div class="value">{{ ytd_business_miles|floatformat:1|intcomma }}</div><div class="note">Logged business mileage for {{ year }}</div></article>
+    <article class="vehicle-kpi-card"><div class="label">Other miles</div><div class="value">{{ ytd_other_miles|floatformat:1|intcomma }}</div><div class="note">Annual total minus business</div></article>
+    <article class="vehicle-kpi-card"><div class="label">Annual total</div><div class="value">{{ ytd_total_miles|floatformat:1|intcomma }}</div><div class="note">Based on annual start and end odometer</div></article>
+    <article class="vehicle-kpi-card"><div class="label">Deduction value</div><div class="value money">${{ ytd_deduction_total|floatformat:2|intcomma }}</div><div class="note">Standard mileage or actual, by record setting</div></article>
+  </section>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-8">
+      <section class="vehicle-section-card h-100">
+        <div class="vehicle-section-head compact"><div><h2 class="vehicle-section-title">Monthly business miles</h2><div class="vehicle-subtitle">Quick year view for all vehicles combined.</div></div></div>
+        <canvas id="vehicleMileageChart" height="120"></canvas>
+      </section>
+    </div>
+    <div class="col-12 col-xl-4">
+      <section class="vehicle-section-card h-100">
+        <div class="vehicle-section-head compact"><div><h2 class="vehicle-section-title">Quick add business mileage</h2><div class="vehicle-subtitle">Fast entry for the most common workflow.</div></div></div>
+        <form method="post" action="{% url 'vehicles:vehicle_miles_quick_add' %}" class="row g-2">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{% url 'vehicles:home' %}?year={{ year }}">
+          <div class="col-6">{{ quick_mileage_form.date.label_tag }}{{ quick_mileage_form.date }}</div>
+          <div class="col-6">{{ quick_mileage_form.vehicle.label_tag }}{{ quick_mileage_form.vehicle }}</div>
+          <div class="col-6">{{ quick_mileage_form.begin.label_tag }}{{ quick_mileage_form.begin }}</div>
+          <div class="col-6">{{ quick_mileage_form.end.label_tag }}{{ quick_mileage_form.end }}</div>
+          <div class="col-12">{{ quick_mileage_form.job.label_tag }}{{ quick_mileage_form.job }}</div>
+          <div class="col-12">{{ quick_mileage_form.invoice.label_tag }}{{ quick_mileage_form.invoice }}</div>
+          <div class="col-12">{{ quick_mileage_form.notes.label_tag }}{{ quick_mileage_form.notes }}</div>
+          <div class="col-12 d-grid"><button class="btn btn-primary"><i class="fa-solid fa-road me-1"></i>Save business mileage</button></div>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  {% if alerts %}
+  <section class="vehicle-section-card mb-3">
+    <div class="vehicle-section-head compact"><div><h2 class="vehicle-section-title">Missing data alerts</h2><div class="vehicle-subtitle">Clean these up before year-end reports or tax review.</div></div></div>
+    <div class="vehicle-alert-grid">{% for alert in alerts %}<div class="vehicle-alert-item"><strong>{{ alert.vehicle.label }}</strong><span>{{ alert.message }}</span></div>{% endfor %}</div>
+  </section>
+  {% endif %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-8">
+      <section class="vehicle-section-card h-100">
+        <div class="vehicle-section-head compact"><div><h2 class="vehicle-section-title">Vehicle annual snapshots</h2><div class="vehicle-subtitle">Styled to match your newer invoice review cards.</div></div></div>
+        <div class="row g-3">
+          {% for card in vehicle_cards %}
+          <div class="col-12 col-lg-6">
+            <article class="vehicle-summary-card h-100">
+              <div class="vehicle-summary-head">
+                <div>
+                  <h3>{{ card.vehicle.label }}</h3>
+                  <div class="vehicle-subtitle">{% if card.vehicle_year %}{{ year }} annual record{% else %}No {{ year }} annual record yet{% endif %}</div>
+                </div>
+                {% if card.vehicle.is_active %}<span class="badge text-bg-success">Active</span>{% else %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}
+              </div>
+              {% if card.summary %}
+              <div class="vehicle-metric-grid two-up">
+                <div class="metric"><span>Total</span><strong>{{ card.summary.total_miles|default:0|floatformat:1|intcomma }}</strong></div>
+                <div class="metric"><span>Business</span><strong>{{ card.summary.business_miles|floatformat:1|intcomma }}</strong></div>
+                <div class="metric"><span>Other</span><strong>{{ card.summary.other_miles|default:0|floatformat:1|intcomma }}</strong></div>
+                <div class="metric"><span>Business use</span><strong>{% if card.summary.business_use_pct is not None %}{{ card.summary.business_use_pct|floatformat:2 }}%{% else %}—{% endif %}</strong></div>
+                <div class="metric"><span>Deduction</span><strong>${{ card.summary.deduction_amount|default:0|floatformat:2|intcomma }}</strong></div>
+                <div class="metric"><span>Actual expenses</span><strong>${{ card.summary.actual_expenses_total|floatformat:2|intcomma }}</strong></div>
+                <div class="metric"><span>Interest</span><strong>${{ card.summary.effective_annual_interest_paid|floatformat:2|intcomma }}</strong></div>
+                <div class="metric"><span>Business interest</span><strong>${{ card.summary.business_interest_amount|floatformat:2|intcomma }}</strong></div>
+              </div>
+              <div class="d-flex flex-wrap gap-2 mt-3">{% for warning in card.summary.warnings %}<span class="badge rounded-pill text-bg-warning">{{ warning }}</span>{% empty %}<span class="badge rounded-pill text-bg-light">Looks good</span>{% endfor %}</div>
+              {% else %}
+              <div class="vehicle-empty-state">Create the annual record first so total miles, business use %, and deduction values can be calculated.</div>
+              {% endif %}
+              <div class="d-flex flex-wrap gap-2 mt-3">
+                <a class="btn btn-sm btn-outline-secondary" href="{% url 'vehicles:vehicle_detail' card.vehicle.id %}?year={{ year }}">Review</a>
+                {% if card.vehicle_year %}
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'vehicles:vehicle_year_edit' card.vehicle_year.id %}?year={{ year }}">Edit annual record</a>
+                {% else %}
+                <a class="btn btn-sm btn-primary" href="{% url 'vehicles:vehicle_year_add' %}?vehicle={{ card.vehicle.id }}&year={{ year }}">Create annual record</a>
+                {% endif %}
+              </div>
+            </article>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+    <div class="col-12 col-xl-4">
+      <section class="vehicle-section-card h-100">
+        <div class="vehicle-section-head compact"><div><h2 class="vehicle-section-title">Recent mileage</h2><div class="vehicle-subtitle">Latest logged entries for {{ year }}</div></div></div>
+        <div class="table-responsive"><table class="table align-middle vehicle-table mb-0"><thead><tr><th>Date</th><th>Vehicle</th><th class="text-end">Miles</th></tr></thead><tbody>{% for m in recent_miles %}<tr><td>{{ m.date|date:"m/d/Y" }}</td><td><a href="{% url 'vehicles:vehicle_detail' m.vehicle_id %}?year={{ year }}">{{ m.vehicle.label }}</a></td><td class="text-end">{{ m.total|default_if_none:"—" }}</td></tr>{% empty %}<tr><td colspan="3" class="text-muted">No mileage entries yet.</td></tr>{% endfor %}</tbody></table></div>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script>const ctx=document.getElementById('vehicleMileageChart');if(ctx){new Chart(ctx,{type:'bar',data:{labels:{{ chart_labels_json|safe }},datasets:[{label:'Business miles',data:{{ chart_values_json|safe }},borderWidth:1}]},options:{responsive:true,plugins:{legend:{display:false}}}});}</script>{% endblock %}

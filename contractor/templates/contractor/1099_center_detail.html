@@ -1,0 +1,126 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}1099 Center | {{ contractor.display_name|default:contractor.legal_name }} | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+    <div>
+      <div class="text-muted small"><a href="{% url 'contractor:list' %}" class="text-decoration-none">Contractors</a> / <a href="{% url 'contractor:detail' contractor.pk %}?year={{ year }}" class="text-decoration-none">{{ contractor.display_name|default:contractor.legal_name }}</a> /</div>
+      <h1 class="h4 mb-0">1099 Center</h1>
+      <div class="text-muted small">{{ contractor.display_name|default:contractor.legal_name }} • Tax year {{ year }}</div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'contractor:detail' contractor.pk %}?year={{ year }}">Back to Contractor</a>
+      <a class="btn btn-outline-secondary" href="{% url 'contractor:1099_preview' contractor.pk %}?year={{ year }}">Preview</a>
+      <a class="btn btn-outline-secondary" href="{% url 'contractor:1099_store' contractor.pk %}?year={{ year }}">Store</a>
+      <a class="btn btn-primary" href="{% url 'contractor:1099_email_copy_b' contractor.pk %}?year={{ year }}">{% if stored_1099 and stored_1099.email_count %}Resend Copy B{% else %}Send Copy B{% endif %}</a>
+      <a class="btn btn-outline-secondary" href="{% url 'contractor:1099_pdf' contractor.pk %}?year={{ year }}">Download PDF</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-4">
+      <div class="card mp-card h-100">
+        <div class="card-body p-3">
+          <div class="text-muted small text-uppercase mb-1">Box 1 total</div>
+          <div class="display-6 fw-semibold mb-0">${{ total_1099|floatformat:2|intcomma }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card mp-card h-100">
+        <div class="card-body p-3">
+          <div class="text-muted small text-uppercase mb-1">Transactions</div>
+          <div class="display-6 fw-semibold mb-0">{{ transactions|length }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card mp-card h-100">
+        <div class="card-body p-3">
+          <div class="text-muted small text-uppercase mb-1">Stored 1099</div>
+          {% if stored_1099 and stored_1099.generated_at %}
+            <div class="fw-semibold">Generated</div>
+            <div class="text-muted small">{{ stored_1099.generated_at|date:"m/d/Y g:i A" }}</div>
+            {% if stored_1099.emailed_at %}
+              <div class="text-success small mt-2">Sent {{ stored_1099.emailed_at|date:"m/d/Y g:i A" }}{% if stored_1099.emailed_to %} to {{ stored_1099.emailed_to }}{% endif %}</div>
+            {% else %}
+              <div class="text-muted small mt-2">Copy B has not been emailed yet.</div>
+            {% endif %}
+          {% else %}
+            <div class="fw-semibold">Not stored yet</div>
+            <div class="text-muted small">Use Store to save the current PDFs.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mp-card p-2 p-md-3 mb-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-12 col-sm-4 col-md-3">
+        <label class="form-label mb-1">Tax year</label>
+        <input type="number" name="year" value="{{ year }}" class="form-control">
+      </div>
+      <div class="col-12 col-sm-auto">
+        <button class="btn btn-primary w-100">Load</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card mp-card">
+    <div class="card-body p-2 p-md-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+          <h2 class="h6 mb-0">1099-reportable transactions</h2>
+          <div class="text-muted small">All expense transactions tied to this contractor for {{ year }}</div>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Invoice #</th>
+              <th>Subcategory</th>
+              <th class="d-none d-lg-table-cell">Job</th>
+              <th class="d-none d-lg-table-cell">Team</th>
+              <th class="text-end">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in transactions %}
+              <tr>
+                <td class="text-nowrap text-muted">{{ t.date|date:"m/d/Y" }}</td>
+                <td>
+                  <div class="fw-semibold">{{ t.description }}</div>
+                  {% if t.notes %}<div class="text-muted small">{{ t.notes|truncatechars:90 }}</div>{% endif %}
+                </td>
+                <td class="text-muted">{{ t.invoice_number|default:"—" }}</td>
+                <td>{{ t.subcategory.name }}</td>
+                <td class="d-none d-lg-table-cell text-muted">{% if t.job %}{{ t.job.label }}{% else %}—{% endif %}</td>
+                <td class="d-none d-lg-table-cell text-muted">{% if t.team %}{{ t.team.name }}{% else %}—{% endif %}</td>
+                <td class="text-end fw-semibold">${{ t.amount|floatformat:2|intcomma }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7" class="text-center text-muted py-4">No 1099-reportable transactions found for this contractor in {{ year }}.</td></tr>
+            {% endfor %}
+          </tbody>
+          {% if transactions %}
+          <tfoot>
+            <tr>
+              <th colspan="6" class="text-end">Total</th>
+              <th class="text-end">${{ total_1099|floatformat:2|intcomma }}</th>
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

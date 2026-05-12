@@ -1,0 +1,104 @@
+Perfect 👍 — that’s exactly the right mindset.
+If we’re committing to:
+Single VPS + self-hosted Postgres + private object storage + long-term control
+Then going forward, we should design MoneyPro with that production architecture in mind from day one.
+Here’s how we’ll build everything from now on.
+🧱 Architecture We’ll Design Around
+Target Production Stack (future):
+Ubuntu VPS (Hetzner/DigitalOcean/etc.)
+Dockerized Django app
+Self-hosted Postgres (localhost only)
+pgBouncer (connection pooling)
+Nginx reverse proxy
+Cloudflare R2 (private media + backups)
+Nightly DB backups to object storage
+So every design decision we make in the app will support this.
+🛠 Development Rules Going Forward
+1️⃣ No assumptions about managed services
+We will:
+Avoid Render-specific settings
+Avoid vendor-specific hacks
+Keep everything portable
+Use environment variables properly
+You’re already doing this well.
+2️⃣ Media will be treated as PRIVATE by default
+From now on:
+We assume media = sensitive
+Files stored with UUIDs
+Business-scoped paths
+No public bucket assumptions
+Access always validated against request.business
+Later we’ll plug in R2 without rewriting app logic.
+3️⃣ Database-conscious design
+Since we’ll self-host Postgres:
+Avoid unnecessary queries
+Use select_related() and prefetch_related() consistently
+Keep indexes clean
+Avoid N+1 queries
+Design migrations carefully
+This matters more on VPS than managed platforms.
+4️⃣ Connection-aware design
+Because we’ll use pgBouncer:
+Avoid long-lived transactions
+Keep request DB usage short
+Avoid idle open connections
+Django defaults are mostly fine here.
+5️⃣ Backups + Disaster Recovery mindset
+We’ll design assuming:
+Daily backups
+Restore must be possible at any time
+No dependency on platform-level snapshots
+That affects how we:
+Handle file storage
+Handle migrations
+Handle seed/rebuild logic
+6️⃣ Multi-tenant isolation remains priority
+Since we’ll control infrastructure:
+All queries scoped by business
+No global data except explicitly intended
+Media paths business-scoped
+Admin access intentionally constrained
+You’ve already done excellent work here.
+🔐 Important: Security Standard Going Forward
+We will assume:
+Public internet exposure
+No platform firewall magic
+We are responsible for:
+HTTPS
+DB binding
+firewall rules
+secret management
+So we’ll design clean separation between:
+settings for dev
+settings for production
+secrets via environment variables
+💡 What This Means For You
+Good news:
+You will NOT need to rewrite your app later.
+We’ll build everything:
+portable
+infrastructure-agnostic
+secure by design
+VPS-ready
+When you're ready to deploy, it will be:
+Dockerize
+Set env vars
+Point at Postgres
+Add Nginx
+Done
+🚀 Next Time We Touch Hosting
+When you say:
+“We’re ready.”
+We’ll build:
+Production Dockerfile
+docker-compose.yml
+Postgres config
+pgBouncer config
+Backup script
+R2 integration
+Nginx config
+Deployment checklist
+All in one controlled rollout.
+This is a strong long-term decision.
+You’re building this like a real SaaS owner, not a hobbyist.
+When you’re ready, we move.

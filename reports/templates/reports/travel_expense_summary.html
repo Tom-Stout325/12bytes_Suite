@@ -1,0 +1,211 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}Travel Summary{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+    <div>
+      <h2 class="text-primary mb-1">Travel Summary</h2>
+      <p class="text-muted mb-2 small">
+        NHRA Invoice Review for actual travel expenses.
+      </p>
+
+      <div class="d-flex gap-2 flex-wrap">
+        <a
+          class="btn btn-outline-secondary btn-sm"
+          href="{% url 'reports:travel_expense_summary_pdf' %}?year={{ selected_year }}&preview=1"
+          target="_blank"
+          rel="noopener"
+        >
+          <i class="fa-solid fa-file-pdf me-1"></i>
+          PDF Preview
+        </a>
+
+        <a
+          class="btn btn-secondary btn-sm"
+          href="{% url 'reports:travel_expense_summary_pdf' %}?year={{ selected_year }}"
+        >
+          <i class="fa-solid fa-download me-1"></i>
+          Download PDF
+        </a>
+      </div>
+    </div>
+
+    <form method="get" class="card shadow-sm border-0" style="min-width: 220px;">
+      <div class="card-body py-2 d-flex align-items-center gap-2">
+        <label for="year" class="mb-0 text-muted small">Year</label>
+        <select id="year" name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% for y in years %}
+            <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>
+              {{ y }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+
+  <div class="table-responsive shadow-sm rounded">
+    <table class="table table-sm table-striped align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width: 10%;">Invoice #</th>
+          <th>Job</th>
+          <th class="text-end" style="width: 12%;">Invoice Amount</th>
+          <th class="text-end" style="width: 10%;">Airfare</th>
+          <th class="text-end" style="width: 10%;">Hotels</th>
+          <th class="text-end" style="width: 10%;">Car Rental</th>
+          <th class="text-end" style="width: 10%;">Fuel</th>
+          <th class="text-end" style="width: 12%;">Total Expense</th>
+          <th class="text-end" style="width: 12%;">Net Amount</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td class="small text-nowrap">
+              {% with inv=r.invoice %}
+                {% if inv.pk %}
+                  <a href="{% url 'invoices:invoice_detail' inv.pk %}">
+                    {{ inv.invoice_number|default:"—" }}
+                  </a>
+                {% else %}
+                  {{ inv.invoice_number|default:"—" }}
+                {% endif %}
+              {% endwith %}
+            </td>
+
+            <td class="small">
+              {{ r.event_name|default:"—" }}
+            </td>
+
+            <td class="text-end">
+              ${{ r.invoice_amount|default_if_none:0|floatformat:2|intcomma }}
+            </td>
+
+            <td class="text-end">
+              ${{ r.airfare|default_if_none:0|floatformat:2|intcomma }}
+            </td>
+
+            <td class="text-end">
+              ${{ r.hotels|default_if_none:0|floatformat:2|intcomma }}
+            </td>
+
+            <td class="text-end">
+              ${{ r.car_rental|default_if_none:0|floatformat:2|intcomma }}
+            </td>
+
+            <td class="text-end">
+              ${{ r.fuel|default_if_none:0|floatformat:2|intcomma }}
+            </td>
+
+            <td class="text-end">
+              ${{ r.total_expense|default_if_none:0|floatformat:2|intcomma }}
+            </td>
+
+            <td class="text-end fw-semibold">
+              ${{ r.net_amount|default_if_none:0|floatformat:2|intcomma }}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-4">
+              No invoices for {{ selected_year }}.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+
+      <tfoot class="table-light fw-semibold">
+        <tr>
+          <td colspan="2" class="text-end">Totals:</td>
+
+          <td class="text-end">
+            ${{ totals.invoice_amount|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+
+          <td class="text-end">
+            ${{ totals.airfare|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+
+          <td class="text-end">
+            ${{ totals.hotels|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+
+          <td class="text-end">
+            ${{ totals.car_rental|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+
+          <td class="text-end">
+            ${{ totals.fuel|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+
+          <td class="text-end">
+            ${{ totals.total_expense|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+
+          <td class="text-end">
+            ${{ totals.net_amount|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+        </tr>
+
+        <tr class="fw-normal">
+          <td colspan="2" class="text-end text-muted">
+            Average per invoice:
+          </td>
+
+          <td class="text-end text-muted">
+            ${{ averages.invoice_amount|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+
+          <td class="text-end text-muted">
+            ${{ averages.airfare|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+
+          <td class="text-end text-muted">
+            ${{ averages.hotels|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+
+          <td class="text-end text-muted">
+            ${{ averages.car_rental|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+
+          <td class="text-end text-muted">
+            ${{ averages.fuel|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+
+          <td class="text-end text-muted">
+            ${{ averages.total_expense|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+
+          <td class="text-end text-muted">
+            ${{ averages.net_amount|default_if_none:0|floatformat:2|intcomma }}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+</div>
+
+<style>
+  tfoot tr {
+    background: #f8f9fa;
+    border-top: 2px solid #dee2e6;
+  }
+
+  tfoot tr + tr {
+    border-top: 1px solid #dee2e6;
+  }
+
+  @media (max-width: 768px) {
+    table {
+      font-size: 0.85rem;
+    }
+  }
+</style>
+{% endblock %}

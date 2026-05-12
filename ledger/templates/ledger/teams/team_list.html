@@ -1,0 +1,68 @@
+{% extends "index.html" %}
+
+{% block title %}Teams | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-0">Teams</h1>
+      <div class="text-muted small">Business units for tagging transactions.</div>
+    </div>
+    <a class="btn btn-primary" href="{% url 'ledger:team_create' %}">New Team</a>
+    {% include "core/_export_button.html" %}
+  </div>
+
+  <form method="get" class="row g-2 mb-3">
+    <div class="col-12 col-md-7">
+      <input class="form-control" name="q" value="{{ q }}" placeholder="Search teams…">
+    </div>
+    <div class="col-12 col-md-3">
+      <select class="form-select" name="status">
+        <option value="" {% if not status %}selected{% endif %}>All</option>
+        <option value="active" {% if status == "active" %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if status == "inactive" %}selected{% endif %}>Inactive</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-2 d-grid">
+      <button class="btn btn-outline-secondary">Filter</button>
+    </div>
+  </form>
+
+  <div class="card shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Name</th>
+            <th class="text-muted">Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in teams %}
+          <tr>
+            <td class="fw-semibold">{{ t.name }}</td>
+            <td class="text-muted small">
+              {% if t.is_active %}
+                <span class="badge text-bg-success">Active</span>
+              {% else %}
+                <span class="badge text-bg-secondary">Inactive</span>
+              {% endif %}
+            </td>
+            <td class="text-end text-nowrap">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'ledger:team_update' t.pk %}">Edit</a>
+              <a class="btn btn-sm btn-outline-danger" href="{% url 'ledger:team_delete' t.pk %}">Delete</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-center text-muted py-4">No teams yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

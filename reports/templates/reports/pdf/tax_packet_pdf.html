@@ -1,0 +1,267 @@
+{% load humanize %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Tax Report Packet {{ selected_year }}</title>
+  <style>
+    @page { size: Letter; margin: 0.55in; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #1f2937; font-size: 11px; }
+    h1, h2, h3 { margin: 0; }
+    .page-break { page-break-before: always; }
+    .muted { color: #6b7280; }
+    .small { font-size: 9px; }
+    .cover {
+      min-height: 9.4in;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 1px solid #dbe4ea;
+      border-radius: 18px;
+      padding: 0.5in;
+      background: linear-gradient(180deg, #f8fbfd 0%, #ffffff 100%);
+    }
+    .cover-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; }
+    .cover-badge { display: inline-block; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; border: 1px solid #d6dde3; padding: 6px 10px; border-radius: 999px; color: #52606d; }
+    .cover-title { font-size: 28px; margin-top: 18px; font-weight: 700; }
+    .cover-subtitle { font-size: 15px; margin-top: 8px; color: #4b5563; }
+    .hero-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
+    .hero-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; background: #fff; }
+    .hero-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; }
+    .hero-value { font-size: 18px; font-weight: 700; margin-top: 6px; }
+    .logo { max-height: 80px; max-width: 220px; object-fit: contain; }
+    .section-title { font-size: 16px; font-weight: 700; margin: 0 0 10px 0; }
+    .subhead { font-size: 12px; font-weight: 700; margin: 16px 0 8px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+    .summary-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; }
+    .summary-card .label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; }
+    .summary-card .value { font-size: 15px; font-weight: 700; margin-top: 6px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #dbe4ea; padding: 6px 7px; vertical-align: top; }
+    th { background: #f4f7fa; text-align: left; }
+    td.num, th.num { text-align: right; white-space: nowrap; }
+    .table-note { margin-top: 6px; color: #6b7280; font-size: 9px; }
+    .chip { display: inline-block; padding: 2px 6px; border: 1px solid #d1d5db; border-radius: 999px; font-size: 9px; color: #4b5563; }
+    .footer-note { color: #6b7280; font-size: 9px; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div>
+      <div class="cover-top">
+        <div>
+          <span class="cover-badge">Tax snapshot packet</span>
+          <div class="cover-title">{{ company_name|default:"Business" }}</div>
+          <div class="cover-subtitle">Comprehensive tax report packet for {{ selected_year }}</div>
+        </div>
+        <div>
+          {% if logo_src %}
+            <img class="logo" src="{{ logo_src }}" alt="{{ company_name }} logo">
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="hero-grid">
+        <div class="hero-card">
+          <div class="hero-label">Snapshot date</div>
+          <div class="hero-value">{{ as_of_date|date:"F j, Y" }}</div>
+        </div>
+        <div class="hero-card">
+          <div class="hero-label">Packet year</div>
+          <div class="hero-value">{{ selected_year }}</div>
+        </div>
+        <div class="hero-card">
+          <div class="hero-label">Net profit</div>
+          <div class="hero-value">${{ pl.net_profit|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="hero-card">
+          <div class="hero-label">Estimated taxable business income</div>
+          <div class="hero-value">${{ estimated_taxable_business_income|floatformat:2|intcomma }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="footer-note">Prepared in MoneyPro. This packet is a current snapshot based on the business records available as of the snapshot date.</div>
+    </div>
+  </section>
+
+  <section class="page-break">
+    <h1 class="section-title">Tax Overview</h1>
+    <div class="summary-grid">
+      <div class="summary-card"><div class="label">Gross sales</div><div class="value">${{ pl.sales|floatformat:2|intcomma }}</div></div>
+      <div class="summary-card"><div class="label">Operating expenses</div><div class="value">${{ schedule_total|floatformat:2|intcomma }}</div></div>
+      <div class="summary-card"><div class="label">Vehicle deduction</div><div class="value">${{ vehicle_summary.total_selected_deduction|floatformat:2|intcomma }}</div></div>
+      <div class="summary-card"><div class="label">Section 179</div><div class="value">${{ section_179.total_section_179|floatformat:2|intcomma }}</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Description</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        <tr><td>Gross sales</td><td class="num">${{ pl.sales|floatformat:2|intcomma }}</td></tr>
+        <tr><td>Returns &amp; allowances</td><td class="num">${{ pl.returns_allowances|floatformat:2|intcomma }}</td></tr>
+        <tr><td>Net sales</td><td class="num">${{ pl.net_sales|floatformat:2|intcomma }}</td></tr>
+        <tr><td>Operating expenses</td><td class="num">${{ schedule_total|floatformat:2|intcomma }}</td></tr>
+        <tr><td>Vehicle deduction total</td><td class="num">${{ vehicle_summary.total_selected_deduction|floatformat:2|intcomma }}</td></tr>
+        <tr><td>Section 179 total</td><td class="num">${{ section_179.total_section_179|floatformat:2|intcomma }}</td></tr>
+        <tr><td><strong>Estimated taxable business income</strong></td><td class="num"><strong>${{ estimated_taxable_business_income|floatformat:2|intcomma }}</strong></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page-break">
+    <h1 class="section-title">Profit &amp; Loss Snapshot</h1>
+    <table>
+      <thead><tr><th>Category</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        <tr><td>Sales</td><td class="num">${{ pl.sales|floatformat:2|intcomma }}</td></tr>
+        <tr><td>Returns &amp; allowances</td><td class="num">${{ pl.returns_allowances|floatformat:2|intcomma }}</td></tr>
+        <tr><td><strong>Net sales</strong></td><td class="num"><strong>${{ pl.net_sales|floatformat:2|intcomma }}</strong></td></tr>
+        {% for row in pl.expense_rows %}
+          <tr><td>{{ row.category }}</td><td class="num">${{ row.amount|floatformat:2|intcomma }}</td></tr>
+        {% endfor %}
+        <tr><td><strong>Total expenses</strong></td><td class="num"><strong>${{ pl.total_expenses|floatformat:2|intcomma }}</strong></td></tr>
+        <tr><td><strong>Net profit</strong></td><td class="num"><strong>${{ pl.net_profit|floatformat:2|intcomma }}</strong></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page-break">
+    <h1 class="section-title">Schedule C Operating Expenses</h1>
+    <table>
+      <thead><tr><th>Line</th><th>Category</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        {% for line in schedule_lines %}
+          <tr>
+            <td>{{ line.line }}</td>
+            <td>{{ line.category_label }}</td>
+            <td class="num">${{ line.total|floatformat:2|intcomma }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3">No mapped Schedule C lines found.</td></tr>
+        {% endfor %}
+        <tr><td colspan="2"><strong>Total operating expenses</strong></td><td class="num"><strong>${{ schedule_total|floatformat:2|intcomma }}</strong></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page-break">
+    <h1 class="section-title">Annual Vehicle &amp; Mileage Summary</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>Vehicle</th>
+          <th class="num">Business Miles</th>
+          <th class="num">Business %</th>
+          <th class="num">Standard</th>
+          <th class="num">Actual</th>
+          <th class="num">Selected Deduction</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in vehicle_summary.rows %}
+          <tr>
+            <td>
+              <div><strong>{{ row.vehicle.label }}</strong></div>
+              <div class="small muted">{{ row.vehicle_year.get_deduction_method_display }}</div>
+              {% if row.warnings %}<div class="small muted">{{ row.warnings|join:", " }}</div>{% endif %}
+            </td>
+            <td class="num">{{ row.business_miles|floatformat:1|intcomma }}</td>
+            <td class="num">{% if row.business_use_pct is not None %}{{ row.business_use_pct|floatformat:2 }}%{% else %}—{% endif %}</td>
+            <td class="num">${{ row.standard_deduction|floatformat:2|intcomma }}</td>
+            <td class="num">${{ row.actual_expenses|floatformat:2|intcomma }}</td>
+            <td class="num">${{ row.deduction_amount|floatformat:2|intcomma }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">No annual vehicle records found for {{ selected_year }}.</td></tr>
+        {% endfor %}
+        <tr>
+          <td><strong>Totals</strong></td>
+          <td class="num"><strong>{{ vehicle_summary.total_business_miles|floatformat:1|intcomma }}</strong></td>
+          <td class="num"></td>
+          <td class="num"><strong>${{ vehicle_summary.total_standard_deduction|floatformat:2|intcomma }}</strong></td>
+          <td class="num"><strong>${{ vehicle_summary.total_actual_expenses|floatformat:2|intcomma }}</strong></td>
+          <td class="num"><strong>${{ vehicle_summary.total_selected_deduction|floatformat:2|intcomma }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page-break">
+    <h1 class="section-title">Section 179 Assets</h1>
+    <table>
+      <thead><tr><th>Asset</th><th>Placed in Service</th><th class="num">Cost Basis</th><th class="num">Section 179</th></tr></thead>
+      <tbody>
+        {% for row in section_179.rows %}
+          <tr>
+            <td>{{ row.asset.name }}</td>
+            <td>{{ row.placed_in_service_date|date:"M j, Y" }}</td>
+            <td class="num">${{ row.cost_basis|floatformat:2|intcomma }}</td>
+            <td class="num">${{ row.section_179_amount|floatformat:2|intcomma }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">No Section 179 assets found for {{ selected_year }}.</td></tr>
+        {% endfor %}
+        <tr><td colspan="3"><strong>Total Section 179</strong></td><td class="num"><strong>${{ section_179.total_section_179|floatformat:2|intcomma }}</strong></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  {% if include_transaction_detail %}
+  <section class="page-break">
+    <h1 class="section-title">Supporting Detail: Transactions</h1>
+    <table>
+      <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Subcategory</th><th>Vehicle / Job</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        {% for row in transaction_detail_rows %}
+          <tr>
+            <td>{{ row.date|date:"n/j/Y" }}</td>
+            <td>
+              <div>{{ row.description }}</div>
+              {% if row.notes %}<div class="small muted">{{ row.notes }}</div>{% endif %}
+            </td>
+            <td>{{ row.category }}</td>
+            <td>{{ row.subcategory }}</td>
+            <td>
+              {% if row.vehicle %}<div>{{ row.vehicle }}</div>{% endif %}
+              {% if row.job %}<div class="small muted">{{ row.job }}</div>{% endif %}
+            </td>
+            <td class="num">${{ row.amount|floatformat:2|intcomma }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">No transaction detail found for {{ selected_year }}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  {% if include_mileage_detail %}
+  <section class="page-break">
+    <h1 class="section-title">Supporting Detail: Mileage Log</h1>
+    <div class="table-note">Total miles logged: {{ mileage_detail.total_miles|floatformat:1|intcomma }}</div>
+    <table>
+      <thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Begin</th><th>End</th><th class="num">Miles</th><th>Job / Invoice</th><th>Notes</th></tr></thead>
+      <tbody>
+        {% for row in mileage_detail.rows %}
+          <tr>
+            <td>{{ row.date|date:"n/j/Y" }}</td>
+            <td>{{ row.vehicle }}</td>
+            <td><span class="chip">{{ row.mileage_type }}</span></td>
+            <td>{{ row.begin|default:"—" }}</td>
+            <td>{{ row.end|default:"—" }}</td>
+            <td class="num">{{ row.total|floatformat:1|intcomma }}</td>
+            <td>
+              {% if row.job %}<div>{{ row.job }}</div>{% endif %}
+              {% if row.invoice %}<div class="small muted">{{ row.invoice }}</div>{% endif %}
+            </td>
+            <td>{{ row.notes }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8">No mileage detail found for {{ selected_year }}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+</body>
+</html>

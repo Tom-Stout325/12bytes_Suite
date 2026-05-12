@@ -1,0 +1,16 @@
+/* Global navbar skin for MoneyPro */
+.mp-navbar {
+  background: var(--color-secondary);
+}
+.mp-navbar .navbar-brand,
+.mp-navbar .nav-link {
+  color: rgba(255,255,255,.92);
+}
+.mp-navbar .nav-link:hover,
+.mp-navbar .nav-link:focus {
+  color: #fff;
+}
+.mp-navbar .nav-link.active {
+  color: #fff;
+  font-weight: 600;
+}

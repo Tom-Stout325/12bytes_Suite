@@ -1,0 +1,11 @@
+Hi {{ contractor_name }},
+
+{{ business_name }} is requesting your W-9 information.
+
+The most secure way to submit it is through the secure W-9 portal:
+{{ portal_url }}
+
+{% if has_pdf_attachment %}We also attached a blank W-9 PDF in case you prefer to complete it manually and send it back.
+You can reply to this email with the completed PDF attached, or upload it through the portal.
+
+{% endif %}If you have questions, reply to {{ support_email }}.

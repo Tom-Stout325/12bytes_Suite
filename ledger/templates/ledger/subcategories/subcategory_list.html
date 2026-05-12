@@ -1,0 +1,297 @@
+{% extends "index.html" %}
+{% load static %}
+
+{% block title %}Sub Categories{% endblock %}
+
+{% block content %}
+<div class="container py-3 py-md-4">
+
+  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+    <div>
+      <h1 class="h3 mb-1">Sub Categories</h1>
+      <p class="text-muted mb-0">Review reporting settings and rule requirements for each subcategory.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'accounts:settings' %}" class="btn btn-outline-secondary">
+        <i class="fa-solid fa-arrow-left me-1"></i> Back to Settings
+      </a>
+      <a href="{% url 'ledger:subcategory_create' %}" class="btn btn-primary">
+        <i class="fa-solid fa-plus me-1"></i> New Sub Category
+      </a>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <form method="get" class="row g-3">
+        <div class="col-12 col-md-5">
+          <label for="id_q" class="form-label">Search</label>
+          <input
+            type="text"
+            name="q"
+            id="id_q"
+            value="{{ q }}"
+            class="form-control"
+            placeholder="Search subcategory or category"
+          >
+        </div>
+
+        <div class="col-12 col-md-3">
+          <label for="id_type" class="form-label">Type</label>
+          <select name="type" id="id_type" class="form-select">
+            <option value="">All Types</option>
+            <option value="income" {% if type == "income" %}selected{% endif %}>Income</option>
+            <option value="expense" {% if type == "expense" %}selected{% endif %}>Expense</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label for="id_category" class="form-label">Category</label>
+          <select name="category" id="id_category" class="form-select">
+            <option value="">All Categories</option>
+            {% for c in categories %}
+              <option value="{{ c.id }}" {% if category == c.id|stringformat:"s" %}selected{% endif %}>
+                {{ c.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 d-flex flex-wrap gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="fa-solid fa-magnifying-glass me-1"></i> Filter
+          </button>
+          <a href="{% url 'ledger:subcategory_list' %}" class="btn btn-outline-secondary">
+            Reset
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if subcategories %}
+    {% regroup subcategories by category as grouped_subcategories %}
+
+    <div class="accordion" id="subcategoryAccordion">
+      {% for group in grouped_subcategories %}
+        {% with category_obj=group.grouper %}
+        <div class="accordion-item border-0 shadow-sm mb-3 rounded-4 overflow-hidden">
+          <h2 class="accordion-header" id="heading-{{ category_obj.id }}">
+            <button
+              class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#collapse-{{ category_obj.id }}"
+              aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+              aria-controls="collapse-{{ category_obj.id }}"
+            >
+              <div class="w-100 d-flex flex-column flex-md-row align-items-md-center justify-content-between pe-3 gap-2">
+                <div>
+                  <span class="fw-semibold">{{ category_obj.name }}</span>
+                  <span class="text-muted ms-md-2">({{ group.list|length }} subcategor{{ group.list|length|pluralize:"y,ies" }})</span>
+                </div>
+                <div>
+                  {% if category_obj.category_type == "income" %}
+                    <span class="badge text-bg-success">Income</span>
+                  {% else %}
+                    <span class="badge text-bg-danger">Expense</span>
+                  {% endif %}
+                </div>
+              </div>
+            </button>
+          </h2>
+
+          <div
+            id="collapse-{{ category_obj.id }}"
+            class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+            aria-labelledby="heading-{{ category_obj.id }}"
+            data-bs-parent="#subcategoryAccordion"
+          >
+            <div class="accordion-body p-3 p-md-4">
+              <div class="d-grid gap-3">
+                {% for sub in group.list %}
+                  <div class="card border-0 shadow-sm rounded-4 subcat-card">
+                    <div class="card-body">
+                      <div class="d-flex flex-column flex-lg-row justify-content-between gap-3">
+                        <div class="flex-grow-1">
+                          <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                            <h3 class="h5 mb-0">{{ sub.name }}</h3>
+
+                            {% if sub.is_active %}
+                              <span class="badge text-bg-success">Active</span>
+                            {% else %}
+                              <span class="badge text-bg-secondary">Inactive</span>
+                            {% endif %}
+
+                            {% if sub.book_enabled %}
+                              <span class="badge rounded-pill text-bg-primary">Books</span>
+                            {% endif %}
+
+                            {% if sub.tax_enabled %}
+                              <span class="badge rounded-pill text-bg-warning">Tax</span>
+                            {% endif %}
+
+                            {% if sub.is_1099_reportable_default %}
+                              <span class="badge rounded-pill text-bg-dark">1099</span>
+                            {% endif %}
+
+                            {% if sub.is_capitalizable %}
+                              <span class="badge rounded-pill text-bg-info">Capitalizable</span>
+                            {% endif %}
+                          </div>
+
+                          <div class="small text-muted mb-3">
+                            {{ sub.category.name }}
+                            {% if sub.sort_order %}
+                              <span class="mx-1">•</span> Sort: {{ sub.sort_order }}
+                            {% endif %}
+                            {% if sub.slug %}
+                              <span class="mx-1">•</span> {{ sub.slug }}
+                            {% endif %}
+                          </div>
+
+                          <div class="row g-3">
+                            <div class="col-12 col-xl-5">
+                              <div class="subcat-section h-100">
+                                <div class="subcat-section-title">Reporting</div>
+                                <div class="d-flex flex-wrap gap-2">
+
+                                  {% if sub.book_enabled %}
+                                    <span class="badge rounded-pill text-bg-primary">Books enabled</span>
+                                  {% else %}
+                                    <span class="badge rounded-pill text-bg-light border">Books off</span>
+                                  {% endif %}
+
+                                  {% if sub.tax_enabled %}
+                                    <span class="badge rounded-pill text-bg-warning">Tax enabled</span>
+                                  {% else %}
+                                    <span class="badge rounded-pill text-bg-light border">Tax off</span>
+                                  {% endif %}
+
+                                  {% if sub.schedule_c_line %}
+                                    <span class="badge rounded-pill text-bg-light border">Schedule C: {{ sub.schedule_c_line }}</span>
+                                  {% else %}
+                                    <span class="badge rounded-pill text-bg-light border">Schedule C: inherit</span>
+                                  {% endif %}
+
+                                  {% if sub.deduction_rule %}
+                                    <span class="badge rounded-pill text-bg-light border">Deduction: {{ sub.get_deduction_rule_display }}</span>
+                                  {% endif %}
+
+                                  {% if sub.account_type %}
+                                    <span class="badge rounded-pill text-bg-light border">Account: {{ sub.get_account_type_display }}</span>
+                                  {% endif %}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div class="col-12 col-xl-7">
+                              <div class="subcat-section h-100">
+                                <div class="subcat-section-title">Requirements</div>
+                                <div class="d-flex flex-wrap gap-2">
+                                  {% if sub.requires_contact %}
+                                    <span class="badge rounded-pill text-bg-secondary">Contact required</span>
+                                    {% if sub.contact_role %}
+                                      <span class="badge rounded-pill text-bg-light border">{{ sub.get_contact_role_display }}</span>
+                                    {% endif %}
+                                  {% endif %}
+
+                                  {% if sub.requires_receipt %}
+                                    <span class="badge rounded-pill text-bg-secondary">Receipt</span>
+                                  {% endif %}
+
+                                  {% if sub.requires_team %}
+                                    <span class="badge rounded-pill text-bg-secondary">Team</span>
+                                  {% endif %}
+
+                                  {% if sub.requires_job %}
+                                    <span class="badge rounded-pill text-bg-secondary">Job</span>
+                                  {% endif %}
+
+                                  {% if sub.requires_invoice_number %}
+                                    <span class="badge rounded-pill text-bg-secondary">Invoice #</span>
+                                  {% endif %}
+
+                                  {% if sub.requires_transport %}
+                                    <span class="badge rounded-pill text-bg-secondary">Transport</span>
+                                  {% endif %}
+
+                                  {% if sub.requires_vehicle %}
+                                    <span class="badge rounded-pill text-bg-secondary">Vehicle</span>
+                                  {% endif %}
+
+                                  {% if sub.requires_asset %}
+                                    <span class="badge rounded-pill text-bg-secondary">Asset</span>
+                                  {% endif %}
+
+                                  {% if not sub.requires_contact and not sub.requires_receipt and not sub.requires_team and not sub.requires_job and not sub.requires_invoice_number and not sub.requires_transport and not sub.requires_vehicle and not sub.requires_asset %}
+                                    <span class="text-muted small">No special requirements.</span>
+                                  {% endif %}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="d-flex flex-row flex-lg-column gap-2 justify-content-start">
+                          <a href="{% url 'ledger:subcategory_update' sub.pk %}" class="btn btn-primary">
+                            <i class="fa-solid fa-pen-to-square me-1"></i> Edit Rules
+                          </a>
+                          <a href="{% url 'ledger:subcategory_delete' sub.pk %}" class="btn btn-outline-danger">
+                            <i class="fa-solid fa-trash me-1"></i> Delete
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endwith %}
+      {% endfor %}
+    </div>
+
+    {% if is_paginated %}
+      <nav class="mt-4" aria-label="Subcategory pagination">
+        <ul class="pagination justify-content-center flex-wrap">
+          {% if page_obj.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?q={{ q }}&type={{ type }}&category={{ category }}&page={{ page_obj.previous_page_number }}">Previous</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">Previous</span></li>
+          {% endif %}
+
+          <li class="page-item disabled">
+            <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+          </li>
+
+          {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?q={{ q }}&type={{ type }}&category={{ category }}&page={{ page_obj.next_page_number }}">Next</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">Next</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+    {% endif %}
+
+  {% else %}
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="card-body text-center py-5">
+        <div class="mb-3">
+          <i class="fa-solid fa-layer-group fa-2x text-muted"></i>
+        </div>
+        <h2 class="h5">No subcategories found</h2>
+        <p class="text-muted mb-4">Try adjusting your filters or create a new subcategory.</p>
+        <a href="{% url 'ledger:subcategory_create' %}" class="btn btn-primary">
+          <i class="fa-solid fa-plus me-1"></i> New Sub Category
+        </a>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

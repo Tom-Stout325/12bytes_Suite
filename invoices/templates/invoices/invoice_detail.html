@@ -1,0 +1,919 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}Invoice {{ invoice.invoice_number|default:"(unassigned)" }} | MoneyPro{% endblock %}
+
+{% block extra_css %}
+<style>
+  .invoice-shell {
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+
+  .invoice-hero-card,
+  .invoice-section-card,
+  .invoice-kpi-card {
+    border: 1px solid rgba(44, 76, 92, 0.08);
+    border-radius: 1.1rem;
+    box-shadow: 0 10px 28px rgba(44, 76, 92, 0.08);
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.95));
+    overflow: hidden;
+  }
+
+  .invoice-hero-card {
+    position: relative;
+  }
+
+  .invoice-hero-card::before,
+  .invoice-section-card::before {
+    content: "";
+    display: block;
+    height: 4px;
+    background: linear-gradient(90deg, var(--color-primary, #7B9669), var(--color-secondary, #2C4C5C));
+  }
+
+  .invoice-hero-body {
+    padding: 1rem;
+  }
+
+  .invoice-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .82rem;
+    color: var(--color-secondary, #2C4C5C);
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    margin-bottom: .5rem;
+  }
+
+  .invoice-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    align-items: center;
+    margin-bottom: .4rem;
+  }
+
+  .invoice-title-row h1 {
+    margin: 0;
+    font-size: clamp(1.75rem, 3vw, 2.35rem);
+    color: #1f2d38;
+  }
+
+  .invoice-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem .9rem;
+    color: #6b7780;
+    font-size: .96rem;
+  }
+
+  .invoice-meta strong,
+  .invoice-detail-grid strong {
+    color: #294554;
+    font-weight: 700;
+  }
+
+  .invoice-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: .75rem;
+    margin-top: 1rem;
+  }
+
+  .invoice-detail-pill {
+    border: 1px solid rgba(44, 76, 92, 0.1);
+    background: rgba(186, 200, 177, 0.12);
+    border-radius: .95rem;
+    padding: .8rem .9rem;
+    min-height: 100%;
+  }
+
+  .invoice-detail-label {
+    display: block;
+    font-size: .76rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #70808a;
+    margin-bottom: .25rem;
+    font-weight: 700;
+  }
+
+  .invoice-detail-value {
+    color: #20333f;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .invoice-detail-muted {
+    color: #6d7b84;
+    font-size: .92rem;
+  }
+
+  .invoice-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    text-decoration: none;
+    font-weight: 700;
+    color: var(--color-secondary, #2C4C5C);
+    margin-bottom: .85rem;
+  }
+
+  .invoice-back-link:hover {
+    color: var(--color-primary, #7B9669);
+  }
+
+  .invoice-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .42rem .8rem;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: .82rem;
+    line-height: 1;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+
+  .invoice-status-badge.status-draft {
+    background: rgba(221, 176, 94, 0.14);
+    color: #8b6411;
+    border-color: rgba(221, 176, 94, 0.35);
+  }
+
+  .invoice-status-badge.status-sent {
+    background: rgba(60, 158, 164, 0.14);
+    color: #12666d;
+    border-color: rgba(60, 158, 164, 0.35);
+  }
+
+  .invoice-status-badge.status-paid {
+    background: rgba(123, 150, 105, 0.16);
+    color: #44642e;
+    border-color: rgba(123, 150, 105, 0.35);
+  }
+
+  .invoice-status-badge.status-void {
+    background: rgba(214, 121, 77, 0.14);
+    color: #a4471d;
+    border-color: rgba(214, 121, 77, 0.35);
+  }
+
+  .invoice-actions-wrap {
+    margin-top: 1rem;
+  }
+
+  .invoice-actions-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .65rem;
+  }
+
+  .invoice-actions-grid .btn,
+  .invoice-actions-grid form,
+  .invoice-mobile-sticky-actions .btn,
+  .invoice-mobile-sticky-actions form {
+    width: 100%;
+  }
+
+  .invoice-actions-grid .btn {
+    min-height: 42px;
+    border-radius: .9rem;
+    font-weight: 700;
+  }
+
+  .invoice-mobile-sticky-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 1030;
+    margin-top: 1rem;
+    padding: .8rem;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(44, 76, 92, 0.12);
+    box-shadow: 0 -8px 22px rgba(44, 76, 92, 0.08);
+  }
+
+  .invoice-mobile-sticky-actions .sticky-actions-inner {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .6rem;
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+
+  .section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: 1rem 1rem .8rem;
+  }
+
+  .section-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+  }
+
+  .section-icon {
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: .85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(123, 150, 105, 0.15);
+    color: var(--color-secondary, #2C4C5C);
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  .section-heading h2,
+  .section-heading h3 {
+    margin: 0;
+    color: #223845;
+    font-size: 1.08rem;
+  }
+
+  .section-subtitle {
+    margin-top: .15rem;
+    color: #6d7b84;
+    font-size: .9rem;
+  }
+
+  .mobile-collapse-toggle {
+    border-radius: 999px;
+    font-size: .84rem;
+    font-weight: 700;
+    padding: .38rem .75rem;
+  }
+
+  .invoice-summary-grid,
+  .invoice-tax-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: .85rem;
+    padding: 0 1rem 1rem;
+  }
+
+  .invoice-kpi-card {
+    padding: .9rem 1rem;
+    background: #fff;
+  }
+
+  .invoice-kpi-label {
+    color: #6f7d86; 
+    font-size: .82rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-weight: 700;
+    margin-bottom: .35rem;
+  }
+
+  .invoice-kpi-value {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: #1f2f3b;
+    line-height: 1.15;
+  }
+
+  .invoice-kpi-note {
+    color: #6f7d86;
+    font-size: .86rem;
+    margin-top: .2rem;
+  }
+
+  .invoice-kpi-card.kpi-income { border-left: 4px solid var(--color-success, #3C9EA4); }
+  .invoice-kpi-card.kpi-expense { border-left: 4px solid var(--color-danger, #D6794D); }
+  .invoice-kpi-card.kpi-net { border-left: 4px solid var(--color-secondary, #2C4C5C); }
+  .invoice-kpi-card.kpi-tax { border-left: 4px solid var(--color-warning, #DDB05E); } 
+
+
+  .invoice-mini-stats {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: .75rem;
+    padding: 0 1rem 1rem;
+  }
+
+  .invoice-mini-stat {
+    padding: .95rem 1rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(44, 76, 92, 0.08);
+    background: rgba(186, 200, 177, 0.08);
+  }
+
+  .invoice-mini-stat .label {
+    font-size: .78rem;
+    color: #6f7d86;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-weight: 700;
+  }
+
+  .invoice-mini-stat .value {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #223845;
+  }
+
+  .invoice-table-wrap {
+    padding: 0 1rem 1rem;
+  }
+
+  .invoice-table {
+    --bs-table-bg: transparent;
+    margin-bottom: 0;
+  }
+
+  .invoice-table thead th {
+    border-bottom-width: 1px;
+    color: #50636f;
+    font-size: .82rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    background: rgba(44, 76, 92, 0.04);
+  }
+
+  .invoice-table > :not(caption) > * > * {
+    padding: .85rem .75rem;
+    vertical-align: middle;
+  }
+
+  .invoice-table tbody tr:nth-child(even) {
+    background: rgba(186, 200, 177, 0.08);
+  }
+
+  .invoice-item-desc,
+  .tx-desc-title {
+    font-weight: 700;
+    color: #233945;
+  }
+
+  .tx-desc-note,
+  .invoice-item-meta {
+    color: #6e7b85;
+    font-size: .9rem;
+  }
+
+  .tx-actions-cell {
+    width: 1%;
+    white-space: nowrap;
+  }
+
+  .tx-view-btn {
+    border-radius: 999px;
+    font-weight: 700;
+  }
+
+  .invoice-table-empty {
+    color: #6e7b85;
+    padding: 1rem;
+  }
+
+  .invoice-alert-lite {
+    border-radius: 1rem;
+    border: 1px solid rgba(221, 176, 94, 0.35);
+    background: rgba(221, 176, 94, 0.12);
+    color: #745415;
+  }
+
+  @media (min-width: 576px) {
+    .invoice-actions-grid,
+    .invoice-mobile-sticky-actions .sticky-actions-inner {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .invoice-detail-grid,
+    .invoice-summary-grid,
+    .invoice-tax-grid,
+    .invoice-mini-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 992px) {
+    .invoice-hero-body {
+      padding: 1.2rem 1.25rem;
+    }
+
+    .invoice-top-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(280px, .9fr);
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .invoice-actions-wrap {
+      margin-top: 0;
+    }
+
+    .invoice-actions-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .invoice-summary-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .invoice-tax-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .invoice-detail-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .invoice-mini-stats {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 991.98px) {
+    .desktop-collapse-body.show,
+    .desktop-collapse-body.collapsing {
+      display: block;
+    }
+  }
+
+  @media (min-width: 992px) {
+    .mobile-only {
+      display: none !important;
+    }
+
+    .desktop-collapse-body {
+      display: block !important;
+      height: auto !important;
+      visibility: visible !important;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="invoice-shell">
+  <a class="invoice-back-link" href="{% url 'invoices:invoice_list' %}">
+    <i class="fa-solid fa-arrow-left-long"></i>
+    Back to invoices
+  </a>
+
+  <section class="invoice-hero-card mb-3">
+    <div class="invoice-hero-body">
+      <div class="invoice-top-layout">
+        <div>
+          <div class="invoice-kicker">
+            <i class="fa-solid fa-file-invoice-dollar"></i>
+            Invoice Details
+          </div>
+
+          <div class="invoice-title-row">
+            <h1>Invoice {{ invoice.invoice_number|default:"(unassigned)" }}</h1>
+            <span class="invoice-status-badge status-{{ invoice.status|lower }}">
+              <i class="fa-solid fa-circle-check"></i>
+              {{ invoice.get_status_display }}
+            </span>
+          </div>
+
+          <div class="invoice-meta mb-2">
+            <span><strong>{{ invoice.contact.display_name }}</strong></span>
+            <span>Issue {{ invoice.issue_date|date:"m/d/Y" }}</span>
+            {% if invoice.sent_date %}<span>Sent {{ invoice.sent_date|date:"m/d/Y" }}</span>{% endif %}
+            {% if invoice.paid_date %}<span>Paid {{ invoice.paid_date|date:"m/d/Y" }}</span>{% endif %}
+          </div>
+
+          <div class="invoice-detail-grid">
+       
+            <div class="invoice-detail-pill">
+              <span class="invoice-detail-label">  {% include "partials/icon.html" with class="mp-icon-xl" %} Job</span>
+              <span class="invoice-detail-value">{{ invoice.location|default:"—" }}</span>
+            </div>
+
+            <div class="invoice-detail-pill">
+              <span class="invoice-detail-label"><i class="fa-solid fa-location-dot text-danger fs-5"></i> Location</span>
+              <span class="invoice-detail-value">{{ invoice.location|default:"—" }}</span>
+            </div>
+
+            <div class="invoice-detail-pill">
+              <span class="invoice-detail-label"><i class="fa-solid fa-address-card fs-5 text-primary"></i> Contact</span>
+              <span class="invoice-detail-value">{{ invoice.contact.display_name }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="invoice-actions-wrap">
+          <div class="invoice-actions-grid">
+            {% if invoice.status == "draft" %}
+              <a class="btn btn-outline-primary btn-sm" href="{% url 'invoices:invoice_update' invoice.pk %}">
+                <i class="fa-solid fa-pen-to-square me-1"></i>Edit
+              </a>
+              <form method="post" action="{% url 'invoices:invoice_send' invoice.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-primary btn-sm" type="submit">
+                  <i class="fa-solid fa-paper-plane me-1"></i>Send
+                </button>
+              </form>
+            {% elif invoice.status == "sent" %}
+              <form method="post" action="{% url 'invoices:invoice_revise' invoice.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-outline-secondary btn-sm" type="submit">
+                  <i class="fa-solid fa-code-branch me-1"></i>Revise
+                </button>
+              </form>
+              <form method="post" action="{% url 'invoices:invoice_mark_paid' invoice.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-success btn-sm" type="submit">
+                  <i class="fa-solid fa-circle-dollar-to-slot me-1"></i>Mark paid
+                </button>
+              </form>
+            {% endif %}
+
+            {% if invoice.pdf_file %}
+              <a class="btn btn-outline-secondary btn-sm" href="{{ invoice.pdf_file.url }}">
+                <i class="fa-solid fa-file-pdf me-1"></i>Final PDF
+              </a>
+            {% else %}
+              <a class="btn btn-outline-secondary btn-sm" href="{% url 'invoices:invoice_pdf_preview' invoice.pk %}">
+                <i class="fa-solid fa-eye me-1"></i>Preview PDF
+              </a>
+            {% endif %}
+
+            {% if invoice.status != "paid" %}
+              <form method="post" action="{% url 'invoices:invoice_void' invoice.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-outline-danger btn-sm" type="submit">
+                  <i class="fa-solid fa-ban me-1"></i>Void
+                </button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-5">
+      <section class="invoice-section-card h-100">
+        <div class="section-heading">
+          <div class="section-title-wrap">
+            <span class="section-icon"><i class="fa-solid fa-chart-simple"></i></span>
+            <div>
+              <h2 class="text-center">Invoice Review</h2>
+              <div class="section-subtitle">Revenue, expenses, and taxable view for this invoice.</div>
+            </div>
+          </div>
+          <button class="btn btn-outline-secondary btn-sm mobile-collapse-toggle mobile-only" type="button" data-bs-toggle="collapse" data-bs-target="#invoiceReviewBody" aria-expanded="true" aria-controls="invoiceReviewBody">
+            Toggle
+          </button>
+        </div>
+
+        <div id="invoiceReviewBody" class="collapse show desktop-collapse-body">
+          <div class="invoice-mini-stats">
+            <div class="invoice-mini-stat">
+              <div class="label">Status</div>
+              <div class="value">{{ invoice.get_status_display }}</div>
+            </div>
+            <div class="invoice-mini-stat">
+              <div class="label">Subtotal</div>
+              <div class="value money-counter" data-money-value="{{ invoice.subtotal|default:0 }}">${{ invoice.subtotal|floatformat:2|intcomma }}</div>
+            </div>
+            <div class="invoice-mini-stat">
+              <div class="label">Total</div>
+              <div class="value money-counter" data-money-value="{{ invoice.total|default:0 }}">${{ invoice.total|floatformat:2|intcomma }}</div>
+            </div>
+          </div>
+          
+          <hr class="w-50 mx-auto text-primary text-center">
+
+          {% comment %} {% if invoice.income_transaction %}
+            <div class="px-3 pb-3">
+              <div class="invoice-detail-pill">
+                <span class="invoice-detail-label">Income transaction created</span>
+                <div class="invoice-detail-value">
+                  {{ invoice.income_transaction.date|date:"m/d/Y" }} · ${{ invoice.income_transaction.amount|floatformat:2|intcomma }}
+                </div>
+                <div class="invoice-detail-muted">
+                  {% if invoice.income_transaction.subcategory %}
+                    {{ invoice.income_transaction.subcategory.name|default:"—" }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% endif %} {% endcomment %}
+
+            <div class="section-heading pt-0">
+              <div class="section-title-wrap">
+                <span class="section-icon"><i class="fa-solid fa-receipt"></i></span>
+                  <div class="text-center">
+                    <h3>Actual Amounts</h3>
+                  <div class="section-subtitle">Includes Actual Expnese Amounts.</div>
+                </div>
+              </div>
+            </div>
+
+          {% if has_transactions %}
+            <div class="invoice-summary-grid">
+              <article class="invoice-kpi-card kpi-income">
+                <div class="invoice-kpi-label">Income</div>
+                <div class="invoice-kpi-value money-counter" data-money-value="{{ income_total|default:0 }}">${{ income_total|floatformat:2|intcomma }}</div>
+                <div class="invoice-kpi-note">Invoice Revenue.</div>
+              </article>
+              <article class="invoice-kpi-card kpi-expense">
+                <div class="invoice-kpi-label">Expenses</div>
+                <div class="invoice-kpi-value money-counter" data-money-value="{{ expense_total|default:0 }}">${{ expense_total|floatformat:2|intcomma }}</div>
+                <div class="invoice-kpi-note">Invoice Actual Expenses.</div>
+              </article>
+              <article class="invoice-kpi-card kpi-net">
+                <div class="invoice-kpi-label">Net income</div>
+                <div class="invoice-kpi-value money-counter" data-money-value="{{ net_income|default:0 }}">${{ net_income|floatformat:2|intcomma }}</div>
+                <div class="invoice-kpi-note">Actual Income.</div>
+              </article>
+            </div>
+
+            <div class="section-heading pt-0">
+              <div class="section-title-wrap">
+                <span class="section-icon"><i class="fa-solid fa-receipt"></i></span>
+                <div>
+                  <h3 class="text-success mx-auto text-center">Taxable Amounts</h3>
+                  <div class="section-subtitle">Includes Tax Deductible Expneses.</div>
+                </div>
+              </div>
+            </div>
+            <div class="invoice-tax-grid">
+              <article class="invoice-kpi-card kpi-tax">
+                <div class="invoice-kpi-label">Taxable income</div>
+                <div class="invoice-kpi-value money-counter" data-money-value="{{ taxable_income_total|default:income_total|default:0 }}">${{ taxable_income_total|default:income_total|floatformat:2|intcomma }}</div>
+              </article>
+              <article class="invoice-kpi-card kpi-tax">
+                <div class="invoice-kpi-label">Taxable expenses</div>
+                <div class="invoice-kpi-value money-counter" data-money-value="{{ taxable_expense_total|default:expense_total|default:0 }}">${{ taxable_expense_total|default:expense_total|floatformat:2|intcomma }}</div>
+              </article>
+              <article class="invoice-kpi-card kpi-tax">
+                <div class="invoice-kpi-label">Taxable net</div>
+                <div class="invoice-kpi-value money-counter" data-money-value="{{ taxable_net_income|default:net_income|default:0 }}">${{ taxable_net_income|default:net_income|floatformat:2|intcomma }}</div>
+              </article>
+            </div>
+          {% else %}
+            <div class="px-3 pb-3">
+              <div class="alert alert-light border rounded-4 mb-0">No linked transactions yet for this invoice.</div>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+
+    <div class="col-12 col-xl-7">
+      <section class="invoice-section-card h-100">
+        <div class="section-heading">
+          <div class="section-title-wrap">
+            <span class="section-icon"><i class="fa-solid fa-list-check"></i></span>
+            <div>
+              <h2>Line items</h2>
+              <div class="section-subtitle">Billed services and itemized charges.</div>
+            </div>
+          </div>
+          <button class="btn btn-outline-secondary btn-sm mobile-collapse-toggle mobile-only" type="button" data-bs-toggle="collapse" data-bs-target="#lineItemsBody" aria-expanded="true" aria-controls="lineItemsBody">
+            Toggle
+          </button>
+        </div>
+
+        <div id="lineItemsBody" class="collapse show desktop-collapse-body">
+          <div class="invoice-table-wrap">
+            <div class="table-responsive">
+              <table class="table invoice-table align-middle">
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th class="text-end">Qty</th>
+                    <th class="text-end">Price</th>
+                    <th class="text-end">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for it in invoice.items.all %}
+                    <tr>
+                      <td>
+                        <div class="invoice-item-desc">{{ it.description }}</div>
+                        {% if it.subcategory %}
+                          <div class="invoice-item-meta">{{ it.subcategory.name|default:"—" }}</div>
+                        {% endif %}
+                      </td>
+                      <td class="text-end">{{ it.qty }}</td>
+                      <td class="text-end">${{ it.unit_price|floatformat:2|intcomma }}</td>
+                      <td class="text-end fw-semibold money-counter" data-money-value="{{ it.line_total|default:0 }}">${{ it.line_total|floatformat:2|intcomma }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr>
+                      <td colspan="4" class="invoice-table-empty">No line items yet.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {% if invoice.memo %}
+            <div class="px-3 pb-3">
+              <div class="invoice-detail-pill">
+                <span class="invoice-detail-label">Memo</span>
+                <div class="invoice-detail-muted">{{ invoice.memo|linebreaksbr }}</div>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+  </div>
+
+  {% if has_transactions %}
+    <section class="invoice-section-card mt-3">
+      <div class="section-heading">
+        <div class="section-title-wrap">
+          <span class="section-icon"><i class="fa-solid fa-arrow-right-arrow-left"></i></span>
+          <div>
+            <h2>Associated transactions</h2>
+            <div class="section-subtitle">Linked by invoice number: {{ invoice.invoice_number }}</div>
+          </div>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm mobile-collapse-toggle mobile-only" type="button" data-bs-toggle="collapse" data-bs-target="#associatedTransactionsBody" aria-expanded="true" aria-controls="associatedTransactionsBody">
+          Toggle
+        </button>
+      </div>
+
+      <div id="associatedTransactionsBody" class="collapse show desktop-collapse-body">
+        <div class="invoice-table-wrap">
+          <div class="table-responsive">
+            <table class="table invoice-table table-hover align-middle">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th class="d-none d-md-table-cell">Subcategory</th>
+                  <th class="text-end">Amount</th>
+                  <th class="text-end">Open</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for t in tx_list %}
+                  <tr>
+                    <td class="text-nowrap">{{ t.date|date:"m/d/Y" }}</td>
+                    <td>
+                      <div class="tx-desc-title">{{ t.description|default:"—" }}</div>
+                      {% if t.notes %}
+                        <div class="tx-desc-note">{{ t.notes }}</div>
+                      {% endif %}
+                    </td>
+                    <td class="d-none d-md-table-cell">
+                      {% if t.subcategory %}
+                        {{ t.subcategory.name|default:"—" }}
+                        {% if t.pill_meals %}
+                          <span class="badge rounded-pill text-bg-warning ms-2">Meals 50%</span>
+                        {% endif %}
+                        {% if t.pill_gas %}
+                          <span class="badge rounded-pill text-bg-info ms-2">Fuel</span>
+                        {% endif %}
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end fw-semibold money-counter" data-money-value="{{ t.amount|default:0 }}">${{ t.amount|floatformat:2|intcomma }}</td>
+                    <td class="text-end tx-actions-cell">
+                      <a class="btn btn-sm btn-outline-secondary tx-view-btn" href="{% url 'ledger:transaction_detail' t.pk %}">
+                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i>View
+                      </a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  {% else %}
+    {% if invoice.invoice_number %}
+      <div class="alert alert-info mt-3 rounded-4">
+        No ledger transactions are linked to this invoice number yet.
+      </div>
+    {% endif %}
+  {% endif %}
+
+
+
+  {% if mileage_entries %}
+    <section class="invoice-section-card mt-3">
+      <div class="section-heading">
+        <div class="section-title-wrap">
+          <span class="section-icon"><i class="fa-solid fa-road"></i></span>
+          <div>
+            <h2>Linked mileage</h2>
+            <div class="section-subtitle">Mileage attached directly to this invoice.</div>
+          </div>
+        </div>
+      </div>
+      <div class="invoice-summary-grid">
+        <article class="invoice-kpi-card kpi-income">
+          <div class="invoice-kpi-label">Miles</div>
+          <div class="invoice-kpi-value">{{ mileage_total_miles|floatformat:1|intcomma }}</div>
+        </article>
+        <article class="invoice-kpi-card kpi-tax">
+          <div class="invoice-kpi-label">Mileage value</div>
+          <div class="invoice-kpi-value">${{ mileage_deduction_total|default:0|floatformat:2|intcomma }}</div>
+        </article>
+      </div>
+      <div class="invoice-table-wrap">
+        <div class="table-responsive">
+          <table class="table invoice-table align-middle">
+            <thead><tr><th>Date</th><th>Vehicle</th><th>Job</th><th class="text-end">Miles</th></tr></thead>
+            <tbody>{% for m in mileage_entries %}<tr><td>{{ m.date|date:"m/d/Y" }}</td><td>{{ m.vehicle.label }}</td><td>{{ m.job|default:"—" }}</td><td class="text-end">{{ m.total|default_if_none:"—" }}</td></tr>{% endfor %}</tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if invoice.revises %}
+    <div class="invoice-alert-lite mt-3 p-3">
+      Revision of invoice {{ invoice.revises.invoice_number }}
+    </div>
+  {% endif %}
+</div>
+
+<div class="invoice-mobile-sticky-actions d-lg-none">
+  <div class="sticky-actions-inner">
+    {% if invoice.status == "sent" %}
+      <form method="post" action="{% url 'invoices:invoice_mark_paid' invoice.pk %}">
+        {% csrf_token %}
+        <button class="btn btn-success btn-sm" type="submit">
+          <i class="fa-solid fa-circle-dollar-to-slot me-1"></i>Mark paid
+        </button>
+      </form>
+    {% elif invoice.status == "draft" %}
+      <form method="post" action="{% url 'invoices:invoice_send' invoice.pk %}">
+        {% csrf_token %}
+        <button class="btn btn-primary btn-sm" type="submit">
+          <i class="fa-solid fa-paper-plane me-1"></i>Send invoice
+        </button>
+      </form>
+    {% endif %}
+
+    {% if invoice.pdf_file %}
+      <a class="btn btn-outline-secondary btn-sm" href="{{ invoice.pdf_file.url }}">
+        <i class="fa-solid fa-file-pdf me-1"></i>Final PDF
+      </a>
+    {% else %}
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'invoices:invoice_pdf_preview' invoice.pk %}">
+        <i class="fa-solid fa-eye me-1"></i>Preview PDF
+      </a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const counters = document.querySelectorAll('.money-counter[data-money-value]');
+    if (!counters.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+
+    const formatMoney = (value) => {
+      const isNegative = Number(value) < 0;
+      const abs = Math.abs(Number(value) || 0);
+      const formatted = abs.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      return `${isNegative ? '-' : ''}$${formatted}`;
+    };
+
+    const duration = 700;
+    counters.forEach((el) => {
+      const target = Number(el.dataset.moneyValue || 0);
+      const startTime = performance.now();
+
+      const tick = (now) => {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = target * eased;
+        el.textContent = formatMoney(current);
+        if (progress < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          el.textContent = formatMoney(target);
+        }
+      };
+
+      requestAnimationFrame(tick);
+    });
+  })();
+</script>
+{% endblock %}

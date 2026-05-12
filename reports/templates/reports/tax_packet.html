@@ -1,0 +1,326 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}Tax Report Packet | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container my-4" style="max-width: 1180px;">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-3">
+    <div class="flex-grow-1">
+      <h1 class="h4 mb-1">Tax Report Packet</h1>
+      <p class="text-muted mb-0 small">Professional year snapshot with cover page, tax overview, P&amp;L, vehicle summaries, Section 179, Schedule C, and optional supporting detail pages.</p>
+    </div>
+
+    <div class="d-flex flex-column gap-2 align-items-stretch" style="min-width: 320px;">
+      <form method="get" class="card border-0 shadow-sm">
+        <div class="card-body p-3">
+          <div class="row g-2 align-items-end">
+            <div class="col-12">
+              <label for="id_year" class="form-label small text-muted mb-1">Snapshot year</label>
+              <select id="id_year" name="year" class="form-select form-select-sm">
+                {% for y in year_choices %}
+                  <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="id_include_transactions" name="include_transactions" value="1" {% if include_transaction_detail %}checked{% endif %}>
+                <label class="form-check-label small" for="id_include_transactions">Include transaction detail pages</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="id_include_mileage" name="include_mileage" value="1" {% if include_mileage_detail %}checked{% endif %}>
+                <label class="form-check-label small" for="id_include_mileage">Include mileage log detail pages</label>
+              </div>
+            </div>
+            <div class="col-12 d-flex gap-2">
+              <button type="submit" class="btn btn-sm btn-primary flex-fill">
+                <i class="fa-solid fa-rotate me-1"></i> Refresh
+              </button>
+              <a class="btn btn-sm btn-outline-secondary flex-fill" target="_blank" rel="noopener" href="{% url 'reports:tax_packet_pdf_preview' %}?year={{ selected_year }}{% if include_transaction_detail %}&include_transactions=1{% endif %}{% if include_mileage_detail %}&include_mileage=1{% endif %}">
+                <i class="fa-regular fa-file-pdf me-1"></i> Preview PDF
+              </a>
+              <a class="btn btn-sm btn-outline-primary flex-fill" href="{% url 'reports:tax_packet_pdf_download' %}?year={{ selected_year }}{% if include_transaction_detail %}&include_transactions=1{% endif %}{% if include_mileage_detail %}&include_mileage=1{% endif %}">
+                <i class="fa-solid fa-download me-1"></i> Download
+              </a>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-4 overflow-hidden">
+    <div class="card-body p-4 p-lg-5 bg-light-subtle">
+      <div class="row g-4 align-items-center">
+        <div class="col-lg-8">
+          <div class="text-uppercase small text-muted mb-2">Tax snapshot packet</div>
+          <h2 class="display-6 fw-semibold mb-2">{{ company_name|default:"Business" }}</h2>
+          <div class="lead mb-2">Tax packet for {{ selected_year }}</div>
+          <div class="text-muted">Snapshot as of {{ as_of_date|date:"F j, Y" }}</div>
+        </div>
+        <div class="col-lg-4 text-lg-end">
+          {% if logo_src %}
+            <img src="{{ logo_src }}" alt="{{ company_name }} logo" style="max-height: 90px; max-width: 100%; object-fit: contain;">
+          {% else %}
+            <div class="rounded-4 border bg-white px-4 py-3 d-inline-block shadow-sm">
+              <div class="fw-semibold">{{ company_name|default:"MoneyPro" }}</div>
+              <div class="small text-muted">Tax Report Packet</div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Net sales</div><div class="h4 mb-0">${{ pl.net_sales|floatformat:2|intcomma }}</div></div></div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Operating expenses</div><div class="h4 mb-0">${{ schedule_total|floatformat:2|intcomma }}</div></div></div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Net profit</div><div class="h4 mb-0">${{ pl.net_profit|floatformat:2|intcomma }}</div></div></div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card shadow-sm border-0 h-100"><div class="card-body"><div class="text-muted small">Estimated taxable business income</div><div class="h4 mb-0">${{ estimated_taxable_business_income|floatformat:2|intcomma }}</div></div></div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th colspan="2">Tax Overview</th>
+              <th class="text-end">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="2">Gross sales</td><td class="text-end">${{ pl.sales|floatformat:2|intcomma }}</td></tr>
+            <tr><td colspan="2">Returns &amp; allowances</td><td class="text-end">${{ pl.returns_allowances|floatformat:2|intcomma }}</td></tr>
+            <tr><td colspan="2">Net sales</td><td class="text-end fw-semibold">${{ pl.net_sales|floatformat:2|intcomma }}</td></tr>
+            <tr><td colspan="2">Operating expenses</td><td class="text-end">${{ schedule_total|floatformat:2|intcomma }}</td></tr>
+            <tr><td colspan="2">Selected vehicle deduction total</td><td class="text-end">${{ vehicle_summary.total_selected_deduction|floatformat:2|intcomma }}</td></tr>
+            <tr><td colspan="2">Section 179 total</td><td class="text-end">${{ section_179.total_section_179|floatformat:2|intcomma }}</td></tr>
+            <tr class="table-active"><td colspan="2">Estimated taxable business income</td><td class="text-end fw-semibold">${{ estimated_taxable_business_income|floatformat:2|intcomma }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body p-0">
+          <div class="p-3 border-bottom"><h2 class="h6 mb-0">Profit &amp; Loss Snapshot</h2></div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light"><tr><th>Category</th><th class="text-end">Amount</th></tr></thead>
+              <tbody>
+                <tr><td>Sales</td><td class="text-end">${{ pl.sales|floatformat:2|intcomma }}</td></tr>
+                <tr><td>Returns &amp; allowances</td><td class="text-end">${{ pl.returns_allowances|floatformat:2|intcomma }}</td></tr>
+                <tr class="fw-semibold"><td>Net sales</td><td class="text-end">${{ pl.net_sales|floatformat:2|intcomma }}</td></tr>
+                {% for row in pl.expense_rows %}
+                  <tr><td>{{ row.category }}</td><td class="text-end">${{ row.amount|floatformat:2|intcomma }}</td></tr>
+                {% endfor %}
+                <tr class="fw-semibold table-light"><td>Total expenses</td><td class="text-end">${{ pl.total_expenses|floatformat:2|intcomma }}</td></tr>
+                <tr class="fw-semibold table-active"><td>Net profit</td><td class="text-end">${{ pl.net_profit|floatformat:2|intcomma }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body p-0">
+          <div class="p-3 border-bottom"><h2 class="h6 mb-0">Schedule C Operating Expenses</h2></div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light"><tr><th>Line</th><th>Category</th><th class="text-end">Amount</th></tr></thead>
+              <tbody>
+                {% for line in schedule_lines %}
+                  <tr>
+                    <td>{{ line.line }}</td>
+                    <td>{{ line.category_label }}</td>
+                    <td class="text-end">${{ line.total|floatformat:2|intcomma }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="3" class="text-center text-muted py-4">No Schedule C expense lines found.</td></tr>
+                {% endfor %}
+                <tr class="fw-semibold table-active"><td colspan="2">Total operating expenses</td><td class="text-end">${{ schedule_total|floatformat:2|intcomma }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+          <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+            <h2 class="h6 mb-0">Annual Vehicle &amp; Mileage Summary</h2>
+            <div class="small text-muted">{{ vehicle_summary.rows|length }} vehicle{{ vehicle_summary.rows|length|pluralize }}</div>
+          </div>
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Vehicle</th>
+                  <th class="text-end">Business Miles</th>
+                  <th class="text-end">Business %</th>
+                  <th class="text-end">Standard</th>
+                  <th class="text-end">Actual</th>
+                  <th class="text-end">Selected Deduction</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in vehicle_summary.rows %}
+                  <tr>
+                    <td>
+                      <div class="fw-semibold">{{ row.vehicle.label }}</div>
+                      <div class="small text-muted">{{ row.vehicle_year.get_deduction_method_display }}</div>
+                      {% if row.warnings %}
+                        <div class="small text-warning mt-1">{{ row.warnings|join:", " }}</div>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">{{ row.business_miles|floatformat:1|intcomma }}</td>
+                    <td class="text-end">{% if row.business_use_pct is not None %}{{ row.business_use_pct|floatformat:2 }}%{% else %}—{% endif %}</td>
+                    <td class="text-end">${{ row.standard_deduction|floatformat:2|intcomma }}</td>
+                    <td class="text-end">${{ row.actual_expenses|floatformat:2|intcomma }}</td>
+                    <td class="text-end fw-semibold">${{ row.deduction_amount|floatformat:2|intcomma }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="6" class="text-center text-muted py-4">No annual vehicle records found for {{ selected_year }}.</td></tr>
+                {% endfor %}
+                <tr class="fw-semibold table-active">
+                  <td>Totals</td>
+                  <td class="text-end">{{ vehicle_summary.total_business_miles|floatformat:1|intcomma }}</td>
+                  <td></td>
+                  <td class="text-end">${{ vehicle_summary.total_standard_deduction|floatformat:2|intcomma }}</td>
+                  <td class="text-end">${{ vehicle_summary.total_actual_expenses|floatformat:2|intcomma }}</td>
+                  <td class="text-end">${{ vehicle_summary.total_selected_deduction|floatformat:2|intcomma }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+          <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+            <h2 class="h6 mb-0">Section 179 Assets</h2>
+            <div class="small text-muted">{{ section_179.rows|length }} asset{{ section_179.rows|length|pluralize }}</div>
+          </div>
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Asset</th>
+                  <th>Placed in Service</th>
+                  <th class="text-end">Cost Basis</th>
+                  <th class="text-end">Section 179</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in section_179.rows %}
+                  <tr>
+                    <td>{{ row.asset.name }}</td>
+                    <td>{{ row.placed_in_service_date|date:"M j, Y" }}</td>
+                    <td class="text-end">${{ row.cost_basis|floatformat:2|intcomma }}</td>
+                    <td class="text-end fw-semibold">${{ row.section_179_amount|floatformat:2|intcomma }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="4" class="text-center text-muted py-4">No Section 179 assets found for {{ selected_year }}.</td></tr>
+                {% endfor %}
+                <tr class="fw-semibold table-active"><td colspan="3">Total Section 179</td><td class="text-end">${{ section_179.total_section_179|floatformat:2|intcomma }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if include_transaction_detail %}
+    <div class="col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+          <div class="p-3 border-bottom"><h2 class="h6 mb-0">Supporting Detail: Transactions</h2></div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light"><tr><th>Date</th><th>Description</th><th>Category</th><th>Subcategory</th><th>Vehicle / Job</th><th class="text-end">Amount</th></tr></thead>
+              <tbody>
+                {% for row in transaction_detail_rows %}
+                  <tr>
+                    <td>{{ row.date|date:"n/j/Y" }}</td>
+                    <td>
+                      <div>{{ row.description }}</div>
+                      {% if row.notes %}<div class="small text-muted">{{ row.notes }}</div>{% endif %}
+                    </td>
+                    <td>{{ row.category }}</td>
+                    <td>{{ row.subcategory }}</td>
+                    <td>
+                      {% if row.vehicle %}<div>{{ row.vehicle }}</div>{% endif %}
+                      {% if row.job %}<div class="small text-muted">{{ row.job }}</div>{% endif %}
+                    </td>
+                    <td class="text-end">${{ row.amount|floatformat:2|intcomma }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="6" class="text-center text-muted py-4">No transaction detail found for {{ selected_year }}.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if include_mileage_detail %}
+    <div class="col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+          <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+            <h2 class="h6 mb-0">Supporting Detail: Mileage Log</h2>
+            <div class="small text-muted">Total miles logged: {{ mileage_detail.total_miles|floatformat:1|intcomma }}</div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light"><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Begin</th><th>End</th><th class="text-end">Miles</th><th>Job / Invoice</th><th>Notes</th></tr></thead>
+              <tbody>
+                {% for row in mileage_detail.rows %}
+                  <tr>
+                    <td>{{ row.date|date:"n/j/Y" }}</td>
+                    <td>{{ row.vehicle }}</td>
+                    <td>{{ row.mileage_type }}</td>
+                    <td>{{ row.begin|default:"—" }}</td>
+                    <td>{{ row.end|default:"—" }}</td>
+                    <td class="text-end">{{ row.total|floatformat:1|intcomma }}</td>
+                    <td>
+                      {% if row.job %}<div>{{ row.job }}</div>{% endif %}
+                      {% if row.invoice %}<div class="small text-muted">{{ row.invoice }}</div>{% endif %}
+                    </td>
+                    <td>{{ row.notes }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="8" class="text-center text-muted py-4">No mileage detail found for {{ selected_year }}.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
