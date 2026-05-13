@@ -18,7 +18,6 @@ rsync -av --progress /tmp/moneypro_invite/MoneyPro/ ./
 
 
 
-
 HEROKU COMMANDS
 
 Restart Server:   heroku ps:restart -a moneypro    

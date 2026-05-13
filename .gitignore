@@ -114,3 +114,7 @@ NOTES.txt
 __pycache__/
 *.py[cod]
 *.pyc
+
+
+scripts.txt
+
