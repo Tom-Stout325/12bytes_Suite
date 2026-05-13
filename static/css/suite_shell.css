@@ -319,3 +319,69 @@ body.suite-auth-body{
   right: 0;
   font-size: .85rem;
 }
+
+/* Suite sidebar MoneyPro dropdown */
+.suite-nav-toggle{
+  border: 0;
+  width: 100%;
+  background: transparent;
+  text-align: left;
+  justify-content: space-between;
+}
+
+.suite-nav-toggle-label{
+  display: inline-flex;
+  align-items: center;
+  gap: .75rem;
+}
+
+.suite-nav-toggle[aria-expanded="true"] .suite-nav-caret{
+  transform: rotate(180deg);
+}
+
+.suite-nav-caret{
+  margin-left: auto;
+  font-size: .8rem;
+  opacity: .75;
+  transition: transform .15s ease;
+}
+
+.suite-subnav{
+  display: grid;
+  gap: .18rem;
+  margin: .25rem 0 .45rem 1.15rem;
+  padding: .25rem 0 .25rem .65rem;
+  border-left: 1px solid rgba(255,255,255,.16);
+}
+
+.suite-subnav-link{
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  color: rgba(255,255,255,.72);
+  text-decoration: none;
+  border-radius: .65rem;
+  padding: .48rem .65rem;
+  font-size: .92rem;
+  font-weight: 700;
+  line-height: 1.2;
+  transition: background-color .15s ease, color .15s ease, transform .15s ease;
+}
+
+.suite-subnav-link:hover,
+.suite-subnav-link:focus,
+.suite-subnav-link.active{
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  transform: translateX(2px);
+}
+
+.suite-subnav-link.active{
+  box-shadow: inset 3px 0 0 var(--suite-cyan);
+}
+
+.suite-subnav-link i{
+  width: 1rem;
+  text-align: center;
+  font-size: .88rem;
+}

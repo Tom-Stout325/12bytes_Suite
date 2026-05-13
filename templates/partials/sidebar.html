@@ -14,9 +14,7 @@
       <a class="suite-nav-link {% if current_ns == 'dashboard' and current_url_name == 'home' %}active{% endif %}" href="{% url 'dashboard:home' %}">
         <i class="fa-solid fa-house"></i> Home
       </a>
-      <a class="suite-nav-link {% if current_ns == 'dashboard' and current_url_name == 'moneypro_home' or current_ns == 'ledger' or current_ns == 'invoices' or current_ns == 'reports' or current_ns == 'vehicles' or current_ns == 'contractor' %}active{% endif %}" href="{% url 'dashboard:moneypro_home' %}">
-        <i class="fa-solid fa-chart-column"></i> MoneyPro
-      </a>
+      {% include "partials/moneypro_sidebar_menu.html" with menu_id="suiteMoneyProMenu" %}
       <a class="suite-nav-link {% if current_ns == 'flightlogs' %}active{% endif %}" href="{% url 'flightlogs:flightlog_list' %}">
         <i class="fa-solid fa-drone"></i> Flight Logs
       </a>
@@ -60,7 +58,7 @@
   <div class="offcanvas-body">
     <div class="suite-nav">
       <a class="suite-nav-link" href="{% url 'dashboard:home' %}"><i class="fa-solid fa-house"></i> Home</a>
-      <a class="suite-nav-link" href="{% url 'dashboard:moneypro_home' %}"><i class="fa-solid fa-chart-column"></i> MoneyPro</a>
+      {% include "partials/moneypro_sidebar_menu.html" with menu_id="suiteMoneyProMenuMobile" %}
       <a class="suite-nav-link" href="{% url 'flightlogs:flightlog_list' %}"><i class="fa-solid fa-drone"></i> Flight Logs</a>
       <a class="suite-nav-link" href="{% url 'documents:documents_portal' %}"><i class="fa-solid fa-file-lines"></i> Documents</a>
       <a class="suite-nav-link" href="{% url 'pilot:profile' %}"><i class="fa-solid fa-user-pilot"></i> Pilots</a>

@@ -1,0 +1,79 @@
+{% comment %}
+Reusable MoneyPro submenu for the 12Bytes Suite sidebar.
+Expected context:
+- current_ns
+- current_url_name
+- menu_id
+{% endcomment %}
+
+<button class="suite-nav-link suite-nav-toggle {% if current_ns == 'dashboard' and current_url_name == 'moneypro_home' or current_ns == 'ledger' or current_ns == 'invoices' or current_ns == 'reports' or current_ns == 'vehicles' or current_ns == 'contractor' or current_ns == 'helpcenter' %}active{% endif %}"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#{{ menu_id }}"
+        aria-expanded="{% if current_ns == 'dashboard' and current_url_name == 'moneypro_home' or current_ns == 'ledger' or current_ns == 'invoices' or current_ns == 'reports' or current_ns == 'vehicles' or current_ns == 'contractor' or current_ns == 'helpcenter' %}true{% else %}false{% endif %}"
+        aria-controls="{{ menu_id }}">
+  <span class="suite-nav-toggle-label">
+    <i class="fa-solid fa-chart-column"></i> MoneyPro
+  </span>
+  <i class="fa-solid fa-chevron-down suite-nav-caret" aria-hidden="true"></i>
+</button>
+
+<div class="collapse {% if current_ns == 'dashboard' and current_url_name == 'moneypro_home' or current_ns == 'ledger' or current_ns == 'invoices' or current_ns == 'reports' or current_ns == 'vehicles' or current_ns == 'contractor' or current_ns == 'helpcenter' %}show{% endif %}" id="{{ menu_id }}">
+  <div class="suite-subnav" aria-label="MoneyPro navigation">
+    <a class="suite-subnav-link {% if current_ns == 'dashboard' and current_url_name == 'moneypro_home' %}active{% endif %}" href="{% url 'dashboard:moneypro_home' %}">
+      <i class="fa-solid fa-gauge-high"></i> Dashboard
+    </a>
+
+    <a class="suite-subnav-link {% if current_ns == 'ledger' and current_url_name|default:''|slice:':11' == 'transaction_' %}active{% endif %}" href="{% url 'ledger:transaction_list' %}">
+      <i class="fa-solid fa-right-left"></i> Transactions
+    </a>
+
+    <a class="suite-subnav-link {% if current_ns == 'invoices' %}active{% endif %}" href="{% url 'invoices:invoice_list' %}">
+      <i class="fa-solid fa-file-invoice-dollar"></i> Invoices
+    </a>
+
+    <a class="suite-subnav-link {% if current_ns == 'reports' %}active{% endif %}" href="{% url 'reports:home' %}">
+      <i class="fa-solid fa-chart-pie"></i> Reports
+    </a>
+
+    <a class="suite-subnav-link {% if current_ns == 'contractor' %}active{% endif %}" href="{% url 'contractor:list' %}">
+      <i class="fa-solid fa-user-tie"></i> Contractors
+    </a>
+
+    <a class="suite-subnav-link {% if current_ns == 'vehicles' and current_url_name == 'vehicle_miles_list' %}active{% endif %}" href="{% url 'vehicles:vehicle_miles_list' %}">
+      <i class="fa-solid fa-route"></i> Mileage Log
+    </a>
+
+    <a class="suite-subnav-link {% if current_ns == 'ledger' and current_url_name|default:''|slice:':4' == 'job_' %}active{% endif %}" href="{% url 'ledger:job_list' %}">
+      <i class="fa-solid fa-briefcase"></i> Jobs
+    </a>
+
+    <a class="suite-subnav-link {% if current_ns == 'vehicles' and current_url_name != 'vehicle_miles_list' %}active{% endif %}" href="{% url 'vehicles:vehicle_list' %}">
+      <i class="fa-solid fa-car"></i> Vehicles
+    </a>
+
+    <a class="suite-subnav-link {% if current_ns == 'ledger' and current_url_name|default:''|slice:':8' == 'contact_' %}active{% endif %}" href="{% url 'ledger:contact_list' %}">
+      <i class="fa-solid fa-address-book"></i> Contacts
+    </a>
+
+    <a class="suite-subnav-link {% if current_ns == 'contractor' and current_url_name|default:''|slice:':4' == '1099' %}active{% endif %}" href="{% url 'contractor:1099_center' %}">
+      <i class="fa-solid fa-file-contract"></i> 1099 Center
+    </a>
+
+    <a class="suite-subnav-link {% if current_ns == 'ledger' and current_url_name|default:''|slice:':12' == 'subcategory_' %}active{% endif %}" href="{% url 'ledger:subcategory_list' %}">
+      <i class="fa-solid fa-tags"></i> Subcategories
+    </a>
+
+    <a class="suite-subnav-link {% if current_ns == 'ledger' and current_url_name|default:''|slice:':5' == 'team_' %}active{% endif %}" href="{% url 'ledger:team_list' %}">
+      <i class="fa-solid fa-people-group"></i> Teams
+    </a>
+
+    <a class="suite-subnav-link {% if current_ns == 'dashboard' and current_url_name == 'business_backup_admin' %}active{% endif %}" href="{% url 'dashboard:business_backup_admin' %}">
+      <i class="fa-solid fa-database"></i> Backups
+    </a>
+
+    <a class="suite-subnav-link {% if current_ns == 'helpcenter' %}active{% endif %}" href="{% url 'helpcenter:home' %}">
+      <i class="fa-solid fa-circle-question"></i> Help
+    </a>
+  </div>
+</div>
