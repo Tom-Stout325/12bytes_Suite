@@ -226,6 +226,79 @@ def _values_match(existing_value, incoming_value):
     return str(existing_value or "") == str(incoming_value or "")
 
 
+FLIGHTLOG_IMPORT_FIELDS = (
+    "flight_date",
+    "flight_title",
+    "flight_description",
+    "pilot_in_command",
+    "license_number",
+    "flight_application",
+    "remote_id",
+    "takeoff_latlong",
+    "takeoff_address",
+    "landing_time",
+    "air_time",
+    "above_sea_level_ft",
+    "drone_name",
+    "drone_type",
+    "drone_serial",
+    "drone_reg_number",
+    "battery_name",
+    "battery_serial_printed",
+    "battery_serial_internal",
+    "takeoff_battery_pct",
+    "takeoff_mah",
+    "takeoff_volts",
+    "landing_battery_pct",
+    "landing_mah",
+    "landing_volts",
+    "max_altitude_ft",
+    "max_distance_ft",
+    "max_battery_temp_f",
+    "max_speed_mph",
+    "total_mileage_ft",
+    "signal_score",
+    "max_compass_rate",
+    "avg_wind",
+    "max_gust",
+    "signal_losses",
+    "ground_weather_summary",
+    "ground_temp_f",
+    "visibility_miles",
+    "wind_speed",
+    "wind_direction",
+    "cloud_cover",
+    "humidity_pct",
+    "dew_point_f",
+    "pressure_inhg",
+    "rain_rate",
+    "rain_chance",
+    "sunrise",
+    "sunset",
+    "moon_phase",
+    "moon_visibility",
+    "photos",
+    "videos",
+    "notes",
+    "tags",
+)
+
+
+def _normalise_import_value(value):
+    """Convert DB/model values and parsed CSV values to a stable duplicate-check value."""
+    if value in (None, ""):
+        return ""
+    return str(value)
+
+
+def _flightlog_signature_from_payload(payload):
+    return tuple(_normalise_import_value(payload.get(field)) for field in FLIGHTLOG_IMPORT_FIELDS)
+
+
+def _flightlog_signature_from_obj(obj):
+    return tuple(_normalise_import_value(getattr(obj, field)) for field in FLIGHTLOG_IMPORT_FIELDS)
+
+
 def _flightlog_duplicate_exists(business, payload):
     """Return True only when an existing row is an exact import match.
 
@@ -411,7 +484,17 @@ def upload_flightlog_csv(request):
             return redirect("flightlogs:flightlog_upload")
         reader.fieldnames = [h.strip().replace("\ufeff", "") for h in reader.fieldnames]
 
+        # Build the duplicate set once instead of querying the database once per CSV row.
+        # This keeps large AirData uploads under Heroku's 30-second web request limit.
+        existing_signatures = {
+            _flightlog_signature_from_obj(log)
+            for log in _business_logs(request).only(*FLIGHTLOG_IMPORT_FIELDS).iterator(chunk_size=1000)
+        }
+
         created = skipped = errored = duplicate_skipped = 0
+        pending_logs = []
+        batch_size = 500
+
         for raw_row in reader:
             try:
                 row = _normalised_row(raw_row)
@@ -423,16 +506,27 @@ def upload_flightlog_csv(request):
                         messages.warning(request, "Skipped a row because no valid flight_date/Flight Date was found.")
                     continue
 
-                if _flightlog_duplicate_exists(request.business, payload):
+                signature = _flightlog_signature_from_payload(payload)
+                if signature in existing_signatures:
                     duplicate_skipped += 1
                     continue
 
-                FlightLog.objects.create(business=request.business, **payload)
-                created += 1
+                existing_signatures.add(signature)
+                pending_logs.append(FlightLog(business=request.business, **payload))
+
+                if len(pending_logs) >= batch_size:
+                    FlightLog.objects.bulk_create(pending_logs, batch_size=batch_size)
+                    created += len(pending_logs)
+                    pending_logs = []
+
             except Exception as e:
                 errored += 1
                 if errored <= 5:
                     messages.error(request, f"Row save error: {e}")
+
+        if pending_logs:
+            FlightLog.objects.bulk_create(pending_logs, batch_size=batch_size)
+            created += len(pending_logs)
 
         total_skipped = skipped + duplicate_skipped
         messages.success(

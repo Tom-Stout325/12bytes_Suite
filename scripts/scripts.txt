@@ -8,10 +8,17 @@ cp -R _MONEYPRO _MONEYPRO_backup
 
 cd into the root folder
 
-unzip ~/Downloads/suite_moneypro_sidebar_dropdown_patch.zip
+unzip ~/Downloads/suite_flightlog_bulk_import_patch.zip
 or:
 unzip ~/Downloads/MoneyPro_invite.zip -d /tmp/moneypro_invite
 rsync -av --progress /tmp/moneypro_invite/MoneyPro/ ./
+
+
+
+
+
+MoneyPro db:  postgres://ubc5p5rrtkbjuo:p123e9649b2f276e0648ec8d0ecb335e9e2605baa235c0ec6e50afdcd9caf4f82@cet8r1hlj0mlnt.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/ddc52ipqsfgudn
+
 
 
 
@@ -21,7 +28,7 @@ rsync -av --progress /tmp/moneypro_invite/MoneyPro/ ./
 HEROKU COMMANDS
 
 Restart Server:   heroku ps:restart -a moneypro    
-Logs:             heroku logs --tail -a moneypro          
+Logs:             heroku logs --tail -a suites         
 
 Postgresql shell:
 heroku run -a moneypro -- python manage.py dbshell
@@ -53,3 +60,5 @@ Logins:
 
 admin   cassie2001
 tom@airborne-images.net 
+
+clear lockouts:  heroku run -a suites -- python manage.py axes_reset
