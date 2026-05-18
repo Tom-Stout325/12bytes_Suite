@@ -14,6 +14,7 @@ from .models import Invoice, InvoiceItem, allocate_next_invoice_number, bump_cou
 from .services import (
     create_revision,
     mark_paid,
+    regenerate_invoice_pdf,
     render_invoice_pdf_bytes,
     send_invoice,
     void_invoice,
@@ -431,6 +432,31 @@ def invoice_pdf_preview(request: HttpRequest, pk: int) -> HttpResponse:
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
     resp["Content-Disposition"] = f'inline; filename="{filename}"'
     return resp
+
+
+@login_required
+def invoice_pdf_regenerate(request: HttpRequest, pk: int) -> HttpResponse:
+    """Regenerate and replace the stored invoice PDF, then return to detail.
+
+    This fixes old/frozen PDFs after branding or template changes.
+    """
+    invoice = get_object_or_404(
+        Invoice.objects.filter(business=request.business)
+        .select_related("contact", "job")
+        .prefetch_related("items"),
+        pk=pk,
+    )
+
+    if request.method != "POST":
+        return redirect("invoices:invoice_detail", pk=invoice.pk)
+
+    try:
+        regenerate_invoice_pdf(invoice=invoice, base_url=request.build_absolute_uri("/"))
+        messages.success(request, "Invoice PDF regenerated.")
+    except Exception as e:
+        messages.error(request, f"Could not regenerate invoice PDF: {e}")
+
+    return redirect("invoices:invoice_detail", pk=invoice.pk)
 
 
 @login_required

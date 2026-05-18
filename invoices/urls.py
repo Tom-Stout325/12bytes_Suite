@@ -7,6 +7,7 @@ from .views import (
     invoice_mark_paid,
     invoice_pdf_download,
     invoice_pdf_preview,
+    invoice_pdf_regenerate,
     invoice_revise,
     invoice_send,
     invoice_update,
@@ -33,4 +34,5 @@ urlpatterns = [
     # PDF
     path("<int:pk>/pdf/", invoice_pdf_preview, name="invoice_pdf_preview"),
     path("<int:pk>/pdf/download/", invoice_pdf_download, name="invoice_pdf_download"),
+    path("<int:pk>/pdf/regenerate/", invoice_pdf_regenerate, name="invoice_pdf_regenerate"),
 ]
