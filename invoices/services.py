@@ -29,31 +29,35 @@ from .models import (
 )
 
 
-def _filefield_data_uri(file_field) -> str | None:
-    """Return a data URI for a FileField/ImageField so WeasyPrint can render it.
 
-    WeasyPrint can fail to fetch media URLs in production when media is stored
-    outside the dyno filesystem or behind S3 access rules. Reading the file
-    through Django storage and embedding it avoids URL/base_url issues.
+def _image_field_to_data_uri(image_field) -> str:
+    """Return a base64 data URI for a Django ImageField/FileField.
+
+    WeasyPrint can fail to load media URLs in production, especially when media is
+    stored outside the dyno filesystem or behind storage backends. Embedding the
+    logo as a data URI makes the PDF renderer independent of HTTP/static/media
+    URL resolution.
     """
-    if not file_field:
-        return None
+    if not image_field:
+        return ""
+
+    name = getattr(image_field, "name", "") or ""
+    if not name:
+        return ""
+
+    content_type = mimetypes.guess_type(name)[0] or "image/png"
 
     try:
-        file_name = getattr(file_field, "name", "") or ""
-        content_type = mimetypes.guess_type(file_name)[0] or "image/png"
-
-        with file_field.open("rb") as fh:
-            encoded = base64.b64encode(fh.read()).decode("ascii")
-
-        if not encoded:
-            return None
-
-        return f"data:{content_type};base64,{encoded}"
+        with image_field.open("rb") as f:
+            raw = f.read()
     except Exception:
-        # Do not fail invoice generation just because branding media is missing.
-        return None
+        return ""
 
+    if not raw:
+        return ""
+
+    encoded = base64.b64encode(raw).decode("ascii")
+    return f"data:{content_type};base64,{encoded}"
 
 def get_next_invoice_number_preview(*, business, issue_date=None) -> str:
     """Return the next numeric invoice number (YY####) WITHOUT reserving it.
@@ -135,7 +139,6 @@ def render_invoice_pdf_bytes(*, invoice: Invoice, base_url: str | None = None) -
     - For offline rendering, we fall back to BASE_DIR
     """
     company = getattr(invoice.business, "company_profile", None)
-    logo_src = _filefield_data_uri(getattr(company, "logo", None)) if company else None
 
     # Ensure totals are current for rendering (Option A)
     recalc_totals(invoice=invoice, save=False)
@@ -146,38 +149,12 @@ def render_invoice_pdf_bytes(*, invoice: Invoice, base_url: str | None = None) -
             "invoice": invoice,
             "business": invoice.business,
             "company": company,
-            "logo_src": logo_src,
+            "company_logo_data_uri": _image_field_to_data_uri(getattr(company, "logo", None)),
         },
     )
 
     resolved_base_url = base_url or str(settings.BASE_DIR)
     return HTML(string=html, base_url=resolved_base_url).write_pdf()
-
-
-def regenerate_invoice_pdf(*, invoice: Invoice, base_url: str | None = None) -> bytes:
-    """Render and replace the stored invoice PDF.
-
-    This is used when the template, logo, footer, or invoice display data changes
-    and an existing frozen PDF needs to be refreshed.
-    """
-    ensure_number(invoice=invoice)
-    recalc_totals(invoice=invoice, save=False)
-    snapshot_bill_to(invoice=invoice)
-
-    old_pdf_name = invoice.pdf_file.name if invoice.pdf_file else None
-    pdf_bytes = render_invoice_pdf_bytes(invoice=invoice, base_url=base_url)
-    filename = f"{invoice.invoice_number or 'invoice'}.pdf"
-
-    invoice.pdf_file.save(filename, ContentFile(pdf_bytes), save=False)
-    invoice.save(update_fields=["pdf_file", "subtotal", "total", "updated_at"])
-
-    if old_pdf_name and old_pdf_name != invoice.pdf_file.name:
-        try:
-            invoice.pdf_file.storage.delete(old_pdf_name)
-        except Exception:
-            pass
-
-    return pdf_bytes
 
 
 def send_invoice(*, invoice: Invoice, base_url: str | None = None, sent_by=None) -> None:

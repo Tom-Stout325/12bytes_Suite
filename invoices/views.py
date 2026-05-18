@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.files.base import ContentFile
 from django.forms import inlineformset_factory
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -14,7 +15,6 @@ from .models import Invoice, InvoiceItem, allocate_next_invoice_number, bump_cou
 from .services import (
     create_revision,
     mark_paid,
-    regenerate_invoice_pdf,
     render_invoice_pdf_bytes,
     send_invoice,
     void_invoice,
@@ -434,11 +434,13 @@ def invoice_pdf_preview(request: HttpRequest, pk: int) -> HttpResponse:
     return resp
 
 
+
 @login_required
 def invoice_pdf_regenerate(request: HttpRequest, pk: int) -> HttpResponse:
-    """Regenerate and replace the stored invoice PDF, then return to detail.
+    """Regenerate and store the final invoice PDF.
 
-    This fixes old/frozen PDFs after branding or template changes.
+    This replaces any previously stored PDF so template/logo/footer fixes show up
+    immediately for invoices that already had a saved PDF.
     """
     invoice = get_object_or_404(
         Invoice.objects.filter(business=request.business)
@@ -451,13 +453,19 @@ def invoice_pdf_regenerate(request: HttpRequest, pk: int) -> HttpResponse:
         return redirect("invoices:invoice_detail", pk=invoice.pk)
 
     try:
-        regenerate_invoice_pdf(invoice=invoice, base_url=request.build_absolute_uri("/"))
+        pdf_bytes = render_invoice_pdf_bytes(invoice=invoice, base_url=request.build_absolute_uri("/"))
+        filename = f"{invoice.invoice_number or 'invoice'}.pdf"
+
+        if invoice.pdf_file:
+            invoice.pdf_file.delete(save=False)
+
+        invoice.pdf_file.save(filename, ContentFile(pdf_bytes), save=False)
+        invoice.save(update_fields=["pdf_file", "updated_at"])
         messages.success(request, "Invoice PDF regenerated.")
-    except Exception as e:
-        messages.error(request, f"Could not regenerate invoice PDF: {e}")
+    except Exception as exc:
+        messages.error(request, f"Could not regenerate invoice PDF: {exc}")
 
     return redirect("invoices:invoice_detail", pk=invoice.pk)
-
 
 @login_required
 def invoice_pdf_download(request: HttpRequest, pk: int) -> HttpResponse:

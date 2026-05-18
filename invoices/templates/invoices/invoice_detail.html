@@ -532,27 +532,18 @@
               </form>
             {% endif %}
 
-            {% if invoice.pdf_file %}
-              <a class="btn btn-outline-secondary btn-sm" href="{% url 'invoices:invoice_pdf_preview' invoice.pk %}" target="_blank" rel="noopener">
-                <i class="fa-solid fa-file-pdf me-1"></i>Final PDF
-              </a>
-              <form method="post" action="{% url 'invoices:invoice_pdf_regenerate' invoice.pk %}">
-                {% csrf_token %}
-                <button class="btn btn-outline-warning btn-sm" type="submit">
-                  <i class="fa-solid fa-arrows-rotate me-1"></i>Regenerate PDF
-                </button>
-              </form>
-            {% else %}
-              <a class="btn btn-outline-secondary btn-sm" href="{% url 'invoices:invoice_pdf_preview' invoice.pk %}" target="_blank" rel="noopener">
-                <i class="fa-solid fa-eye me-1"></i>Preview PDF
-              </a>
-              <form method="post" action="{% url 'invoices:invoice_pdf_regenerate' invoice.pk %}">
-                {% csrf_token %}
-                <button class="btn btn-outline-warning btn-sm" type="submit">
-                  <i class="fa-solid fa-file-circle-plus me-1"></i>Create PDF
-                </button>
-              </form>
-            {% endif %}
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'invoices:invoice_pdf_preview' invoice.pk %}" target="_blank" rel="noopener">
+              <i class="fa-solid fa-eye me-1"></i>{% if invoice.pdf_file %}View PDF{% else %}Preview PDF{% endif %}
+            </a>
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'invoices:invoice_pdf_download' invoice.pk %}">
+              <i class="fa-solid fa-download me-1"></i>Download PDF
+            </a>
+            <form method="post" action="{% url 'invoices:invoice_pdf_regenerate' invoice.pk %}">
+              {% csrf_token %}
+              <button class="btn btn-outline-warning btn-sm" type="submit">
+                <i class="fa-solid fa-rotate me-1"></i>Regenerate PDF
+              </button>
+            </form>
 
             {% if invoice.status != "paid" %}
               <form method="post" action="{% url 'invoices:invoice_void' invoice.pk %}">
@@ -876,15 +867,15 @@
       </form>
     {% endif %}
 
-    {% if invoice.pdf_file %}
-      <a class="btn btn-outline-secondary btn-sm" href="{{ invoice.pdf_file.url }}">
-        <i class="fa-solid fa-file-pdf me-1"></i>Final PDF
-      </a>
-    {% else %}
-      <a class="btn btn-outline-secondary btn-sm" href="{% url 'invoices:invoice_pdf_preview' invoice.pk %}">
-        <i class="fa-solid fa-eye me-1"></i>Preview PDF
-      </a>
-    {% endif %}
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'invoices:invoice_pdf_preview' invoice.pk %}" target="_blank" rel="noopener">
+      <i class="fa-solid fa-eye me-1"></i>{% if invoice.pdf_file %}View PDF{% else %}Preview PDF{% endif %}
+    </a>
+    <form method="post" action="{% url 'invoices:invoice_pdf_regenerate' invoice.pk %}">
+      {% csrf_token %}
+      <button class="btn btn-outline-warning btn-sm" type="submit">
+        <i class="fa-solid fa-rotate me-1"></i>Regenerate PDF
+      </button>
+    </form>
   </div>
 </div>
 {% endblock %}

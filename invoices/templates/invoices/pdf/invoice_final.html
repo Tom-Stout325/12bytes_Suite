@@ -154,33 +154,26 @@
       font-size: 13px;
     }
 
-    .footer-space {
-      height: 24px;
-    }
-
     .pdf-footer {
       position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      border-top: 1px solid #e9ecef;
-      padding-top: 10px;
+      left: 0.6in;
+      right: 0.6in;
+      bottom: 0.35in;
       text-align: center;
-      background: #fff;
+      color: #555;
     }
 
     .thanks {
-      text-align: center;
       font-size: 12px;
       color: #444;
-      margin: 0 0 10px 0;
+      margin-bottom: 10px;
       letter-spacing: 0.2px;
     }
 
     .footer {
-      text-align: center;
+      border-top: 1px solid #e9ecef;
+      padding-top: 10px;
       font-size: 11px;
-      color: #555;
     }
 
     .footer-divider {
@@ -196,8 +189,10 @@
   <table class="header-table">
     <tr>
       <td class="header-left">
-        {% if logo_src %}
-          <img class="logo" src="{{ logo_src }}" alt="Logo" />
+        {% if company_logo_data_uri %}
+          <img class="logo" src="{{ company_logo_data_uri }}" alt="{{ company.company_name|default:business.name }} logo" />
+        {% elif company and company.logo %}
+          <img class="logo" src="{{ company.logo.url }}" alt="{{ company.company_name|default:business.name }} logo" />
         {% endif %}
 
         <div class="company-block">
@@ -336,31 +331,31 @@
     <div class="thanks">Thank you for your business!</div>
 
     <div class="footer">
-    {% if company %}
-      {{ company.company_name }}
-    {% else %}
-      {{ invoice.business.company_profile.company_name }}
-    {% endif %}
-
-    {% with cp=invoice.business.company_profile %}
-      {% if cp.billing_email or cp.phone or cp.website %}
-        <span class="footer-divider">|</span>
+      {% if company %}
+        {{ company.company_name }}
+      {% else %}
+        {{ invoice.business.company_profile.company_name }}
       {% endif %}
 
-      {% if cp.billing_email %}
-        <span>{{ cp.billing_email }}</span>
-      {% endif %}
+      {% with cp=invoice.business.company_profile %}
+        {% if cp.billing_email or cp.phone or cp.website %}
+          <span class="footer-divider">|</span>
+        {% endif %}
 
-      {% if cp.phone %}
-        {% if cp.billing_email %}<span class="footer-divider">|</span>{% endif %}
-        <span>{{ cp.phone|phone_us }}</span>
-      {% endif %}
+        {% if cp.billing_email %}
+          <span>{{ cp.billing_email }}</span>
+        {% endif %}
 
-      {% if cp.website %}
-        {% if cp.billing_email or cp.phone %}<span class="footer-divider">|</span>{% endif %}
-        <span>{{ cp.website }}</span>
-      {% endif %}
-    {% endwith %}
+        {% if cp.phone %}
+          {% if cp.billing_email %}<span class="footer-divider">|</span>{% endif %}
+          <span>{{ cp.phone|phone_us }}</span>
+        {% endif %}
+
+        {% if cp.website %}
+          {% if cp.billing_email or cp.phone %}<span class="footer-divider">|</span>{% endif %}
+          <span>{{ cp.website }}</span>
+        {% endif %}
+      {% endwith %}
     </div>
   </div>
 
