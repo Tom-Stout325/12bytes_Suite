@@ -65,7 +65,7 @@ def get_yearly_mileage_summary(*, business, vehicle_id: int, year: int) -> Milea
         deduction_method_label=vy.get_deduction_method_display(),
         is_locked=vy.is_locked,
         odometer_start=_q(vy.odometer_start, ONE_TENTH),
-        odometer_end=_q(vy.odometer_end, ONE_TENTH),
+        odometer_end=_q(vy.effective_odometer_end, ONE_TENTH),
         total_miles=_q(vy.total_miles, ONE_TENTH),
         logged_miles_total=_q(vy.logged_miles_total, ONE_TENTH) or ZERO,
         business_miles=_q(vy.business_miles, ONE_TENTH) or ZERO,

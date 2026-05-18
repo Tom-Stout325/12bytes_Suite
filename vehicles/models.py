@@ -278,10 +278,49 @@ class VehicleYear(BusinessOwnedModelMixin):
             })
 
     @property
-    def total_miles(self) -> Decimal | None:
-        if self.odometer_end is None:
+    def is_current_year(self) -> bool:
+        return int(self.year) == timezone.localdate().year
+
+    @property
+    def latest_logged_odometer_end(self) -> Decimal | None:
+        """Return the latest mileage-log ending odometer for provisional current-year calculations."""
+        business_id = self._effective_business_id()
+        if not self.vehicle_id or not business_id:
             return None
-        return (self.odometer_end - self.odometer_start).quantize(ONE_TENTH, rounding=ROUND_HALF_UP)
+
+        latest = (
+            self.vehicle.miles_entries.filter(
+                business_id=business_id,
+                date__year=self.year,
+                end__isnull=False,
+            )
+            .order_by("-date", "-id")
+            .values_list("end", flat=True)
+            .first()
+        )
+        if latest is None:
+            return None
+
+        latest = Decimal(str(latest)).quantize(ONE_TENTH, rounding=ROUND_HALF_UP)
+        if latest < self.odometer_start:
+            return None
+        return latest
+
+    @property
+    def effective_odometer_end(self) -> Decimal | None:
+        """Use the annual ending odometer when entered; otherwise use a current-year provisional value."""
+        if self.odometer_end is not None:
+            return Decimal(str(self.odometer_end)).quantize(ONE_TENTH, rounding=ROUND_HALF_UP)
+        if self.is_current_year:
+            return self.latest_logged_odometer_end
+        return None
+
+    @property
+    def total_miles(self) -> Decimal | None:
+        effective_end = self.effective_odometer_end
+        if effective_end is None:
+            return None
+        return (effective_end - self.odometer_start).quantize(ONE_TENTH, rounding=ROUND_HALF_UP)
 
     def _effective_business_id(self) -> int | None:
         if self.business_id:
@@ -433,7 +472,7 @@ class VehicleYear(BusinessOwnedModelMixin):
     @property
     def missing_data_flags(self) -> list[str]:
         flags: list[str] = []
-        if self.odometer_end is None:
+        if self.odometer_end is None and not self.is_current_year:
             flags.append("Missing ending odometer")
         if self.total_miles is not None and self.business_miles > self.total_miles:
             flags.append("Business miles exceed annual miles")
