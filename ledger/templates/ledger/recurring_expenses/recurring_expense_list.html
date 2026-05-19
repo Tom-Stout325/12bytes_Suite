@@ -9,13 +9,13 @@
   <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
     <div>
       <h1 class="h4 mb-0 text-primary-brand">Recurring Expenses</h1>
-      <div class="text-muted small">Create templates and process them into individual transactions.</div>
+      <div class="text-muted small">Create templates and manually process them into monthly transactions.</div>
     </div>
     <div class="d-grid d-md-flex gap-2">
       <form method="post" action="{% url 'ledger:process_recurring_expenses' %}">
         {% csrf_token %}
         <button class="btn btn-outline-primary w-100" type="submit">
-          <i class="fa-solid fa-rotate me-1"></i> Process Expenses
+          <i class="fa-solid fa-rotate me-1"></i> Process This Month
         </button>
       </form>
       <a class="btn btn-brand" href="{% url 'ledger:recurring_expense_create' %}">
@@ -56,7 +56,7 @@
         <div class="dash-card-head mb-0">
           <div>
             <h2 class="h6 dash-card-title mb-0">Recurring expense list</h2>
-            <div class="dash-card-subtitle">Duplicate processing is blocked for the same expense within 30 days.</div>
+            <div class="dash-card-subtitle">Manual processing creates this month’s transactions now; duplicates are blocked for the current calendar month.</div>
           </div>
         </div>
       </div>

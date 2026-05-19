@@ -808,7 +808,7 @@ class RecurringExpense(BusinessOwnedModelMixin):
 
     Recurring expenses are not included in reports until they are processed into
     Transaction rows. Duplicate protection is handled by RecurringExpenseRun and
-    blocks the same template from posting more than once within 30 days.
+    blocks the same template from posting more than once per calendar month.
     """
 
     class Frequency(models.TextChoices):
@@ -939,10 +939,28 @@ class RecurringExpense(BusinessOwnedModelMixin):
         self.full_clean()
         return super().save(*args, **kwargs)
 
-    def has_recent_run(self, *, as_of=None, days=30) -> bool:
-        from datetime import timedelta
-        cutoff = timezone.now() - timedelta(days=days)
-        return self.runs.filter(created_at__gte=cutoff).exists()
+    def has_run_in_month(self, *, as_of=None) -> bool:
+        from datetime import date
+
+        as_of = as_of or timezone.localdate()
+        month_start = date(as_of.year, as_of.month, 1)
+        if as_of.month == 12:
+            next_month_start = date(as_of.year + 1, 1, 1)
+        else:
+            next_month_start = date(as_of.year, as_of.month + 1, 1)
+
+        return self.runs.filter(
+            run_date__gte=month_start,
+            run_date__lt=next_month_start,
+        ).exists()
+
+    def run_date_for_month(self, *, as_of=None):
+        import calendar
+        from datetime import date
+
+        as_of = as_of or timezone.localdate()
+        day = min(self.day_of_month or as_of.day, calendar.monthrange(as_of.year, as_of.month)[1])
+        return date(as_of.year, as_of.month, day)
 
     def build_transaction(self, *, run_date=None) -> Transaction:
         run_date = run_date or self.next_run_date or timezone.localdate()
@@ -964,11 +982,11 @@ class RecurringExpense(BusinessOwnedModelMixin):
             notes=self.notes,
         )
 
-    def advance_next_run_date(self):
+    def advance_next_run_date(self, *, from_date=None):
         import calendar
         from datetime import date
 
-        base = self.next_run_date or timezone.localdate()
+        base = from_date or self.next_run_date or timezone.localdate()
         months = 12 if self.frequency == self.Frequency.YEARLY else 3 if self.frequency == self.Frequency.QUARTERLY else 1
         month_index = (base.month - 1) + months
         year = base.year + (month_index // 12)
@@ -980,12 +998,10 @@ class RecurringExpense(BusinessOwnedModelMixin):
         as_of = as_of or timezone.localdate()
         if not self.is_active:
             return False, None, "Inactive"
-        if self.next_run_date and self.next_run_date > as_of:
-            return False, None, "Not due yet"
-        if self.has_recent_run(as_of=as_of, days=30):
-            return False, None, "Skipped: already processed within 30 days"
+        if self.has_run_in_month(as_of=as_of):
+            return False, None, "Skipped: already processed this month"
 
-        run_date = self.next_run_date or as_of
+        run_date = self.run_date_for_month(as_of=as_of)
         tx = self.build_transaction(run_date=run_date)
         tx.save()
         RecurringExpenseRun.objects.create(
@@ -995,7 +1011,7 @@ class RecurringExpense(BusinessOwnedModelMixin):
             run_date=run_date,
         )
         self.last_run_date = run_date
-        self.advance_next_run_date()
+        self.advance_next_run_date(from_date=run_date)
         self.save(update_fields=["last_run_date", "next_run_date", "updated_at"])
         return True, tx, "Created"
 

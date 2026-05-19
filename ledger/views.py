@@ -259,18 +259,15 @@ def process_recurring_expenses(request):
 
     from django.utils import timezone
     today = timezone.localdate()
-    # Lock only RecurringExpense rows. PostgreSQL rejects SELECT ... FOR UPDATE
-    # when the queryset includes nullable OUTER JOINs from select_related(), which
-    # can happen for optional fields such as contact, team, job, asset, and vehicle.
-    # We intentionally avoid select_related() on this locking queryset; related
-    # fields are fetched lazily as each template is processed.
+    # Manual processing posts every active recurring expense for the current
+    # calendar month. The model-level duplicate check prevents the same recurring
+    # expense from being posted more than once in the month, regardless of due day.
     due_expenses = (
         RecurringExpense.objects.filter(
             business=request.business,
             is_active=True,
-            next_run_date__lte=today,
         )
-        .order_by("next_run_date", "name")
+        .order_by("name")
     )
 
     created = 0
@@ -291,11 +288,11 @@ def process_recurring_expenses(request):
     if created:
         messages.success(request, f"Processed {created} recurring expense{'s' if created != 1 else ''} into transactions.")
     if skipped and not errors:
-        messages.info(request, f"Skipped {skipped} recurring expense{'s' if skipped != 1 else ''}; duplicates are blocked for 30 days.")
+        messages.info(request, f"Skipped {skipped} recurring expense{'s' if skipped != 1 else ''}; duplicates are blocked for the current month.")
     if errors:
         messages.warning(request, "Some recurring expenses were skipped: " + " | ".join(errors[:5]))
     if not created and not skipped:
-        messages.info(request, "No recurring expenses are due today.")
+        messages.info(request, "No active recurring expenses were available to process.")
 
     return redirect("ledger:recurring_expense_list")
 
