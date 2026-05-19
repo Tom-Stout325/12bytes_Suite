@@ -995,12 +995,23 @@ class RecurringExpense(BusinessOwnedModelMixin):
         self.next_run_date = date(year, month, day)
 
     def process(self, *, as_of=None) -> tuple[bool, Transaction | None, str]:
+        """Create a Transaction for the month represented by ``as_of``.
+
+        Manual processing is month-based: the selected month/year controls the
+        transaction date and duplicate check. This allows safe catch-up
+        processing for prior months while still preventing the same recurring
+        expense from being posted twice in one calendar month.
+
+        When a prior month is processed after a newer month, do not move
+        last_run_date or next_run_date backwards.
+        """
         as_of = as_of or timezone.localdate()
         if not self.is_active:
             return False, None, "Inactive"
         if self.has_run_in_month(as_of=as_of):
-            return False, None, "Skipped: already processed this month"
+            return False, None, f"Skipped: already processed for {as_of:%B %Y}"
 
+        previous_last_run_date = self.last_run_date
         run_date = self.run_date_for_month(as_of=as_of)
         tx = self.build_transaction(run_date=run_date)
         tx.save()
@@ -1010,9 +1021,12 @@ class RecurringExpense(BusinessOwnedModelMixin):
             transaction=tx,
             run_date=run_date,
         )
-        self.last_run_date = run_date
-        self.advance_next_run_date(from_date=run_date)
-        self.save(update_fields=["last_run_date", "next_run_date", "updated_at"])
+
+        if previous_last_run_date is None or run_date >= previous_last_run_date:
+            self.last_run_date = run_date
+            self.advance_next_run_date(from_date=run_date)
+            self.save(update_fields=["last_run_date", "next_run_date", "updated_at"])
+
         return True, tx, "Created"
 
     def __str__(self) -> str:

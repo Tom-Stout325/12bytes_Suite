@@ -202,6 +202,27 @@ class RecurringExpenseListView(LoginRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx["q"] = (self.request.GET.get("q") or "").strip()
         ctx["status"] = (self.request.GET.get("status") or "").strip()
+
+        from django.utils import timezone
+        today = timezone.localdate()
+        ctx["process_month"] = today.month
+        ctx["process_year"] = today.year
+        ctx["process_month_choices"] = [
+            (1, "January"),
+            (2, "February"),
+            (3, "March"),
+            (4, "April"),
+            (5, "May"),
+            (6, "June"),
+            (7, "July"),
+            (8, "August"),
+            (9, "September"),
+            (10, "October"),
+            (11, "November"),
+            (12, "December"),
+        ]
+        ctx["process_year_choices"] = range(today.year - 5, today.year + 2)
+
         params = self.request.GET.copy()
         params.pop("page", None)
         ctx["qs"] = params.urlencode()
@@ -257,12 +278,23 @@ def process_recurring_expenses(request):
     if request.method != "POST":
         return redirect("ledger:recurring_expense_list")
 
+    from datetime import date
     from django.utils import timezone
+
     today = timezone.localdate()
-    # Manual processing posts every active recurring expense for the current
-    # calendar month. The model-level duplicate check prevents the same recurring
-    # expense from being posted more than once in the month, regardless of due day.
-    due_expenses = (
+    try:
+        selected_month = int(request.POST.get("process_month") or today.month)
+        selected_year = int(request.POST.get("process_year") or today.year)
+        as_of = date(selected_year, selected_month, 1)
+    except (TypeError, ValueError):
+        messages.error(request, "Select a valid month and year to process recurring expenses.")
+        return redirect("ledger:recurring_expense_list")
+
+    if selected_year < today.year - 10 or selected_year > today.year + 2:
+        messages.error(request, "Select a year within the available processing range.")
+        return redirect("ledger:recurring_expense_list")
+
+    recurring_expenses = (
         RecurringExpense.objects.filter(
             business=request.business,
             is_active=True,
@@ -274,9 +306,9 @@ def process_recurring_expenses(request):
     skipped = 0
     errors = []
     with db_transaction.atomic():
-        for expense in due_expenses.select_for_update():
+        for expense in recurring_expenses.select_for_update():
             try:
-                did_create, tx, reason = expense.process(as_of=today)
+                did_create, tx, reason = expense.process(as_of=as_of)
                 if did_create:
                     created += 1
                 else:
@@ -285,10 +317,17 @@ def process_recurring_expenses(request):
                 skipped += 1
                 errors.append(f"{expense.name}: {exc}")
 
+    month_label = as_of.strftime("%B %Y")
     if created:
-        messages.success(request, f"Processed {created} recurring expense{'s' if created != 1 else ''} into transactions.")
+        messages.success(
+            request,
+            f"Processed {created} recurring expense{'s' if created != 1 else ''} for {month_label} into transactions."
+        )
     if skipped and not errors:
-        messages.info(request, f"Skipped {skipped} recurring expense{'s' if skipped != 1 else ''}; duplicates are blocked for the current month.")
+        messages.info(
+            request,
+            f"Skipped {skipped} recurring expense{'s' if skipped != 1 else ''}; duplicates are blocked for {month_label}."
+        )
     if errors:
         messages.warning(request, "Some recurring expenses were skipped: " + " | ".join(errors[:5]))
     if not created and not skipped:

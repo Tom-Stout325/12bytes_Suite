@@ -12,11 +12,33 @@
       <div class="text-muted small">Create templates and manually process them into monthly transactions.</div>
     </div>
     <div class="d-grid d-md-flex gap-2">
-      <form method="post" action="{% url 'ledger:process_recurring_expenses' %}">
+      <form method="post" action="{% url 'ledger:process_recurring_expenses' %}" class="card border-0 shadow-sm">
         {% csrf_token %}
-        <button class="btn btn-outline-primary w-100" type="submit">
-          <i class="fa-solid fa-rotate me-1"></i> Process This Month
-        </button>
+        <div class="card-body p-2">
+          <div class="row g-2 align-items-end">
+            <div class="col-6 col-md-auto">
+              <label class="form-label small text-muted mb-1" for="process_month">Month</label>
+              <select class="form-select form-select-sm" id="process_month" name="process_month">
+                {% for value, label in process_month_choices %}
+                  <option value="{{ value }}" {% if value == process_month %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6 col-md-auto">
+              <label class="form-label small text-muted mb-1" for="process_year">Year</label>
+              <select class="form-select form-select-sm" id="process_year" name="process_year">
+                {% for year in process_year_choices %}
+                  <option value="{{ year }}" {% if year == process_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-auto d-grid">
+              <button class="btn btn-outline-primary btn-sm" type="submit">
+                <i class="fa-solid fa-rotate me-1"></i> Process Month
+              </button>
+            </div>
+          </div>
+        </div>
       </form>
       <a class="btn btn-brand" href="{% url 'ledger:recurring_expense_create' %}">
         <i class="fa-solid fa-plus me-1"></i> Add recurring expense
@@ -56,7 +78,7 @@
         <div class="dash-card-head mb-0">
           <div>
             <h2 class="h6 dash-card-title mb-0">Recurring expense list</h2>
-            <div class="dash-card-subtitle">Manual processing creates this month’s transactions now; duplicates are blocked for the current calendar month.</div>
+            <div class="dash-card-subtitle">Choose a month and year to create transactions for that period. Duplicates are blocked per recurring expense for the selected calendar month.</div>
           </div>
         </div>
       </div>

@@ -8,7 +8,7 @@ cp -R _MONEYPRO _MONEYPRO_backup
 
 cd into the root folder
 
-unzip ~/Downloads/suite_recurring_expenses_monthly_manual_patch.zip
+unzip ~/Downloads/suite_recurring_expenses_month_selector_patch.zip
 or:
 unzip ~/Downloads/MoneyPro_invite.zip -d /tmp/moneypro_invite
 rsync -av --progress /tmp/moneypro_invite/MoneyPro/ ./
