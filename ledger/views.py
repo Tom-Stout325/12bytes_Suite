@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db import transaction as db_transaction
 from django.db.models import Q
 from django.urls import reverse_lazy
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 
 from django.views.generic import (
         CreateView, 
@@ -18,6 +21,7 @@ from .forms import (
         ContactForm, 
         SubCategoryForm, 
         TransactionForm, 
+        RecurringExpenseForm,
         TeamForm,
         JobForm
     )
@@ -27,6 +31,7 @@ from .models import (
         Contact, 
         SubCategory, 
         Transaction, 
+        RecurringExpense,
         Team, 
         Category,
         Job,
@@ -158,6 +163,137 @@ class TransactionDeleteView(LoginRequiredMixin, DeleteView):
     def get_queryset(self):
         return Transaction.objects.filter(business=self.request.business)
 
+
+
+
+class RecurringExpenseListView(LoginRequiredMixin, ListView):
+    model = RecurringExpense
+    template_name = "ledger/recurring_expenses/recurring_expense_list.html"
+    context_object_name = "recurring_expenses"
+    paginate_by = 25
+
+    def get_queryset(self):
+        qs = (
+            RecurringExpense.objects.filter(business=self.request.business)
+            .select_related("category", "subcategory", "team", "contact", "job", "vehicle")
+            .order_by("next_run_date", "name")
+        )
+        q = (self.request.GET.get("q") or "").strip()
+        status = (self.request.GET.get("status") or "").strip()
+        if q:
+            qs = qs.filter(
+                Q(name__icontains=q)
+                | Q(description__icontains=q)
+                | Q(notes__icontains=q)
+                | Q(subcategory__name__icontains=q)
+                | Q(category__name__icontains=q)
+                | Q(team__name__icontains=q)
+            )
+        if status == "active":
+            qs = qs.filter(is_active=True)
+        elif status == "inactive":
+            qs = qs.filter(is_active=False)
+        elif status == "due":
+            from django.utils import timezone
+            qs = qs.filter(is_active=True, next_run_date__lte=timezone.localdate())
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["q"] = (self.request.GET.get("q") or "").strip()
+        ctx["status"] = (self.request.GET.get("status") or "").strip()
+        params = self.request.GET.copy()
+        params.pop("page", None)
+        ctx["qs"] = params.urlencode()
+        return ctx
+
+
+class RecurringExpenseCreateView(LoginRequiredMixin, CreateView):
+    model = RecurringExpense
+    form_class = RecurringExpenseForm
+    template_name = "ledger/recurring_expenses/recurring_expense_form.html"
+    success_url = reverse_lazy("ledger:recurring_expense_list")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["business"] = self.request.business
+        return kwargs
+
+    def form_valid(self, form):
+        form.instance.business = self.request.business
+        return super().form_valid(form)
+
+
+class RecurringExpenseUpdateView(LoginRequiredMixin, UpdateView):
+    model = RecurringExpense
+    form_class = RecurringExpenseForm
+    template_name = "ledger/recurring_expenses/recurring_expense_form.html"
+    success_url = reverse_lazy("ledger:recurring_expense_list")
+
+    def get_queryset(self):
+        return RecurringExpense.objects.filter(business=self.request.business)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["business"] = self.request.business
+        return kwargs
+
+    def form_valid(self, form):
+        form.instance.business = self.request.business
+        return super().form_valid(form)
+
+
+class RecurringExpenseDeleteView(LoginRequiredMixin, DeleteView):
+    model = RecurringExpense
+    template_name = "ledger/recurring_expenses/recurring_expense_confirm_delete.html"
+    success_url = reverse_lazy("ledger:recurring_expense_list")
+
+    def get_queryset(self):
+        return RecurringExpense.objects.filter(business=self.request.business)
+
+
+@login_required
+def process_recurring_expenses(request):
+    if request.method != "POST":
+        return redirect("ledger:recurring_expense_list")
+
+    from django.utils import timezone
+    today = timezone.localdate()
+    due_expenses = (
+        RecurringExpense.objects.filter(
+            business=request.business,
+            is_active=True,
+            next_run_date__lte=today,
+        )
+        .select_related("business", "subcategory", "category", "contact", "team", "job", "asset", "vehicle")
+        .order_by("next_run_date", "name")
+    )
+
+    created = 0
+    skipped = 0
+    errors = []
+    with db_transaction.atomic():
+        for expense in due_expenses.select_for_update():
+            try:
+                did_create, tx, reason = expense.process(as_of=today)
+                if did_create:
+                    created += 1
+                else:
+                    skipped += 1
+            except Exception as exc:
+                skipped += 1
+                errors.append(f"{expense.name}: {exc}")
+
+    if created:
+        messages.success(request, f"Processed {created} recurring expense{'s' if created != 1 else ''} into transactions.")
+    if skipped and not errors:
+        messages.info(request, f"Skipped {skipped} recurring expense{'s' if skipped != 1 else ''}; duplicates are blocked for 30 days.")
+    if errors:
+        messages.warning(request, "Some recurring expenses were skipped: " + " | ".join(errors[:5]))
+    if not created and not skipped:
+        messages.info(request, "No recurring expenses are due today.")
+
+    return redirect("ledger:recurring_expense_list")
 
 
 # <----------------------------------    P A Y E E   V I E W S          ------------------------------>
@@ -525,10 +661,7 @@ class TeamDeleteView(LoginRequiredMixin, DeleteView):
 
 
 
-from django.contrib.auth.decorators import login_required
-
 @login_required
-
 def subcategory_requirements(request, pk: int):
     """Return requirement flags + helper hints for a subcategory (JSON).
 

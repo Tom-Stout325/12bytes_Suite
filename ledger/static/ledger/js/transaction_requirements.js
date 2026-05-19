@@ -194,8 +194,8 @@
     if (!isFilled(desc)) missing++;
     const amt = document.getElementById("id_amount");
     if (!isFilled(amt)) missing++;
-    const date = document.getElementById("id_date");
-    if (!isFilled(date)) missing++;
+    const date = document.getElementById("id_date") || document.getElementById("id_next_run_date");
+    if (date && !isFilled(date)) missing++;
 
     if (requires.contact && !isFilled(contactSel)) missing++;
     if (requires.team && !isFilled(teamSel)) missing++;

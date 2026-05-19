@@ -1,0 +1,139 @@
+{% extends "index.html" %}
+{% load humanize %}
+
+{% block title %}Recurring Expenses | MoneyPro{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 py-3">
+
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-0 text-primary-brand">Recurring Expenses</h1>
+      <div class="text-muted small">Create templates and process them into individual transactions.</div>
+    </div>
+    <div class="d-grid d-md-flex gap-2">
+      <form method="post" action="{% url 'ledger:process_recurring_expenses' %}">
+        {% csrf_token %}
+        <button class="btn btn-outline-primary w-100" type="submit">
+          <i class="fa-solid fa-rotate me-1"></i> Process Expenses
+        </button>
+      </form>
+      <a class="btn btn-brand" href="{% url 'ledger:recurring_expense_create' %}">
+        <i class="fa-solid fa-plus me-1"></i> Add recurring expense
+      </a>
+    </div>
+  </div>
+
+  <form method="get" class="card report-card report-accent-secondary mb-3">
+    <div class="card-body p-3 p-md-4">
+      <div class="row g-2 g-md-3 align-items-end">
+        <div class="col-12 col-md-7">
+          <label class="form-label small text-muted mb-1">Search</label>
+          <input class="form-control" name="q" value="{{ q }}" placeholder="Search name, description, notes, team, category...">
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small text-muted mb-1">Status</label>
+          <select class="form-select" name="status">
+            <option value="">All</option>
+            <option value="due" {% if status == "due" %}selected{% endif %}>Due</option>
+            <option value="active" {% if status == "active" %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if status == "inactive" %}selected{% endif %}>Inactive</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-2 d-grid">
+          <button class="btn btn-brand" type="submit"><i class="fa-solid fa-filter me-1"></i> Apply</button>
+        </div>
+      </div>
+      {% if q or status %}
+        <div class="mt-2"><a class="small" href="{% url 'ledger:recurring_expense_list' %}">Clear filters</a></div>
+      {% endif %}
+    </div>
+  </form>
+
+  <div class="card card-table-accent">
+    <div class="card-body p-0">
+      <div class="px-3 px-md-4 pt-3 pt-md-4 pb-2">
+        <div class="dash-card-head mb-0">
+          <div>
+            <h2 class="h6 dash-card-title mb-0">Recurring expense list</h2>
+            <div class="dash-card-subtitle">Duplicate processing is blocked for the same expense within 30 days.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 table-soft table-zebra">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th class="d-none d-md-table-cell">Subcategory</th>
+              <th class="d-none d-md-table-cell">Frequency</th>
+              <th>Next run</th>
+              <th class="text-end">Amount</th>
+              <th class="text-end" style="width:1%;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in recurring_expenses %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">
+                    {{ e.name }}
+                    {% if not e.is_active %}<span class="badge bg-secondary ms-1">Inactive</span>{% endif %}
+                  </div>
+                  <div class="text-muted small d-md-none">
+                    {{ e.subcategory.name }} · {{ e.get_frequency_display }}
+                    {% if e.last_run_date %} · Last {{ e.last_run_date }}{% endif %}
+                  </div>
+                  <div class="text-muted small">{{ e.description }}</div>
+                </td>
+                <td class="d-none d-md-table-cell">{{ e.subcategory.name }}</td>
+                <td class="d-none d-md-table-cell">{{ e.get_frequency_display }}</td>
+                <td class="text-nowrap">
+                  {{ e.next_run_date }}
+                  {% if e.last_run_date %}<div class="text-muted small">Last: {{ e.last_run_date }}</div>{% endif %}
+                </td>
+                <td class="text-end text-nowrap"><span class="amount">${{ e.amount|floatformat:2|intcomma }}</span></td>
+                <td class="text-end text-nowrap table-actions">
+                  <div class="d-inline-flex gap-1">
+                    <a class="btn btn-sm btn-ghost" href="{% url 'ledger:recurring_expense_update' e.pk %}" title="Edit">
+                      <i class="fa-regular fa-pen-to-square"></i><span class="visually-hidden">Edit</span>
+                    </a>
+                    <a class="btn btn-sm btn-ghost" href="{% url 'ledger:recurring_expense_delete' e.pk %}" title="Delete">
+                      <i class="fa-regular fa-trash-can"></i><span class="visually-hidden">Delete</span>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" class="p-4 text-center text-muted">No recurring expenses yet.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if is_paginated %}
+      <div class="card-footer">
+        <nav aria-label="Recurring expense pagination">
+          <ul class="pagination pagination-sm mb-0 justify-content-end">
+            {% if page_obj.has_previous %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if qs %}&{{ qs }}{% endif %}">Prev</a></li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">Prev</span></li>
+            {% endif %}
+            <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+            {% if page_obj.has_next %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if qs %}&{{ qs }}{% endif %}">Next</a></li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">Next</span></li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

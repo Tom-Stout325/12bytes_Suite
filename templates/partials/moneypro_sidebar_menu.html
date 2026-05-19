@@ -28,6 +28,10 @@ Expected context:
       <i class="fa-solid fa-right-left"></i> Transactions
     </a>
 
+    <a class="suite-subnav-link {% if current_ns == 'ledger' and current_url_name|default:''|slice:':18' == 'recurring_expense' %}active{% endif %}" href="{% url 'ledger:recurring_expense_list' %}">
+      <i class="fa-solid fa-repeat"></i> Recurring Expenses
+    </a>
+
     <a class="suite-subnav-link {% if current_ns == 'invoices' %}active{% endif %}" href="{% url 'invoices:invoice_list' %}">
       <i class="fa-solid fa-file-invoice-dollar"></i> Invoices
     </a>

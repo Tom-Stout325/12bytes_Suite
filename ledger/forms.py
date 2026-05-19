@@ -8,7 +8,7 @@ from crispy_forms.layout import Div, Field, HTML, Layout
 from django.db.models.functions import Lower
 from django.utils import timezone
 
-from ledger.models import Category, Job, Contact, SubCategory, Transaction, Team
+from ledger.models import Category, Job, Contact, SubCategory, Transaction, Team, RecurringExpense
 from vehicles.models import Vehicle
 from assets.models import Asset
 
@@ -199,6 +199,111 @@ class TransactionForm(forms.ModelForm):
             return ""
         return str(best + 1)
 
+
+
+class RecurringExpenseForm(forms.ModelForm):
+    """Business-scoped recurring expense form using the same transaction fields."""
+
+    class Meta:
+        model = RecurringExpense
+        fields = [
+            "name",
+            "frequency",
+            "day_of_month",
+            "next_run_date",
+            "is_active",
+            "amount",
+            "subcategory",
+            "is_refund",
+            "invoice_number",
+            "receipt",
+            "asset",
+            "contact",
+            "team",
+            "job",
+            "transport_type",
+            "vehicle",
+            "description",
+            "notes",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        self.business = kwargs.pop("business", None)
+        super().__init__(*args, **kwargs)
+
+        if not self.business:
+            raise ValueError("RecurringExpenseForm requires business=...")
+
+        self.fields["subcategory"].queryset = (
+            SubCategory.objects
+            .filter(business=self.business, is_active=True)
+            .select_related("category")
+            .order_by(Lower("name"))
+        )
+        self.fields["contact"].queryset = Contact.objects.filter(business=self.business).order_by("display_name")
+        self.fields["contact"].label = "Contact"
+        self.fields["team"].queryset = Team.objects.filter(business=self.business, is_active=True).order_by("sort_order", "name")
+        self.fields["job"].queryset = Job.objects.filter(business=self.business).order_by("-is_active", "-job_year", "job_number", "label")
+        self.fields["asset"].queryset = Asset.objects.filter(business=self.business).order_by("name")
+        self.fields["vehicle"].queryset = Vehicle.objects.filter(
+            business=self.business,
+            is_active=True,
+            is_business=True,
+        ).order_by("sort_order", "label")
+
+        self.fields["next_run_date"].widget = forms.DateInput(
+            attrs={"type": "date", "class": "form-control"},
+            format="%Y-%m-%d",
+        )
+        self.fields["next_run_date"].input_formats = ["%Y-%m-%d", "%m-%d-%Y", "%m/%d/%Y"]
+        if not (self.instance and self.instance.pk) and not self.is_bound and not self.initial.get("next_run_date"):
+            self.initial["next_run_date"] = timezone.localdate()
+
+        for name, field in self.fields.items():
+            widget = field.widget
+            if hasattr(widget, "attrs"):
+                if getattr(widget, "input_type", "") == "checkbox":
+                    widget.attrs.setdefault("class", "form-check-input")
+                elif isinstance(widget, forms.Select):
+                    widget.attrs.setdefault("class", "form-select")
+                else:
+                    widget.attrs.setdefault("class", "form-control")
+
+        self.fields["amount"].widget.attrs.setdefault("inputmode", "decimal")
+        self.fields["amount"].widget.attrs.setdefault("step", "0.01")
+        self.fields["receipt"].required = False
+        self.fields["receipt"].widget.attrs.setdefault("accept", "image/*,application/pdf")
+        self.fields["asset"].required = False
+        self.fields["vehicle"].required = False
+
+        if not (self.instance and self.instance.pk) and not self.is_bound:
+            self.initial["amount"] = ""
+
+    def clean(self):
+        cleaned = super().clean()
+        sc = cleaned.get("subcategory")
+        transport = (cleaned.get("transport_type") or "").strip()
+        vehicle = cleaned.get("vehicle")
+
+        if not transport:
+            self.instance.transport_type = ""
+            if sc and getattr(sc, "requires_vehicle", False):
+                self.instance.vehicle = vehicle
+            else:
+                self.instance.vehicle = None
+            return cleaned
+
+        if transport in ("personal_vehicle", "rental_car"):
+            self.instance.transport_type = transport
+            self.instance.vehicle = None
+            return cleaned
+
+        if transport == "business_vehicle":
+            self.instance.transport_type = "business_vehicle"
+            self.instance.vehicle = vehicle
+            return cleaned
+
+        raise ValidationError({"transport_type": "Invalid transport type."})
 
 
 #<------------------------------------  P A Y E E   F O R M   ---------------------------->

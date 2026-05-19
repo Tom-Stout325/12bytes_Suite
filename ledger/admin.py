@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.db.models import QuerySet
 
 from core.models import BusinessMembership
-from .models import Category, Job, Contact, SubCategory, Team, Transaction
+from .models import Category, Job, Contact, SubCategory, Team, Transaction, RecurringExpense, RecurringExpenseRun
 
 
 class BusinessAdminMixin(admin.ModelAdmin):
@@ -80,3 +80,19 @@ class TransactionAdmin(BusinessAdminMixin):
     list_display = ("date", "description", "amount", "category", "subcategory", "business")
     list_filter = ("category", "business")
     search_fields = ("description", "notes", "invoice_number")
+
+
+
+@admin.register(RecurringExpense)
+class RecurringExpenseAdmin(BusinessAdminMixin):
+    list_display = ("name", "amount", "subcategory", "frequency", "next_run_date", "last_run_date", "is_active", "business")
+    list_filter = ("frequency", "is_active", "business")
+    search_fields = ("name", "description", "notes", "invoice_number")
+
+
+@admin.register(RecurringExpenseRun)
+class RecurringExpenseRunAdmin(BusinessAdminMixin):
+    list_display = ("recurring_expense", "run_date", "transaction", "business", "created_at")
+    list_filter = ("run_date", "business")
+    search_fields = ("recurring_expense__name", "transaction__description")
+    readonly_fields = ("created_at",)

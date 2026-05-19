@@ -800,3 +800,227 @@ class Contact(BusinessOwnedModelMixin):
 
 
 
+
+
+
+class RecurringExpense(BusinessOwnedModelMixin):
+    """Reusable expense template that can be posted into real Transactions.
+
+    Recurring expenses are not included in reports until they are processed into
+    Transaction rows. Duplicate protection is handled by RecurringExpenseRun and
+    blocks the same template from posting more than once within 30 days.
+    """
+
+    class Frequency(models.TextChoices):
+        MONTHLY = "monthly", "Monthly"
+        QUARTERLY = "quarterly", "Quarterly"
+        YEARLY = "yearly", "Yearly"
+
+    name              = models.CharField(max_length=120)
+    amount            = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    description       = models.CharField(max_length=255)
+    subcategory       = models.ForeignKey(SubCategory, on_delete=models.PROTECT, related_name="recurring_expenses")
+    category          = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="recurring_expenses", editable=False)
+    trans_type        = models.CharField(max_length=10, choices=Transaction.TransactionType.choices, editable=False)
+    is_refund         = models.BooleanField(default=False)
+    contact           = models.ForeignKey('Contact', on_delete=models.PROTECT, related_name="recurring_expenses", null=True, blank=True)
+    team              = models.ForeignKey(Team, on_delete=models.PROTECT, related_name="recurring_expenses", null=True, blank=True)
+    job               = models.ForeignKey(Job, on_delete=models.PROTECT, related_name="recurring_expenses", null=True, blank=True)
+    invoice_number    = models.CharField(max_length=25, blank=True)
+    receipt           = models.FileField(upload_to="receipts/recurring_expenses/", blank=True, null=True)
+    asset             = models.ForeignKey(Asset, on_delete=models.PROTECT, related_name="recurring_expenses", null=True, blank=True)
+    transport_type    = models.CharField(max_length=20, choices=Transaction.TRANSPORT_CHOICES, blank=True, default="")
+    vehicle           = models.ForeignKey(Vehicle, on_delete=models.PROTECT, related_name="recurring_expenses", null=True, blank=True)
+    notes             = models.TextField(blank=True)
+
+    frequency         = models.CharField(max_length=20, choices=Frequency.choices, default=Frequency.MONTHLY)
+    day_of_month      = models.PositiveSmallIntegerField(default=1, help_text="Used when advancing monthly or quarterly expenses.")
+    next_run_date     = models.DateField(default=timezone.localdate)
+    last_run_date     = models.DateField(null=True, blank=True)
+    is_active         = models.BooleanField(default=True)
+    created_at        = models.DateTimeField(auto_now_add=True)
+    updated_at        = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["next_run_date", "name"]
+
+    def clean(self):
+        super().clean()
+
+        if self.amount is not None and self.amount < 0:
+            raise ValidationError({"amount": "Amount must be positive."})
+
+        if self.day_of_month < 1 or self.day_of_month > 31:
+            raise ValidationError({"day_of_month": "Enter a day between 1 and 31."})
+
+        if self.subcategory_id and self.business_id and self.subcategory.business_id != self.business_id:
+            raise ValidationError({"subcategory": "Subcategory does not belong to this business."})
+
+        if self.category_id and self.business_id and self.category.business_id != self.business_id:
+            raise ValidationError({"category": "Category does not belong to this business."})
+
+        if self.contact_id and self.business_id and self.contact.business_id != self.business_id:
+            raise ValidationError({"contact": "Contact does not belong to this business."})
+
+        if self.team_id and self.business_id and self.team.business_id != self.business_id:
+            raise ValidationError({"team": "Team does not belong to this business."})
+
+        if self.job_id and self.business_id and self.job.business_id != self.business_id:
+            raise ValidationError({"job": "Job does not belong to this business."})
+
+        if self.vehicle_id and self.business_id and self.vehicle.business_id != self.business_id:
+            raise ValidationError({"vehicle": "Vehicle does not belong to this business."})
+
+        if not self.subcategory_id:
+            return
+
+        sc = self.subcategory
+        if self.category_id and self.category_id != sc.category_id:
+            raise ValidationError({"category": "Category must match the selected subcategory."})
+
+        expected_type = (sc.account_type or Transaction.TransactionType.EXPENSE).lower()
+        valid_types = {c[0] for c in Transaction.TransactionType.choices}
+        if expected_type not in valid_types:
+            expected_type = Transaction.TransactionType.EXPENSE
+
+        if self.trans_type and self.trans_type != expected_type:
+            raise ValidationError({"trans_type": "Transaction type must match the selected subcategory."})
+
+        if sc.requires_contact and not self.contact_id:
+            raise ValidationError({"contact": "Select a contact."})
+        if sc.requires_receipt and not self.receipt:
+            raise ValidationError({"receipt": "Upload a receipt."})
+        if sc.requires_team and not self.team_id:
+            raise ValidationError({"team": "Select a team."})
+        if sc.requires_job and not self.job_id:
+            raise ValidationError({"job": "Select a job."})
+        if sc.requires_invoice_number and not (self.invoice_number or "").strip():
+            raise ValidationError({"invoice_number": "Enter an invoice number."})
+        if sc.requires_asset and not self.asset_id:
+            raise ValidationError({"asset": "Select an asset."})
+
+        role = (sc.contact_role or "any").lower()
+        if self.contact_id and role != "any":
+            if role == "contractor" and not self.contact.is_contractor:
+                raise ValidationError({"contact": "Select a contact marked as a contractor."})
+            if role == "vendor" and not self.contact.is_vendor:
+                raise ValidationError({"contact": "Select a contact marked as a vendor."})
+            if role == "customer" and not self.contact.is_customer:
+                raise ValidationError({"contact": "Select a contact marked as a customer."})
+
+        if sc.requires_transport:
+            if not self.transport_type:
+                raise ValidationError({"transport_type": "Select a transport type."})
+            valid = {"personal_vehicle", "rental_car", "business_vehicle"}
+            if self.transport_type not in valid:
+                raise ValidationError({"transport_type": "Invalid transport type."})
+            if self.transport_type == "business_vehicle":
+                if not self.vehicle_id:
+                    raise ValidationError({"vehicle": "Select a business vehicle."})
+            elif self.vehicle_id:
+                raise ValidationError({"vehicle": "Remove vehicle; only used for business vehicles."})
+        else:
+            if self.transport_type:
+                raise ValidationError({"transport_type": "Remove transport type; it is not needed for this subcategory."})
+            if self.vehicle_id and not sc.requires_vehicle:
+                raise ValidationError({"vehicle": "Remove vehicle; it is not needed for this subcategory."})
+
+        if sc.requires_vehicle and not self.vehicle_id:
+            raise ValidationError({"vehicle": "Select a vehicle for this subcategory."})
+
+    def save(self, *args, **kwargs):
+        if self.subcategory_id:
+            sc = self.subcategory
+            self.category = sc.category
+            self.trans_type = (sc.account_type or Transaction.TransactionType.EXPENSE).lower()
+            if sc.effective_schedule_c_line() == Category.ScheduleCLine.RETURNS_ALLOWANCES:
+                self.is_refund = True
+                self.trans_type = Transaction.TransactionType.INCOME
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def has_recent_run(self, *, as_of=None, days=30) -> bool:
+        from datetime import timedelta
+        cutoff = timezone.now() - timedelta(days=days)
+        return self.runs.filter(created_at__gte=cutoff).exists()
+
+    def build_transaction(self, *, run_date=None) -> Transaction:
+        run_date = run_date or self.next_run_date or timezone.localdate()
+        return Transaction(
+            business=self.business,
+            date=run_date,
+            amount=self.amount,
+            description=self.description,
+            subcategory=self.subcategory,
+            is_refund=self.is_refund,
+            contact=self.contact,
+            team=self.team,
+            job=self.job,
+            invoice_number=self.invoice_number,
+            receipt=self.receipt,
+            asset=self.asset,
+            transport_type=self.transport_type,
+            vehicle=self.vehicle,
+            notes=self.notes,
+        )
+
+    def advance_next_run_date(self):
+        import calendar
+        from datetime import date
+
+        base = self.next_run_date or timezone.localdate()
+        months = 12 if self.frequency == self.Frequency.YEARLY else 3 if self.frequency == self.Frequency.QUARTERLY else 1
+        month_index = (base.month - 1) + months
+        year = base.year + (month_index // 12)
+        month = (month_index % 12) + 1
+        day = min(self.day_of_month or base.day, calendar.monthrange(year, month)[1])
+        self.next_run_date = date(year, month, day)
+
+    def process(self, *, as_of=None) -> tuple[bool, Transaction | None, str]:
+        as_of = as_of or timezone.localdate()
+        if not self.is_active:
+            return False, None, "Inactive"
+        if self.next_run_date and self.next_run_date > as_of:
+            return False, None, "Not due yet"
+        if self.has_recent_run(as_of=as_of, days=30):
+            return False, None, "Skipped: already processed within 30 days"
+
+        run_date = self.next_run_date or as_of
+        tx = self.build_transaction(run_date=run_date)
+        tx.save()
+        RecurringExpenseRun.objects.create(
+            business=self.business,
+            recurring_expense=self,
+            transaction=tx,
+            run_date=run_date,
+        )
+        self.last_run_date = run_date
+        self.advance_next_run_date()
+        self.save(update_fields=["last_run_date", "next_run_date", "updated_at"])
+        return True, tx, "Created"
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class RecurringExpenseRun(BusinessOwnedModelMixin):
+    recurring_expense = models.ForeignKey(RecurringExpense, on_delete=models.CASCADE, related_name="runs")
+    transaction       = models.ForeignKey(Transaction, on_delete=models.SET_NULL, related_name="recurring_runs", null=True, blank=True)
+    run_date          = models.DateField(default=timezone.localdate)
+    created_at        = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-run_date", "-id"]
+        indexes = [
+            models.Index(fields=["business", "recurring_expense", "run_date"]),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.recurring_expense_id and self.business_id and self.recurring_expense.business_id != self.business_id:
+            raise ValidationError({"recurring_expense": "Recurring expense does not belong to this business."})
+        if self.transaction_id and self.business_id and self.transaction.business_id != self.business_id:
+            raise ValidationError({"transaction": "Transaction does not belong to this business."})
+
+    def __str__(self) -> str:
+        return f"{self.recurring_expense} on {self.run_date}"
