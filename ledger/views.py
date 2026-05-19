@@ -259,13 +259,17 @@ def process_recurring_expenses(request):
 
     from django.utils import timezone
     today = timezone.localdate()
+    # Lock only RecurringExpense rows. PostgreSQL rejects SELECT ... FOR UPDATE
+    # when the queryset includes nullable OUTER JOINs from select_related(), which
+    # can happen for optional fields such as contact, team, job, asset, and vehicle.
+    # We intentionally avoid select_related() on this locking queryset; related
+    # fields are fetched lazily as each template is processed.
     due_expenses = (
         RecurringExpense.objects.filter(
             business=request.business,
             is_active=True,
             next_run_date__lte=today,
         )
-        .select_related("business", "subcategory", "category", "contact", "team", "job", "asset", "vehicle")
         .order_by("next_run_date", "name")
     )
 
