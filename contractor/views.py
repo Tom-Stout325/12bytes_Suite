@@ -19,7 +19,7 @@ from .forms import ContractorYearForm, W9PortalForm, W9ReviewForm
 from .models import Contractor1099, ContractorW9Submission
 from .renderer_1099nec import render_1099nec_pdf_bytes, render_1099nec_pdf_response
 from .services.nec1099 import nec_total_for_contact, nec_totals_for_year, default_tax_year
-from core.emailing import business_from_email, normalize_reply_to
+from core.emailing import business_from_email, global_bcc_emails, normalize_reply_to
 from .services.w9_email import send_w9_request_email
 from .utils_token import build_portal_url, issue_portal_token, verify_portal_token
 
@@ -489,6 +489,7 @@ def email_1099_copy_b(request: HttpRequest, pk: int) -> HttpResponse:
         body=body,
         to=[contact.email],
         from_email=f"{from_name} <{from_email}>" if from_name and from_email else from_email or None,
+        bcc=global_bcc_emails(),
         reply_to=normalize_reply_to(reply_to),
     )
     with obj.copy_b_pdf.open("rb") as fh:

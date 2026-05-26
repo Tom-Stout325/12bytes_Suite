@@ -14,6 +14,7 @@ from django.utils import timezone
 
 from weasyprint import HTML
 
+from core.emailing import global_bcc_emails
 from core.models import OutgoingEmailLog, get_or_create_business_email_settings
 from ledger.models import Transaction
 
@@ -311,6 +312,7 @@ def _send_invoice_email(*, invoice: Invoice, pdf_bytes: bytes, base_url: str | N
             from_email=f'{from_name} <{from_email}>' if from_name else from_email,
             to=[recipient],
             cc=cc,
+            bcc=global_bcc_emails(),
             reply_to=reply_to,
         )
         msg.attach_alternative(html_body, "text/html")

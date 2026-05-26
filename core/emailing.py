@@ -63,3 +63,16 @@ def business_from_email(*, business: Business, owner_user=None) -> tuple[str, st
 def normalize_reply_to(*addresses: str | None) -> list[str] | None:
     cleaned = [addr.strip() for addr in addresses if addr and addr.strip()]
     return cleaned or None
+
+
+def global_bcc_emails() -> list[str] | None:
+    """Return the app-wide BCC recipients for outbound email.
+
+    Configure with EMAIL_BCC as a comma-separated environment variable.
+    Example: EMAIL_BCC=tom@airborne-images.net
+    """
+    configured = getattr(settings, "EMAIL_BCC", []) or []
+    if isinstance(configured, str):
+        configured = configured.split(",")
+    cleaned = [addr.strip() for addr in configured if addr and addr.strip()]
+    return cleaned or None

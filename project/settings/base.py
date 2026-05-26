@@ -358,6 +358,7 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="placeholder_password")
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@example.test")
 REPLY_TO_EMAIL = env("REPLY_TO_EMAIL", default=DEFAULT_FROM_EMAIL)
+EMAIL_BCC = env.list("EMAIL_BCC", default=["tom@airborne-images.net"])
 
 # ------------------------------------------------------------------------------
 # Security headers (baseline; prod.py will enforce HTTPS/HSTS)

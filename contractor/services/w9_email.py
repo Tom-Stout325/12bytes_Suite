@@ -7,7 +7,7 @@ from django.contrib.staticfiles import finders
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
-from core.emailing import business_from_email, formatted_from_header, normalize_reply_to, uses_preview_backend
+from core.emailing import business_from_email, formatted_from_header, global_bcc_emails, normalize_reply_to, uses_preview_backend
 
 
 def _w9_attachment_path() -> Path | None:
@@ -41,6 +41,7 @@ def send_w9_request_email(*, business, contractor_name: str, contractor_email: s
         body=text_body,
         from_email=formatted_from_header(display_name=from_name, email=from_email),
         to=[contractor_email],
+        bcc=global_bcc_emails(),
         reply_to=normalize_reply_to(reply_to),
     )
     message.attach_alternative(html_body, "text/html")

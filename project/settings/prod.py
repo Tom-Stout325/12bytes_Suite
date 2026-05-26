@@ -112,6 +112,7 @@ EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@moneypro.12bytes.net")
 REPLY_TO_EMAIL = env("REPLY_TO_EMAIL", default=DEFAULT_FROM_EMAIL)
+EMAIL_BCC = env.list("EMAIL_BCC", default=["tom@airborne-images.net"])
 
 # ------------------------------------------------------------------------------
 # Allauth safety: ensure correct scheme behind proxy

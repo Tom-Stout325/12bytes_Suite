@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from email.utils import formataddr
+
+from core.emailing import global_bcc_emails
 from typing import Any
 
 from django.conf import settings
@@ -91,6 +93,7 @@ def send_invitation_email(*, invitation: Invitation, request_obj=None) -> None:
         body=text_body,
         from_email=formataddr((app_name, from_email)),
         to=[invitation.email],
+        bcc=global_bcc_emails(),
         reply_to=[reply_to] if reply_to else None,
     )
     message.attach_alternative(html_body, "text/html")
