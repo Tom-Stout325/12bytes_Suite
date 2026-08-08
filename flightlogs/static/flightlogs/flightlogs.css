@@ -1,0 +1,29 @@
+.flightlogs-page { --flight-accent: #20a9d6; --flight-ink: #172234; }
+.flight-filter-card { border: 0; }
+.flight-stat-card, .flight-record-card { background: #fff; border: 1px solid #d9e1eb; border-radius: 1rem; box-shadow: 0 .2rem .6rem rgba(23,34,52,.07); min-height: 180px; padding: 1.25rem; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.flight-record-card { min-height: 245px; }
+.stat-icon, .record-icon { width: 42px; height: 42px; border-radius: .65rem; display: grid; place-items: center; color: var(--flight-accent); background: #effaff; margin-bottom: .75rem; font-size: 1.15rem; }
+.record-icon { width: 50px; height: 50px; font-size: 1.35rem; }
+.stat-label { color: #617088; font-weight: 800; letter-spacing: .055em; text-transform: uppercase; font-size: .76rem; }
+.stat-value, .record-value { color: var(--flight-ink); font-size: clamp(1.7rem, 4vw, 2.35rem); font-weight: 800; line-height: 1.15; margin-top: .55rem; }
+.stat-value-sm { font-size: clamp(1.35rem, 3vw, 1.9rem); }
+.stat-value span { color: #9aa7ba; font-size: .75em; }
+.record-value small { font-size: .42em; text-transform: uppercase; color: #78869a; }
+.stat-meta, .record-flight-name { color: #6c788a; font-size: .82rem; margin-top: .4rem; }
+.record-flight-name { margin-bottom: 1rem; }
+.report-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem 1.5rem; }
+.report-grid > div { min-width: 0; }
+.report-grid span { display: block; color: #6d7889; font-size: .78rem; margin-bottom: .2rem; }
+.report-grid strong { overflow-wrap: anywhere; }
+.report-grid-wide { grid-column: 1 / -1; }
+.weather-panel { overflow: hidden; }
+.weather-label { font-size: .95rem; color: #536177; margin-bottom: .4rem; }
+.weather-value { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 800; color: var(--flight-ink); }
+.weather-value small { font-size: .35em; }
+.weather-main-icon { font-size: 4rem; color: var(--flight-accent); margin-bottom: .5rem; }
+.weather-condition { font-size: 1.15rem; font-weight: 800; }
+.weather-detail { border: 1px solid #dce5ef; border-radius: .75rem; padding: 1rem; height: 100%; display: grid; grid-template-columns: 28px 1fr; gap: .15rem .65rem; align-items: center; }
+.weather-detail i { grid-row: 1 / 3; color: var(--flight-accent); font-size: 1.1rem; text-align: center; }
+.weather-detail span { color: #6d7889; font-size: .75rem; }
+.weather-detail strong { font-size: .95rem; }
+@media (max-width: 575.98px) { .flight-stat-card { min-height: 155px; padding: 1rem .6rem; } .flight-record-card { min-height: 210px; } .report-grid { grid-template-columns: 1fr; } .report-grid-wide { grid-column: auto; } }

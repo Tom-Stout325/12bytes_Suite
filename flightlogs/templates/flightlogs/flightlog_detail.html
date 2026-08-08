@@ -1,22 +1,63 @@
 {% extends "index.html" %}
-{% load formatting %}
-{% load flightlog_extras %}
-
-{% block title %}Flight Log{% endblock %}
+{% load static formatting flightlog_extras %}
+{% block title %}{{ log.flight_title|default:"Flight Report" }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'flightlogs/flightlogs.css' %}">{% endblock %}
 {% block content %}
-<div class="container py-4">
-  <div class="d-flex justify-content-between align-items-start gap-3 mb-4">
-    <div><a href="{% url 'flightlogs:flightlog_list' %}" class="btn btn-sm btn-outline-secondary mb-3"><i class="fa-solid fa-arrow-left me-1"></i> Back</a><h1 class="h3 mb-1">{{ log.flight_title|default:"Flight Log" }}</h1><div class="text-muted">{{ log.flight_date|mdy }}</div></div>
+<div class="container-fluid py-3 flightlogs-page">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3 mb-4">
+    <div><a href="{% url 'flightlogs:flightlog_list' %}" class="btn btn-sm btn-outline-secondary mb-3"><i class="fa-solid fa-arrow-left me-1"></i> Flight Logs</a><p class="text-muted small text-uppercase fw-bold mb-1">Individual Flight Report</p><h1 class="h3 mb-1">{{ log.flight_title|default:"Flight Report" }}</h1><div class="text-muted">{{ log.flight_date|mdy }}{% if log.takeoff_datetime %} at {{ log.takeoff_datetime|date:"g:i A" }}{% endif %}</div></div>
     <div class="d-flex gap-2"><a href="{% url 'flightlogs:flightlog_edit' log.pk %}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-pen me-1"></i> Edit</a><a href="{% url 'flightlogs:flightlog_pdf' log.pk %}" target="_blank" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-file-pdf me-1"></i> PDF</a></div>
   </div>
 
+  <section class="mb-4">
+    <div class="row g-3">
+      <div class="col-6 col-lg-3"><div class="flight-stat-card"><div class="stat-icon"><i class="fa-regular fa-clock"></i></div><div class="stat-label">Flight Duration</div><div class="stat-value stat-value-sm">{{ log.air_time|duration_hm }}</div></div></div>
+      <div class="col-6 col-lg-3"><div class="flight-stat-card"><div class="stat-icon"><i class="fa-solid fa-arrow-up-long"></i></div><div class="stat-label">Max Altitude</div><div class="stat-value">{{ log.max_altitude_ft|number:0 }}</div><div class="stat-meta">feet</div></div></div>
+      <div class="col-6 col-lg-3"><div class="flight-stat-card"><div class="stat-icon"><i class="fa-solid fa-location-arrow"></i></div><div class="stat-label">Max Distance</div><div class="stat-value">{{ log.max_distance_ft|number:0 }}</div><div class="stat-meta">feet from takeoff</div></div></div>
+      <div class="col-6 col-lg-3"><div class="flight-stat-card"><div class="stat-icon"><i class="fa-solid fa-gauge-high"></i></div><div class="stat-label">Max Speed</div><div class="stat-value">{{ log.max_speed_mph|number:1 }}</div><div class="stat-meta">mph</div></div></div>
+      <div class="col-6 col-lg-3"><div class="flight-stat-card"><div class="stat-icon"><i class="fa-solid fa-route"></i></div><div class="stat-label">Flight Mileage</div><div class="stat-value">{{ log.total_mileage_ft|miles_from_feet }}</div><div class="stat-meta">miles</div></div></div>
+      <div class="col-6 col-lg-3"><div class="flight-stat-card"><div class="stat-icon"><i class="fa-solid fa-temperature-high"></i></div><div class="stat-label">Max Battery Temp</div><div class="stat-value">{{ log.max_battery_temp_f|number:1 }}</div><div class="stat-meta">°F</div></div></div>
+      <div class="col-6 col-lg-3"><div class="flight-stat-card"><div class="stat-icon"><i class="fa-solid fa-wind"></i></div><div class="stat-label">Average Wind</div><div class="stat-value">{{ log.avg_wind|number:1 }}</div><div class="stat-meta">mph</div></div></div>
+      <div class="col-6 col-lg-3"><div class="flight-stat-card"><div class="stat-icon"><i class="fa-solid fa-wind"></i></div><div class="stat-label">Maximum Gust</div><div class="stat-value">{{ log.max_gust|number:1 }}</div><div class="stat-meta">mph</div></div></div>
+    </div>
+  </section>
+
+  <div class="row g-3 mb-4">
+    <div class="col-xl-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold"><i class="fa-solid fa-circle-info me-2 text-primary"></i>Flight Information</div><div class="card-body report-grid">
+      <div><span>Pilot</span><strong>{{ log.pilot_in_command|default:"—" }}</strong></div><div><span>License</span><strong>{{ log.license_number|default:"—" }}</strong></div><div><span>Takeoff</span><strong>{% if log.takeoff_datetime %}{{ log.takeoff_datetime|date:"M j, Y g:i A" }}{% else %}{{ log.flight_date|mdy }}{% endif %}</strong></div><div><span>Landing</span><strong>{{ log.landing_time|time:"g:i A"|default:"—" }}</strong></div><div><span>Flight App</span><strong>{{ log.flight_application|default:"—" }}</strong></div><div><span>Remote ID</span><strong>{{ log.remote_id|default:"—" }}</strong></div>
+    </div>{% if log.flight_description %}<div class="card-footer bg-white"><span class="text-muted small d-block mb-1">Description</span>{{ log.flight_description|linebreaksbr }}</div>{% endif %}</div></div>
+    <div class="col-xl-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold"><i class="fa-solid fa-location-dot me-2 text-primary"></i>Location</div><div class="card-body report-grid">
+      <div class="report-grid-wide"><span>Takeoff Address</span><strong>{% if log.takeoff_address %}<a href="https://www.google.com/maps/search/?api=1&query={{ log.takeoff_address|urlencode }}" target="_blank" rel="noopener">{{ log.takeoff_address }}</a>{% else %}—{% endif %}</strong></div><div><span>GPS Coordinates</span><strong>{{ log.takeoff_latlong|default:"—" }}</strong></div><div><span>Above Sea Level</span><strong>{{ log.above_sea_level_ft|number:0 }} ft</strong></div>
+    </div></div></div>
+    <div class="col-xl-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold"><i class="fa-solid fa-helicopter me-2 text-primary"></i>Drone</div><div class="card-body report-grid"><div><span>Name</span><strong>{{ log.drone_name|default:"—" }}</strong></div><div><span>Type</span><strong>{{ log.drone_type|default:"—" }}</strong></div><div><span>Serial Number</span><strong>{{ log.drone_serial|default:"—" }}</strong></div><div><span>Registration</span><strong>{{ log.drone_reg_number|default:"—" }}</strong></div></div></div></div>
+    <div class="col-xl-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold"><i class="fa-solid fa-battery-three-quarters me-2 text-primary"></i>Battery</div><div class="card-body report-grid"><div><span>Battery Name</span><strong>{{ log.battery_name|default:"—" }}</strong></div><div><span>Serial Number</span><strong>{{ log.battery_serial_internal|default:log.battery_serial_printed|default:"—" }}</strong></div><div><span>Takeoff Charge</span><strong>{{ log.takeoff_battery_pct|default_if_none:"—" }}%</strong></div><div><span>Landing Charge</span><strong>{{ log.landing_battery_pct|default_if_none:"—" }}%</strong></div><div><span>Takeoff Voltage</span><strong>{{ log.takeoff_volts|number:2 }} V</strong></div><div><span>Landing Voltage</span><strong>{{ log.landing_volts|number:2 }} V</strong></div></div></div></div>
+  </div>
+
+  <section class="weather-panel card shadow-sm mb-4" aria-labelledby="weather-heading">
+    <div class="card-header bg-white"><h2 id="weather-heading" class="h5 mb-0"><i class="fa-solid {{ log.ground_weather_summary|weather_icon }} me-2 text-primary"></i>Ground Weather</h2></div>
+    <div class="card-body">
+      <div class="weather-hero row g-4 align-items-center text-center">
+        <div class="col-6 col-lg-3"><div class="weather-label">Temperature</div><div class="weather-value">{{ log.ground_temp_f|number:1 }}<small>°F</small></div></div>
+        <div class="col-6 col-lg-3"><i class="fa-solid {{ log.ground_weather_summary|weather_icon }} weather-main-icon"></i><div class="weather-condition">{{ log.ground_weather_summary|default:"Not recorded" }}</div><div class="text-muted">{{ log.cloud_cover|default:"—" }} cloud cover</div></div>
+        <div class="col-6 col-lg-3"><div class="weather-label">Visibility</div><div class="weather-value">{{ log.visibility_miles|number:1 }}<small> mi</small></div></div>
+        <div class="col-6 col-lg-3"><div class="weather-label">Humidity</div><div class="weather-value">{{ log.humidity_pct|default_if_none:"—" }}<small>%</small></div></div>
+      </div>
+      <div class="row g-3 mt-2">
+        <div class="col-md-6 col-xl-3"><div class="weather-detail"><i class="fa-solid fa-wind"></i><span>Ground Wind</span><strong>{{ log.wind_speed|number:1 }} mph</strong></div></div>
+        <div class="col-md-6 col-xl-3"><div class="weather-detail"><i class="fa-regular fa-compass"></i><span>Wind Direction</span><strong>{{ log.wind_direction|compass_direction }}{% if log.wind_direction %} ({{ log.wind_direction }}°){% endif %}</strong></div></div>
+        <div class="col-md-6 col-xl-3"><div class="weather-detail"><i class="fa-solid fa-droplet"></i><span>Dew Point</span><strong>{{ log.dew_point_f|number:1 }} °F</strong></div></div>
+        <div class="col-md-6 col-xl-3"><div class="weather-detail"><i class="fa-solid fa-gauge"></i><span>Pressure</span><strong>{{ log.pressure_inhg|number:2 }} inHg</strong></div></div>
+        <div class="col-md-6 col-xl-3"><div class="weather-detail"><i class="fa-solid fa-cloud-rain"></i><span>Rain Rate</span><strong>{{ log.rain_rate|default:"—" }}</strong></div></div>
+        <div class="col-md-6 col-xl-3"><div class="weather-detail"><i class="fa-solid fa-umbrella"></i><span>Rain Chance</span><strong>{{ log.rain_chance|default:"—" }}</strong></div></div>
+        <div class="col-md-6 col-xl-3"><div class="weather-detail"><i class="fa-solid fa-sun"></i><span>Sunrise / Sunset</span><strong>{{ log.sunrise|default:"—" }} / {{ log.sunset|default:"—" }}</strong></div></div>
+        <div class="col-md-6 col-xl-3"><div class="weather-detail"><i class="fa-solid fa-moon"></i><span>Moon</span><strong>{{ log.moon_phase|default:"—" }}{% if log.moon_visibility %} · {{ log.moon_visibility }}{% endif %}</strong></div></div>
+      </div>
+    </div>
+  </section>
+
   <div class="row g-3">
-    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Flight</div><div class="card-body"><p><strong>Pilot:</strong> {{ log.pilot_in_command|default:"—" }}</p><p><strong>License:</strong> {{ log.license_number|default:"—" }}</p><p><strong>Application:</strong> {{ log.flight_application|default:"—" }}</p><p><strong>Remote ID:</strong> {{ log.remote_id|default:"—" }}</p><p><strong>Duration:</strong> {{ log.air_time|duration_hm }}</p></div></div></div>
-    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Location</div><div class="card-body"><p><strong>Address:</strong> {{ log.takeoff_address|default:"—" }}</p><p><strong>GPS:</strong> {{ log.takeoff_latlong|default:"—" }}</p><p><strong>Landing Time:</strong> {{ log.landing_time|default:"—" }}</p></div></div></div>
-    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Drone & Battery</div><div class="card-body"><p><strong>Drone:</strong> {{ log.drone_name|default:"—" }} {% if log.drone_type %}({{ log.drone_type }}){% endif %}</p><p><strong>Drone Serial:</strong> {{ log.drone_serial|default:"—" }}</p><p><strong>FAA Reg:</strong> {{ log.drone_reg_number|default:"—" }}</p><p><strong>Battery:</strong> {{ log.battery_name|default:"—" }}</p><p><strong>Battery Serial:</strong> {{ log.battery_serial_internal|default:log.battery_serial_printed|default:"—" }}</p><p><strong>Battery:</strong> {{ log.takeoff_battery_pct|default:"—" }}% → {{ log.landing_battery_pct|default:"—" }}%</p></div></div></div>
-    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Performance</div><div class="card-body"><p><strong>Max Altitude:</strong> {{ log.max_altitude_ft|default:"—" }} ft</p><p><strong>Max Distance:</strong> {{ log.max_distance_ft|default:"—" }} ft</p><p><strong>Max Speed:</strong> {{ log.max_speed_mph|default:"—" }} mph</p><p><strong>Total Distance:</strong> {{ log.total_mileage_ft|default:"—" }} ft</p><p><strong>Signal Losses:</strong> {{ log.signal_losses|default:"—" }}</p></div></div></div>
-    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Weather</div><div class="card-body"><p><strong>Summary:</strong> {{ log.ground_weather_summary|default:"—" }}</p><p><strong>Temp:</strong> {{ log.ground_temp_f|default:"—" }} °F</p><p><strong>Wind:</strong> {{ log.wind_speed|default:"—" }} {{ log.wind_direction }}</p><p><strong>Visibility:</strong> {{ log.visibility_miles|default:"—" }} mi</p><p><strong>Cloud Cover:</strong> {{ log.cloud_cover|default:"—" }}</p></div></div></div>
-    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold">Media & Notes</div><div class="card-body"><p><strong>Photos:</strong> {{ log.photos|default:"—" }}</p><p><strong>Videos:</strong> {{ log.videos|default:"—" }}</p><p><strong>Tags:</strong> {{ log.tags|default:"—" }}</p><p class="mb-0"><strong>Notes:</strong><br>{{ log.notes|linebreaksbr|default:"—" }}</p></div></div></div>
+    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold"><i class="fa-solid fa-signal me-2 text-primary"></i>Signal & Performance</div><div class="card-body report-grid"><div><span>Signal Score</span><strong>{{ log.signal_score|number:1 }}</strong></div><div><span>Signal Losses</span><strong>{{ log.signal_losses|default_if_none:"—" }}</strong></div><div><span>Max Compass Rate</span><strong>{{ log.max_compass_rate|number:1 }}</strong></div><div><span>Photos / Videos</span><strong>{{ log.photos|default_if_none:"0" }} / {{ log.videos|default_if_none:"0" }}</strong></div></div></div></div>
+    <div class="col-lg-6"><div class="card shadow-sm h-100"><div class="card-header fw-bold"><i class="fa-solid fa-note-sticky me-2 text-primary"></i>Notes & Tags</div><div class="card-body"><div class="mb-3"><span class="text-muted small d-block mb-1">Tags</span><strong>{{ log.tags|default:"—" }}</strong></div><div><span class="text-muted small d-block mb-1">Notes</span>{{ log.notes|linebreaksbr|default:"—" }}</div></div></div></div>
   </div>
 </div>
 {% endblock %}

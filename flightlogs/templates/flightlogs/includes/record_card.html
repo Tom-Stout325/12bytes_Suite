@@ -1,0 +1,7 @@
+<div class="col-md-6 col-xl-4">
+  <div class="flight-record-card">
+    <div class="record-icon"><i class="fa-solid {{ icon }}"></i></div>
+    <div class="stat-label">{{ title }}</div>
+    {% if flight %}<div class="record-value">{{ value }} {% if unit %}<small>{{ unit }}</small>{% endif %}</div><div class="record-flight-name">{{ flight.flight_title|default:flight.drone_name|default:"Flight record" }}</div><a class="btn btn-sm btn-outline-primary mt-auto" href="{% url 'flightlogs:flightlog_detail' flight.pk %}">View flight <i class="fa-solid fa-arrow-right ms-1"></i></a>{% else %}<div class="record-value">—</div><div class="record-flight-name">No matching data</div>{% endif %}
+  </div>
+</div>

@@ -17,12 +17,6 @@ rsync -av --progress /tmp/moneypro_invite/MoneyPro/ ./
 
 
 
-MoneyPro db:  postgres://ubc5p5rrtkbjuo:p123e9649b2f276e0648ec8d0ecb335e9e2605baa235c0ec6e50afdcd9caf4f82@cet8r1hlj0mlnt.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432/ddc52ipqsfgudn
-
-
-
-
-
 
 
 HEROKU COMMANDS
@@ -50,15 +44,11 @@ Run Migrations on Heroku:
 heroku run -a moneypro -- python manage.py migrate
 
 
-Invoices aren't calculating Mileage in taxable amount:  See Bristol 2025
-Invoice Detail:  
-    Add Days To Pay button in place of SubTotal
-    
 
 
 Logins:
 
-admin   cassie2001
+admin  
 tom@airborne-images.net 
 
 clear lockouts:  heroku run -a suites -- python manage.py axes_reset

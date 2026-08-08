@@ -25,6 +25,10 @@ class FlightLogForm(forms.ModelForm):
         exclude = ("business",)
         widgets = {
             "flight_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "takeoff_datetime": forms.DateTimeInput(
+                attrs={"type": "datetime-local", "class": "form-control"},
+                format="%Y-%m-%dT%H:%M",
+            ),
             "landing_time": forms.TimeInput(attrs={"type": "time", "class": "form-control"}),
             "flight_description": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
@@ -32,6 +36,8 @@ class FlightLogForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if "takeoff_datetime" in self.fields:
+            self.fields["takeoff_datetime"].input_formats = ["%Y-%m-%dT%H:%M"]
         for field in self.fields.values():
             widget = field.widget
             if isinstance(widget, (forms.CheckboxInput, forms.RadioSelect, forms.CheckboxSelectMultiple)):

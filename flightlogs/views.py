@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Count, Sum, Max
+from django.db.models import Count, Q, Sum
 from django.db.models.functions import ExtractMonth, ExtractYear
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -118,6 +118,35 @@ def parse_date_value(value):
         return None
 
 
+def parse_datetime_value(value):
+    value = str(value or "").strip()
+    if not value:
+        return None
+    value = re.sub(r"(\d+)(st|nd|rd|th)", r"\1", value, flags=re.IGNORECASE)
+    parsed = None
+    for fmt in (
+        "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
+        "%m/%d/%Y %H:%M:%S", "%m/%d/%Y %H:%M",
+        "%m/%d/%Y %I:%M:%S %p", "%m/%d/%Y %I:%M %p",
+        "%b %d, %Y %I:%M%p", "%b %d, %Y %I:%M:%S%p",
+        "%B %d, %Y %I:%M%p", "%B %d, %Y %I:%M:%S%p",
+        "%B %d, %Y %I:%M:%S %p", "%B %d, %Y %I:%M %p",
+    ):
+        try:
+            parsed = datetime.strptime(value, fmt)
+            break
+        except ValueError:
+            continue
+    if parsed is None:
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return None
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+    return parsed
+
+
 def parse_time_value(value):
     value = str(value or "").strip()
     if not value:
@@ -155,7 +184,12 @@ def parse_duration_value(value):
 
 def _flightlog_payload_from_csv_row(row):
     """Build a FlightLog payload from either Suite exports or older AirData/FlightPlan CSVs."""
-    flight_date = parse_date_value(row_value(row, "flight_date", "Flight Date/Time", "Flight/Service Date"))
+    takeoff_datetime = parse_datetime_value(
+        row_value(row, "takeoff_datetime", "Flight Date/Time", "Flight/Service Date")
+    )
+    flight_date = takeoff_datetime.date() if takeoff_datetime else parse_date_value(
+        row_value(row, "flight_date", "Flight Date/Time", "Flight/Service Date")
+    )
     landing_time = parse_time_value(row_value(row, "landing_time", "Landing Time"))
     if landing_time is None:
         landing_time = parse_time_value(row_value(row, "Flight Date/Time", "Flight/Service Date"))
@@ -163,6 +197,7 @@ def _flightlog_payload_from_csv_row(row):
 
     return {
         "flight_date": flight_date,
+        "takeoff_datetime": takeoff_datetime,
         "flight_title": row_value(row, "flight_title", "Flight Title"),
         "flight_description": row_value(row, "flight_description", "Flight Description"),
         "pilot_in_command": row_value(row, "pilot_in_command", "Pilot-in-Command", "Pilot in Command"),
@@ -228,6 +263,7 @@ def _values_match(existing_value, incoming_value):
 
 FLIGHTLOG_IMPORT_FIELDS = (
     "flight_date",
+    "takeoff_datetime",
     "flight_title",
     "flight_description",
     "pilot_in_command",
@@ -299,6 +335,25 @@ def _flightlog_signature_from_obj(obj):
     return tuple(_normalise_import_value(getattr(obj, field)) for field in FLIGHTLOG_IMPORT_FIELDS)
 
 
+
+
+def _flightlog_legacy_signature_from_payload(payload):
+    """Signature used to backfill takeoff datetimes on pre-migration records."""
+    return tuple(
+        _normalise_import_value(payload.get(field))
+        for field in FLIGHTLOG_IMPORT_FIELDS
+        if field != "takeoff_datetime"
+    )
+
+
+def _flightlog_legacy_signature_from_obj(obj):
+    return tuple(
+        _normalise_import_value(getattr(obj, field))
+        for field in FLIGHTLOG_IMPORT_FIELDS
+        if field != "takeoff_datetime"
+    )
+
+
 def _flightlog_duplicate_exists(business, payload):
     """Return True only when an existing row is an exact import match.
 
@@ -358,6 +413,8 @@ def flightlog_list(request):
     sel_year = request.GET.get("year", "").strip()
     sel_month = request.GET.get("month", "").strip()
     sel_location = request.GET.get("location", "").strip()
+    sel_pilot = request.GET.get("pilot", "").strip()
+    sel_drone = request.GET.get("drone", "").strip()
 
     base_qs = _business_logs(request)
     logs_qs = base_qs
@@ -365,10 +422,18 @@ def flightlog_list(request):
     years = sorted(y for y in base_qs.annotate(y=ExtractYear("flight_date")).values_list("y", flat=True).distinct() if y)
     months_present = sorted(m for m in base_qs.annotate(m=ExtractMonth("flight_date")).values_list("m", flat=True).distinct() if m)
     month_labels = {i: month_name[i] for i in range(1, 13)}
+    pilots = list(base_qs.exclude(pilot_in_command="").values_list("pilot_in_command", flat=True).distinct().order_by("pilot_in_command"))
+    drones = list(base_qs.exclude(drone_name="").values_list("drone_name", flat=True).distinct().order_by("drone_name"))
 
     addresses = list(base_qs.exclude(takeoff_address__exact="").values_list("takeoff_address", flat=True))
     states = sorted({extract_state(addr) for addr in addresses if extract_state(addr)})
-    cities = sorted({city for addr in addresses if (not sel_state or extract_state(addr) == sel_state) for city in [_extract_city(addr)] if city})
+    cities = sorted({
+        city
+        for addr in addresses
+        if not sel_state or extract_state(addr) == sel_state
+        for city in [_extract_city(addr)]
+        if city
+    })
 
     if sel_year.isdigit():
         logs_qs = logs_qs.filter(flight_date__year=int(sel_year))
@@ -378,13 +443,28 @@ def flightlog_list(request):
         logs_qs = logs_qs.filter(takeoff_address__regex=rf",\s*{re.escape(sel_state)}(?:[, ]|$)")
     if sel_city:
         logs_qs = logs_qs.filter(takeoff_address__istartswith=f"{sel_city},")
+    if sel_pilot:
+        logs_qs = logs_qs.filter(pilot_in_command=sel_pilot)
+    if sel_drone:
+        logs_qs = logs_qs.filter(drone_name=sel_drone)
     if sel_location:
-        logs_qs = logs_qs.filter(takeoff_address__icontains=sel_location) | logs_qs.filter(takeoff_latlong__icontains=sel_location)
+        logs_qs = logs_qs.filter(
+            Q(takeoff_address__icontains=sel_location) | Q(takeoff_latlong__icontains=sel_location)
+        )
 
-    paginator = Paginator(logs_qs.order_by("-flight_date"), 50)
+    total_flights = logs_qs.count()
+    totals = logs_qs.aggregate(total_photos=Sum("photos"), total_videos=Sum("videos"), total_mileage_ft=Sum("total_mileage_ft"))
+    longest_flight = logs_qs.exclude(air_time__isnull=True).order_by("-air_time", "-flight_date", "-id").first()
+    farthest_flight = logs_qs.exclude(max_distance_ft__isnull=True).order_by("-max_distance_ft", "-flight_date", "-id").first()
+    highest_flight = logs_qs.exclude(max_altitude_ft__isnull=True).order_by("-max_altitude_ft", "-flight_date", "-id").first()
+    longest_mileage_flight = logs_qs.exclude(total_mileage_ft__isnull=True).order_by("-total_mileage_ft", "-flight_date", "-id").first()
+    hottest_battery_flight = logs_qs.exclude(max_battery_temp_f__isnull=True).order_by("-max_battery_temp_f", "-flight_date", "-id").first()
+    fastest_flight = logs_qs.exclude(max_speed_mph__isnull=True).order_by("-max_speed_mph", "-flight_date", "-id").first()
+
+    paginator = Paginator(logs_qs.order_by("-flight_date", "-takeoff_datetime", "-id"), 50)
     page_obj = paginator.get_page(request.GET.get("page"))
-    qs = request.GET.copy()
-    qs.pop("page", None)
+    query_params = request.GET.copy()
+    query_params.pop("page", None)
 
     return render(request, "flightlogs/flightlog_list.html", {
         "logs": page_obj,
@@ -393,12 +473,28 @@ def flightlog_list(request):
         "sel_city": sel_city,
         "sel_year": sel_year,
         "sel_month": sel_month,
+        "sel_pilot": sel_pilot,
+        "sel_drone": sel_drone,
+        "sel_location": sel_location,
         "states": states,
         "cities": cities,
         "years": years,
         "months_present": months_present,
         "month_labels": month_labels,
-        "qs_without_page": qs.urlencode(),
+        "pilots": pilots,
+        "drones": drones,
+        "total_flights": total_flights,
+        "total_air_time_seconds": _sum_air_time_seconds(logs_qs),
+        "total_photos": totals["total_photos"] or 0,
+        "total_videos": totals["total_videos"] or 0,
+        "total_mileage_ft": totals["total_mileage_ft"] or 0,
+        "longest_flight": longest_flight,
+        "farthest_flight": farthest_flight,
+        "highest_flight": highest_flight,
+        "longest_mileage_flight": longest_mileage_flight,
+        "hottest_battery_flight": hottest_battery_flight,
+        "fastest_flight": fastest_flight,
+        "qs_without_page": query_params.urlencode(),
     })
 
 
@@ -486,13 +582,19 @@ def upload_flightlog_csv(request):
 
         # Build the duplicate set once instead of querying the database once per CSV row.
         # This keeps large AirData uploads under Heroku's 30-second web request limit.
-        existing_signatures = {
-            _flightlog_signature_from_obj(log)
-            for log in _business_logs(request).only(*FLIGHTLOG_IMPORT_FIELDS).iterator(chunk_size=1000)
+        existing_logs = list(
+            _business_logs(request).only("pk", *FLIGHTLOG_IMPORT_FIELDS).iterator(chunk_size=1000)
+        )
+        existing_signatures = {_flightlog_signature_from_obj(log) for log in existing_logs}
+        legacy_datetime_matches = {
+            _flightlog_legacy_signature_from_obj(log): log
+            for log in existing_logs
+            if log.takeoff_datetime is None
         }
 
-        created = skipped = errored = duplicate_skipped = 0
+        created = updated = skipped = errored = duplicate_skipped = 0
         pending_logs = []
+        pending_updates = []
         batch_size = 500
 
         for raw_row in reader:
@@ -511,6 +613,17 @@ def upload_flightlog_csv(request):
                     duplicate_skipped += 1
                     continue
 
+                # Records imported before takeoff_datetime existed should be updated,
+                # not duplicated, when the same source CSV is uploaded again.
+                legacy_signature = _flightlog_legacy_signature_from_payload(payload)
+                legacy_match = legacy_datetime_matches.pop(legacy_signature, None)
+                if legacy_match is not None and payload.get("takeoff_datetime") is not None:
+                    legacy_match.takeoff_datetime = payload["takeoff_datetime"]
+                    pending_updates.append(legacy_match)
+                    existing_signatures.add(signature)
+                    updated += 1
+                    continue
+
                 existing_signatures.add(signature)
                 pending_logs.append(FlightLog(business=request.business, **payload))
 
@@ -527,11 +640,13 @@ def upload_flightlog_csv(request):
         if pending_logs:
             FlightLog.objects.bulk_create(pending_logs, batch_size=batch_size)
             created += len(pending_logs)
+        if pending_updates:
+            FlightLog.objects.bulk_update(pending_updates, ["takeoff_datetime"], batch_size=batch_size)
 
         total_skipped = skipped + duplicate_skipped
         messages.success(
             request,
-            f"CSV processed. Created: {created}, Skipped: {total_skipped}, Errors: {errored}"
+            f"CSV processed. Created: {created}, Updated: {updated}, Skipped: {total_skipped}, Errors: {errored}"
             + (f" ({duplicate_skipped} duplicate rows skipped)" if duplicate_skipped else ""),
         )
         return redirect("flightlogs:flightlog_list")

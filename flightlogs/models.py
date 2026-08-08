@@ -11,6 +11,7 @@ class FlightLog(BusinessOwnedModelMixin):
 
     # Core Flight Info
     flight_date = models.DateField()
+    takeoff_datetime = models.DateTimeField(null=True, blank=True)
     flight_title = models.CharField(max_length=200, blank=True)
     flight_description = models.TextField(blank=True)
     pilot_in_command = models.CharField(max_length=100, blank=True)
