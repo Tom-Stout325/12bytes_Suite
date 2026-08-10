@@ -11,6 +11,7 @@
     </div>
     <div class="d-flex gap-2 flex-wrap">
       <a href="{% url 'flightlogs:flightlog_upload' %}" class="btn btn-primary"><i class="fa-solid fa-upload me-1"></i> Upload CSV</a>
+      <a href="{% url 'flightlogs:flightlog_dji_upload' %}" class="btn btn-outline-primary"><i class="fa-solid fa-file-arrow-up me-1"></i> Upload DJI .txt</a>
       <a href="{% url 'flightlogs:flightlog_list' %}" class="btn btn-outline-primary"><i class="fa-solid fa-list me-1"></i> Flight Logs</a>
       <a href="{% url 'flightlogs:flight_map' %}" class="btn btn-outline-secondary"><i class="fa-solid fa-map-location-dot me-1"></i> Map</a>
     </div>

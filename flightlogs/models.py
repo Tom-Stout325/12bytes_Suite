@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+import uuid
+
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
 from core.models import BusinessOwnedModelMixin
 
 
+def dji_source_upload_path(instance, filename):
+    """Store sources under tenant and generated identifiers, never user paths."""
+    return f"flightlogs/dji/{instance.business_id}/{uuid.uuid4().hex}.txt"
+
+
 class FlightLog(BusinessOwnedModelMixin):
-    """Business-owned drone flight log imported from AirData/FlightPlan CSV files."""
+    """Canonical business-owned normalized drone flight log."""
 
     # Core Flight Info
     flight_date = models.DateField()
@@ -31,6 +39,8 @@ class FlightLog(BusinessOwnedModelMixin):
     drone_type = models.CharField(max_length=100, blank=True)
     drone_serial = models.CharField(max_length=100, blank=True)
     drone_reg_number = models.CharField(max_length=100, blank=True)
+    rc_serial = models.CharField(max_length=100, blank=True)
+    camera_serial = models.CharField(max_length=100, blank=True)
 
     # Battery Info
     battery_name = models.CharField(max_length=100, blank=True)
@@ -42,18 +52,32 @@ class FlightLog(BusinessOwnedModelMixin):
     landing_battery_pct = models.IntegerField(null=True, blank=True)
     landing_mah = models.IntegerField(null=True, blank=True)
     landing_volts = models.FloatField(null=True, blank=True)
+    battery_cycle_count = models.PositiveIntegerField(null=True, blank=True)
+    minimum_cell_voltage_v = models.FloatField(null=True, blank=True)
+    maximum_cell_voltage_v = models.FloatField(null=True, blank=True)
+    battery_life_raw = models.PositiveSmallIntegerField(null=True, blank=True)
 
     # Flight Performance Metrics
     max_altitude_ft = models.FloatField(null=True, blank=True)
     max_distance_ft = models.FloatField(null=True, blank=True)
     max_battery_temp_f = models.FloatField(null=True, blank=True)
     max_speed_mph = models.FloatField(null=True, blank=True)
+    maximum_vertical_speed_mps = models.FloatField(null=True, blank=True)
     total_mileage_ft = models.FloatField(null=True, blank=True)
     signal_score = models.FloatField(null=True, blank=True)
     max_compass_rate = models.FloatField(null=True, blank=True)
     avg_wind = models.FloatField(null=True, blank=True)
     max_gust = models.FloatField(null=True, blank=True)
     signal_losses = models.IntegerField(null=True, blank=True)
+    maximum_satellites = models.PositiveSmallIntegerField(null=True, blank=True)
+    minimum_airborne_satellites = models.PositiveSmallIntegerField(null=True, blank=True)
+    minimum_airborne_gps_level = models.PositiveSmallIntegerField(null=True, blank=True)
+    flight_modes = models.CharField(max_length=500, blank=True)
+
+    # DJI-native operational alerts. These remain separate from user notes.
+    dji_warnings = models.TextField(blank=True)
+    dji_serious_warnings = models.TextField(blank=True)
+    dji_tips = models.TextField(blank=True)
 
     # Ground Weather Conditions
     ground_weather_summary = models.CharField(max_length=255, blank=True)
@@ -98,3 +122,60 @@ class FlightLog(BusinessOwnedModelMixin):
             raise ValidationError({"takeoff_battery_pct": "Battery percentage must be between 0 and 100."})
         if self.landing_battery_pct is not None and not 0 <= self.landing_battery_pct <= 100:
             raise ValidationError({"landing_battery_pct": "Battery percentage must be between 0 and 100."})
+
+
+class FlightLogSource(BusinessOwnedModelMixin):
+    class SourceType(models.TextChoices):
+        DJI_TXT = "dji_txt", "DJI FlightRecord"
+
+    class Status(models.TextChoices):
+        UPLOADED = "uploaded", "Uploaded"
+        PARSING = "parsing", "Parsing"
+        COMPLETE = "complete", "Complete"
+        FAILED = "failed", "Failed"
+
+    source_type = models.CharField(max_length=20, choices=SourceType.choices)
+    original_filename = models.CharField(max_length=255)
+    file = models.FileField(upload_to=dji_source_upload_path)
+    sha256 = models.CharField(max_length=64)
+    size_bytes = models.PositiveBigIntegerField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.UPLOADED)
+    safe_error_code = models.CharField(max_length=64, blank=True)
+    safe_error_detail = models.CharField(max_length=255, blank=True)
+    parser_version = models.CharField(max_length=32, blank=True)
+    log_version = models.PositiveSmallIntegerField(null=True, blank=True)
+    encrypted = models.BooleanField(null=True, blank=True)
+    aircraft_model_code = models.PositiveSmallIntegerField(null=True, blank=True)
+    aircraft_serial = models.CharField(max_length=100, blank=True)
+    aircraft_serial_header = models.CharField(max_length=100, blank=True)
+    battery_serial = models.CharField(max_length=100, blank=True)
+    battery_serial_header = models.CharField(max_length=100, blank=True)
+    flight_log = models.ForeignKey(
+        FlightLog,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="sources",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="flightlog_sources_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["business", "sha256"],
+                name="uniq_flightlog_source_business_sha256",
+            )
+        ]
+        indexes = [models.Index(fields=["business", "status"])]
+
+    def __str__(self):
+        return f"{self.get_source_type_display()}: {self.original_filename}"

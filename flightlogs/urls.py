@@ -10,6 +10,7 @@ urlpatterns = [
     path("", views.flightlog_list, name="flightlog_list"),
     path("portal/", views.drone_portal, name="drone_portal"),
     path("upload/", views.upload_flightlog_csv, name="flightlog_upload"),
+    path("upload/dji/", views.upload_flightlog_dji, name="flightlog_dji_upload"),
     path("export/csv/", views.export_flightlogs_csv, name="export_flightlogs_csv"),
     path("map/", views.flight_map_view, name="flight_map"),
     path("map/embed/", views.flight_map_embed, name="flight_map_embed"),

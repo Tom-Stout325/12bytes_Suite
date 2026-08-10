@@ -10,6 +10,7 @@
     <div class="d-flex gap-2 flex-wrap">
       <a href="{% url 'flightlogs:drone_portal' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-gauge-high me-1"></i> Portal</a>
       <a href="{% url 'flightlogs:flightlog_upload' %}" class="btn btn-success btn-sm"><i class="fa-solid fa-upload me-1"></i> Upload CSV</a>
+      <a href="{% url 'flightlogs:flightlog_dji_upload' %}" class="btn btn-primary btn-sm"><i class="fa-solid fa-file-arrow-up me-1"></i> Upload DJI FlightRecord .txt</a>
       <a href="{% url 'flightlogs:export_flightlogs_csv' %}" class="btn btn-outline-success btn-sm"><i class="fa-solid fa-file-csv me-1"></i> Export CSV</a>
       <a href="{% url 'flightlogs:flight_map' %}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-map-location-dot me-1"></i> Map</a>
     </div>

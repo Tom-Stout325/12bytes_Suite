@@ -41,6 +41,10 @@ DEFAULT_COMPANY_NAME = env("DEFAULT_COMPANY_NAME", default="Your Business")
 SITE_URL = env("SITE_URL", default="")
 REPLY_TO_EMAIL = env("REPLY_TO_EMAIL", default="")
 SENDGRID_API_KEY = env("SENDGRID_API_KEY", default="")
+DJI_PARSER_PATH = env(
+    "DJI_PARSER_PATH",
+    default=str(BASE_DIR / "rust" / "suite-dji-parser" / "target" / "release" / "suite-dji-parser"),
+)
 
 
 # ------------------------------------------------------------------------------

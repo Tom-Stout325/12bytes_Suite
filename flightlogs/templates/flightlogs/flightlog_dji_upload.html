@@ -1,0 +1,21 @@
+{% extends "index.html" %}
+{% block title %}Upload DJI FlightRecord{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div><h1 class="h3 mb-1">Upload DJI FlightRecord</h1><p class="text-muted mb-0">Upload an original DJIFlightRecord .txt file for the active business.</p></div>
+    <a href="{% url 'flightlogs:flightlog_list' %}" class="btn btn-outline-secondary btn-sm">Back to Logs</a>
+  </div>
+  <form method="post" enctype="multipart/form-data" class="card card-body shadow-sm">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label" for="{{ form.dji_file.id_for_label }}">{{ form.dji_file.label }}</label>
+      {{ form.dji_file }}
+      {% if form.dji_file.help_text %}<div class="form-text">{{ form.dji_file.help_text }}</div>{% endif %}
+      {% for error in form.dji_file.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+    </div>
+    <div class="alert alert-secondary small">The original source is retained securely for duplicate detection and future reprocessing. It is not exposed through this page.</div>
+    <div class="d-flex flex-wrap gap-2"><button type="submit" class="btn btn-primary">Upload and Import DJI Log</button><a href="{% url 'flightlogs:flightlog_upload' %}" class="btn btn-outline-secondary">Upload CSV instead</a></div>
+  </form>
+</div>
+{% endblock %}

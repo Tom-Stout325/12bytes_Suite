@@ -24,8 +24,9 @@ try:
 except Exception:
     WEASYPRINT_AVAILABLE = False
 
-from .forms import FlightLogCSVUploadForm, FlightLogForm
+from .forms import FlightLogCSVUploadForm, FlightLogDJIUploadForm, FlightLogForm
 from .models import FlightLog
+from .services.dji import import_dji_upload
 
 STATE_RE = re.compile(r",\s*([A-Z]{2})(?:[, ]|$)")
 
@@ -653,6 +654,40 @@ def upload_flightlog_csv(request):
 
     form = FlightLogCSVUploadForm()
     return render(request, "flightlogs/flightlog_form.html", {"form": form, "current_page": "flightlogs"})
+
+
+@login_required
+def upload_flightlog_dji(request):
+    if request.business is None:
+        return redirect("accounts:onboarding")
+    if request.method == "POST":
+        form = FlightLogDJIUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            result = import_dji_upload(
+                business=request.business,
+                user=request.user,
+                uploaded=form.cleaned_data["dji_file"],
+            )
+            source = result.source
+            if result.duplicate:
+                if source.status == source.Status.COMPLETE and source.flight_log_id:
+                    messages.info(request, "This exact DJI source was already imported.")
+                    return redirect("flightlogs:flightlog_detail", pk=source.flight_log_id)
+                messages.info(request, "This exact DJI source was already uploaded.")
+            elif source.status == source.Status.COMPLETE:
+                messages.success(request, "DJI flight record imported successfully.")
+                return redirect("flightlogs:flightlog_detail", pk=source.flight_log_id)
+            else:
+                messages.error(request, source.safe_error_detail)
+            return redirect("flightlogs:flightlog_dji_upload")
+        messages.error(request, "Please correct the DJI upload error below.")
+    else:
+        form = FlightLogDJIUploadForm()
+    return render(
+        request,
+        "flightlogs/flightlog_dji_upload.html",
+        {"form": form, "current_page": "flightlogs"},
+    )
 
 
 @login_required

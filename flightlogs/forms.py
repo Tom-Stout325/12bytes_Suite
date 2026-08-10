@@ -4,6 +4,8 @@ from django import forms
 
 from .models import FlightLog
 
+DJI_UPLOAD_MAX_BYTES = 100 * 1024 * 1024
+
 
 class FlightLogCSVUploadForm(forms.Form):
     csv_file = forms.FileField(
@@ -19,10 +21,47 @@ class FlightLogCSVUploadForm(forms.Form):
         return f
 
 
+class FlightLogDJIUploadForm(forms.Form):
+    dji_file = forms.FileField(
+        label="DJI FlightRecord .txt file",
+        widget=forms.ClearableFileInput(
+            attrs={"class": "form-control", "accept": ".txt,text/plain"}
+        ),
+        help_text="Maximum file size: 100 MB.",
+    )
+
+    def clean_dji_file(self):
+        uploaded = self.cleaned_data["dji_file"]
+        name = (getattr(uploaded, "name", "") or "").lower()
+        if not name.endswith(".txt"):
+            raise forms.ValidationError("Please upload a DJI FlightRecord .txt file.")
+        if uploaded.size > DJI_UPLOAD_MAX_BYTES:
+            raise forms.ValidationError("The DJI flight record must be 100 MB or smaller.")
+        if uploaded.size == 0:
+            raise forms.ValidationError("The DJI flight record is empty.")
+        return uploaded
+
+
 class FlightLogForm(forms.ModelForm):
     class Meta:
         model = FlightLog
-        exclude = ("business",)
+        exclude = (
+            "business",
+            "rc_serial",
+            "camera_serial",
+            "battery_cycle_count",
+            "minimum_cell_voltage_v",
+            "maximum_cell_voltage_v",
+            "battery_life_raw",
+            "maximum_vertical_speed_mps",
+            "maximum_satellites",
+            "minimum_airborne_satellites",
+            "minimum_airborne_gps_level",
+            "flight_modes",
+            "dji_warnings",
+            "dji_serious_warnings",
+            "dji_tips",
+        )
         widgets = {
             "flight_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
             "takeoff_datetime": forms.DateTimeInput(
