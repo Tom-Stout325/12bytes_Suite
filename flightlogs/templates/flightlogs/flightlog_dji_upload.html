@@ -1,21 +1,90 @@
 {% extends "index.html" %}
+{% load static %}
 {% block title %}Upload DJI FlightRecord{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'flightlogs/flightlogs.css' %}">{% endblock %}
 {% block content %}
 <div class="container py-4">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-    <div><h1 class="h3 mb-1">Upload DJI FlightRecord</h1><p class="text-muted mb-0">Upload an original DJIFlightRecord .txt file for the active business.</p></div>
+    <div><h1 class="h3 mb-1">Upload DJI FlightRecords</h1><p class="text-muted mb-0">Upload one or more original DJI FlightRecord .txt files for the active business.</p></div>
     <a href="{% url 'flightlogs:flightlog_list' %}" class="btn btn-outline-secondary btn-sm">Back to Logs</a>
   </div>
+  {% if review_required %}<div class="alert alert-warning" role="alert">Possible existing flight found — review required.</div>{% endif %}
+  {% if bulk_result %}
+  <section class="card shadow-sm mb-4" aria-labelledby="bulk-result-heading">
+    <div class="card-body">
+      <h2 id="bulk-result-heading" class="h4">DJI Import Complete</h2>
+      <p class="mb-3">{{ bulk_result.counts.total }} files processed sequentially.</p>
+      <div class="row g-2 text-center mb-4">
+        <div class="col-6 col-md"><div class="border rounded p-2 h-100"><div class="fs-4 fw-semibold">{{ bulk_result.counts.linked_existing|default:0 }}</div><div class="small text-muted">Linked</div></div></div>
+        <div class="col-6 col-md"><div class="border rounded p-2 h-100"><div class="fs-4 fw-semibold">{{ bulk_result.counts.imported_new|default:0 }}</div><div class="small text-muted">New</div></div></div>
+        <div class="col-6 col-md"><div class="border rounded p-2 h-100"><div class="fs-4 fw-semibold">{{ bulk_result.counts.review|default:0 }}</div><div class="small text-muted">Review</div></div></div>
+        <div class="col-6 col-md"><div class="border rounded p-2 h-100"><div class="fs-4 fw-semibold">{{ bulk_result.counts.duplicate|default:0 }}</div><div class="small text-muted">Duplicates</div></div></div>
+        <div class="col-6 col-md"><div class="border rounded p-2 h-100"><div class="fs-4 fw-semibold">{{ bulk_result.counts.failed|default:0 }}</div><div class="small text-muted">Failed</div></div></div>
+      </div>
+      <div class="d-none d-md-block table-responsive" data-testid="dji-results-desktop">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th scope="col">File</th><th scope="col">Result</th><th scope="col">Flight</th><th scope="col">Details</th></tr></thead>
+          <tbody>
+          {% for item in bulk_result.files %}
+            <tr>
+              <td class="text-break">{{ item.filename }}</td>
+              <td><span class="badge {% if item.classification.value == 'failed' %}text-bg-danger{% elif item.classification.value == 'imported_new' or item.classification.value == 'linked_existing' %}text-bg-success{% elif item.classification.value == 'duplicate' %}text-bg-secondary{% else %}text-bg-warning{% endif %}">{{ item.label }}</span></td>
+              <td>{% if item.flight_log_id %}<a href="{% url 'flightlogs:flightlog_detail' item.flight_log_id %}">FlightLog {{ item.flight_log_id }}</a>{% else %}—{% endif %}</td>
+              <td class="small">
+                {% if item.flight_datetime %}<div>{{ item.flight_datetime }}</div>{% endif %}
+                {% if item.aircraft %}<div>{{ item.aircraft }}</div>{% endif %}
+                {% if item.safe_error_code %}<div><code>{{ item.safe_error_code }}</code> {{ item.safe_error_message }}</div>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="d-md-none" data-testid="dji-results-mobile">
+        {% for item in bulk_result.files %}
+          <article class="border rounded p-3 mb-3" aria-labelledby="mobile-result-file-{{ forloop.counter }}">
+            <h3 id="mobile-result-file-{{ forloop.counter }}" class="h6 text-break mb-3">{{ item.filename }}</h3>
+            <dl class="row g-2 mb-0">
+              <dt class="col-12 small text-muted">Result</dt>
+              <dd class="col-12 mb-2"><span class="badge {% if item.classification.value == 'failed' %}text-bg-danger{% elif item.classification.value == 'imported_new' or item.classification.value == 'linked_existing' %}text-bg-success{% elif item.classification.value == 'duplicate' %}text-bg-secondary{% else %}text-bg-warning{% endif %}">{{ item.label }}</span></dd>
+              <dt class="col-12 small text-muted">Flight</dt>
+              <dd class="col-12 mb-2">{% if item.flight_log_id %}<a href="{% url 'flightlogs:flightlog_detail' item.flight_log_id %}">FlightLog {{ item.flight_log_id }}</a>{% else %}—{% endif %}</dd>
+              <dt class="col-12 small text-muted">Details</dt>
+              <dd class="col-12 mb-0">
+                {% if item.flight_datetime %}<div>{{ item.flight_datetime }}</div>{% endif %}
+                {% if item.aircraft %}<div>{{ item.aircraft }}</div>{% endif %}
+                {% if item.safe_error_code %}<div><code>{{ item.safe_error_code }}</code> {{ item.safe_error_message }}</div>{% endif %}
+                {% if not item.flight_datetime and not item.aircraft and not item.safe_error_code %}—{% endif %}
+              </dd>
+            </dl>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
   <form method="post" enctype="multipart/form-data" class="card card-body shadow-sm">
     {% csrf_token %}
     <div class="mb-3">
       <label class="form-label" for="{{ form.dji_file.id_for_label }}">{{ form.dji_file.label }}</label>
       {{ form.dji_file }}
+      <div id="dji-selected-count" class="form-text" aria-live="polite">No files selected.</div>
       {% if form.dji_file.help_text %}<div class="form-text">{{ form.dji_file.help_text }}</div>{% endif %}
       {% for error in form.dji_file.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
     </div>
-    <div class="alert alert-secondary small">The original source is retained securely for duplicate detection and future reprocessing. It is not exposed through this page.</div>
-    <div class="d-flex flex-wrap gap-2"><button type="submit" class="btn btn-primary">Upload and Import DJI Log</button><a href="{% url 'flightlogs:flightlog_upload' %}" class="btn btn-outline-secondary">Upload CSV instead</a></div>
+    <div class="alert alert-secondary small">You can upload up to {{ form.max_files }} DJI flight logs at a time. Each file is processed independently, so one problem file will not stop the rest of the batch.</div>
+    <div class="d-flex flex-wrap gap-2"><button type="submit" class="btn btn-primary">Upload and Import DJI Logs</button><a href="{% url 'flightlogs:flightlog_upload' %}" class="btn btn-outline-secondary">Upload CSV instead</a></div>
   </form>
 </div>
+<script>
+  (() => {
+    const input = document.getElementById('{{ form.dji_file.id_for_label }}');
+    const count = document.getElementById('dji-selected-count');
+    if (!input || !count) return;
+    input.addEventListener('change', () => {
+      const total = input.files.length;
+      count.textContent = total === 1 ? '1 file selected.' : `${total} files selected.`;
+    });
+  })();
+</script>
 {% endblock %}

@@ -1,10 +1,21 @@
 from __future__ import annotations
 
 from django import forms
+from django.conf import settings
 
 from .models import FlightLog
 
-DJI_UPLOAD_MAX_BYTES = 100 * 1024 * 1024
+
+class MultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultipleFileField(forms.FileField):
+    def clean(self, data, initial=None):
+        single_clean = super().clean
+        if isinstance(data, (list, tuple)):
+            return [single_clean(item, initial) for item in data]
+        return [single_clean(data, initial)]
 
 
 class FlightLogCSVUploadForm(forms.Form):
@@ -22,24 +33,50 @@ class FlightLogCSVUploadForm(forms.Form):
 
 
 class FlightLogDJIUploadForm(forms.Form):
-    dji_file = forms.FileField(
-        label="DJI FlightRecord .txt file",
-        widget=forms.ClearableFileInput(
-            attrs={"class": "form-control", "accept": ".txt,text/plain"}
+    dji_file = MultipleFileField(
+        label="DJI FlightRecord .txt files",
+        widget=MultipleFileInput(
+            attrs={
+                "class": "form-control",
+                "accept": ".txt,text/plain,application/octet-stream",
+            }
         ),
-        help_text="Maximum file size: 100 MB.",
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_files = settings.DJI_BULK_MAX_FILES
+        self.fields["dji_file"].help_text = (
+            f"Choose up to {self.max_files} files. "
+            f"Maximum {settings.DJI_UPLOAD_MAX_BYTES // (1024 * 1024)} MB per file and "
+            f"{settings.DJI_BULK_MAX_TOTAL_BYTES // (1024 * 1024)} MB total."
+        )
+
     def clean_dji_file(self):
-        uploaded = self.cleaned_data["dji_file"]
-        name = (getattr(uploaded, "name", "") or "").lower()
-        if not name.endswith(".txt"):
-            raise forms.ValidationError("Please upload a DJI FlightRecord .txt file.")
-        if uploaded.size > DJI_UPLOAD_MAX_BYTES:
-            raise forms.ValidationError("The DJI flight record must be 100 MB or smaller.")
-        if uploaded.size == 0:
-            raise forms.ValidationError("The DJI flight record is empty.")
-        return uploaded
+        uploads = self.cleaned_data["dji_file"]
+        if len(uploads) > settings.DJI_BULK_MAX_FILES:
+            raise forms.ValidationError(
+                f"Select no more than {settings.DJI_BULK_MAX_FILES} DJI flight records per batch."
+            )
+        total_size = 0
+        for uploaded in uploads:
+            name = (getattr(uploaded, "name", "") or "").lower()
+            if not name.endswith(".txt"):
+                raise forms.ValidationError("Every DJI flight record must be a .txt file.")
+            if uploaded.size > settings.DJI_UPLOAD_MAX_BYTES:
+                maximum = settings.DJI_UPLOAD_MAX_BYTES // (1024 * 1024)
+                raise forms.ValidationError(
+                    f"Each DJI flight record must be {maximum} MB or smaller."
+                )
+            if uploaded.size == 0:
+                raise forms.ValidationError(f"{uploaded.name or 'A selected file'} is empty.")
+            total_size += uploaded.size
+        if total_size > settings.DJI_BULK_MAX_TOTAL_BYTES:
+            maximum = settings.DJI_BULK_MAX_TOTAL_BYTES // (1024 * 1024)
+            raise forms.ValidationError(
+                f"The selected DJI files must total {maximum} MB or less."
+            )
+        return uploads
 
 
 class FlightLogForm(forms.ModelForm):

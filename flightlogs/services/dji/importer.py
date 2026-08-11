@@ -5,10 +5,12 @@ import logging
 from dataclasses import dataclass
 from datetime import timedelta
 
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils.dateparse import parse_datetime
 
 from flightlogs.models import FlightLog, FlightLogSource
+from flightlogs.services.matching import MatchType, match_existing_flight
 from flightlogs.services.weather import enrich_flightlog_weather
 
 from .errors import DJIImportError, import_error
@@ -23,6 +25,7 @@ logger = logging.getLogger(__name__)
 class DJIImportResult:
     source: FlightLogSource
     duplicate: bool = False
+    match_type: MatchType | None = None
 
 
 def _uploaded_sha256(uploaded):
@@ -266,6 +269,15 @@ def _mark_failed(source, failure):
     source.save(update_fields=["status", "safe_error_code", "safe_error_detail", "updated_at"])
 
 
+def _delete_successful_source_file(source_id, stored_name, storage):
+    try:
+        storage.delete(stored_name)
+    except Exception:
+        logger.warning("Successful DJI source file deletion failed safely")
+        return
+    FlightLogSource.objects.filter(pk=source_id, file=stored_name).update(file="")
+
+
 def import_dji_upload(*, business, user, uploaded):
     sha256 = _uploaded_sha256(uploaded)
     existing = FlightLogSource.objects.filter(business=business, sha256=sha256).first()
@@ -300,14 +312,50 @@ def import_dji_upload(*, business, user, uploaded):
         metadata = _source_metadata(parsed)
         flight_payload = _flightlog_payload(parsed)
         with transaction.atomic():
-            flight_log = FlightLog.objects.create(business=business, **flight_payload)
+            match = match_existing_flight(
+                business=business,
+                payload=flight_payload,
+                authoritative_aircraft_serial=metadata["aircraft_serial"],
+                authoritative_battery_serial=metadata["battery_serial"],
+            )
+            if match.match_type in {
+                MatchType.HIGH_CONFIDENCE,
+                MatchType.HIGH_CONFIDENCE_LOCATION_VARIANCE,
+            }:
+                flight_log = match.matched_flight
+            elif match.match_type in {
+                MatchType.PROBABLE,
+                MatchType.REVIEW_PARTIAL_AIRDATA,
+                MatchType.AMBIGUOUS,
+            }:
+                flight_log = None
+            else:
+                flight_log = FlightLog.objects.create(business=business, **flight_payload)
             for field, value in metadata.items():
                 setattr(source, field, value)
             source.flight_log = flight_log
-            source.status = FlightLogSource.Status.COMPLETE
+            source.status = (
+                FlightLogSource.Status.REVIEW
+                if match.match_type
+                in {
+                    MatchType.PROBABLE,
+                    MatchType.REVIEW_PARTIAL_AIRDATA,
+                    MatchType.AMBIGUOUS,
+                }
+                else FlightLogSource.Status.COMPLETE
+            )
             source.safe_error_code = ""
             source.safe_error_detail = ""
             source.save()
+            if (
+                source.status == FlightLogSource.Status.COMPLETE
+                and settings.DJI_DELETE_SUCCESSFUL_SOURCE_FILES
+            ):
+                committed_name = source.file.name
+                storage = source.file.storage
+                transaction.on_commit(
+                    lambda: _delete_successful_source_file(source.pk, committed_name, storage)
+                )
     except DJIImportError as failure:
         _mark_failed(source, failure)
     except Exception:
@@ -315,8 +363,9 @@ def import_dji_upload(*, business, user, uploaded):
     else:
         # Weather is optional enrichment and must never change a successful DJI
         # parser/import result into a failure. CSV imports do not call this path.
-        try:
-            enrich_flightlog_weather(flight_log)
-        except Exception:
-            logger.warning("DJI weather enrichment failed safely")
-    return DJIImportResult(source)
+        if match.match_type == MatchType.NO_MATCH:
+            try:
+                enrich_flightlog_weather(flight_log)
+            except Exception:
+                logger.warning("DJI weather enrichment failed safely")
+    return DJIImportResult(source, match_type=match.match_type if 'match' in locals() else None)

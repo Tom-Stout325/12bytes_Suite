@@ -54,7 +54,7 @@ class InvoiceDetailView(LoginRequiredMixin, BusinessScopedMixin, DetailView):
         return (
             Invoice.objects.filter(business=self.get_business())
             .select_related("contact", "job", "income_transaction")
-            .prefetch_related("items")
+            .prefetch_related("items__subcategory")
         )
 
     def get_context_data(self, **kwargs):
@@ -103,6 +103,7 @@ class InvoiceDetailView(LoginRequiredMixin, BusinessScopedMixin, DetailView):
         expense_total = Decimal("0.00")
         taxable_income_total = Decimal("0.00")
         taxable_expense_total = Decimal("0.00")
+        expense_groups: dict[tuple[int | None, int | None, str], Decimal] = {}
 
         inv_num = (invoice.invoice_number or "").strip()
 
@@ -176,6 +177,22 @@ class InvoiceDetailView(LoginRequiredMixin, BusinessScopedMixin, DetailView):
                 else:
                     expense_total += amt
                     taxable_expense_total += _deductible_expense_amount(t, amt)
+                    subcategory = getattr(t, "subcategory", None)
+                    category = getattr(subcategory, "category", None) if subcategory else None
+                    category_name = (getattr(category, "name", "") or "").strip()
+                    subcategory_name = (getattr(subcategory, "name", "") or "").strip()
+                    if ":" in subcategory_name:
+                        label = subcategory_name
+                    elif category_name and subcategory_name and category_name != subcategory_name:
+                        label = f"{category_name}: {subcategory_name}"
+                    else:
+                        label = subcategory_name or category_name or "Uncategorized"
+                    key = (
+                        getattr(category, "pk", None),
+                        getattr(subcategory, "pk", None),
+                        label,
+                    )
+                    expense_groups[key] = expense_groups.get(key, Decimal("0.00")) + amt
 
         # Mileage linked directly to this invoice is not a ledger transaction,
         # but standard business mileage is deductible and should be included in
@@ -191,12 +208,20 @@ class InvoiceDetailView(LoginRequiredMixin, BusinessScopedMixin, DetailView):
 
         net_income = income_total - expense_total
         taxable_net_income = taxable_income_total - taxable_expense_total
+        expense_breakdown = [
+            {"label": key[2], "amount": amount}
+            for key, amount in sorted(
+                expense_groups.items(),
+                key=lambda item: item[0][2].casefold(),
+            )
+        ]
 
         ctx.update(
             {
                 "tx_list": tx_list,
                 "income_total": income_total,
                 "expense_total": expense_total,
+                "expense_breakdown": expense_breakdown,
                 "net_income": net_income,
                 "taxable_income_total": taxable_income_total,
                 "taxable_expense_total": taxable_expense_total,

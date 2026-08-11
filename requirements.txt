@@ -39,8 +39,10 @@ et_xmlfile==2.0.0
 executing==2.2.1
 factory_boy==3.3.3
 Faker==40.1.2
+flatbuffers==25.12.19
 fonttools==4.57.0
 gunicorn==25.0.1
+h3==4.5.0
 html5lib==1.1
 iniconfig==2.3.0
 ipython==9.10.0
@@ -83,6 +85,7 @@ tinycss2==1.4.0
 traitlets==5.14.3
 typing_extensions==4.15.0
 tzdata==2025.3
+timezonefinder==8.2.5
 tzlocal==5.3.1
 urllib3==2.6.3
 vine==5.1.0

@@ -376,6 +376,38 @@
     padding: 1rem;
   }
 
+  .invoice-line-section-row th {
+    padding-top: 1rem;
+    padding-bottom: .45rem;
+    color: #50636f;
+    background: transparent;
+    border-bottom: 1px solid rgba(44, 76, 92, 0.12);
+    font-size: .82rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+
+  .invoice-expense-total-row > * {
+    border-top: 2px solid rgba(44, 76, 92, 0.18);
+  }
+
+  @media (max-width: 575.98px) {
+    .invoice-line-items-table {
+      table-layout: fixed;
+      width: 100%;
+    }
+
+    .invoice-line-items-table th:first-child,
+    .invoice-line-items-table td:first-child {
+      overflow-wrap: anywhere;
+    }
+
+    .invoice-line-items-table th:last-child,
+    .invoice-line-items-table td:last-child {
+      width: 7.5rem;
+    }
+  }
+
   .invoice-alert-lite {
     border-radius: 1rem;
     border: 1px solid rgba(221, 176, 94, 0.35);
@@ -690,16 +722,19 @@
         <div id="lineItemsBody" class="collapse show desktop-collapse-body">
           <div class="invoice-table-wrap">
             <div class="table-responsive">
-              <table class="table invoice-table align-middle">
+              <table class="table invoice-table invoice-line-items-table align-middle">
                 <thead>
                   <tr>
                     <th>Description</th>
-                    <th class="text-end">Qty</th>
-                    <th class="text-end">Price</th>
+                    <th class="text-end d-none d-sm-table-cell">Qty</th>
+                    <th class="text-end d-none d-sm-table-cell">Price</th>
                     <th class="text-end">Total</th>
                   </tr>
                 </thead>
                 <tbody>
+                  <tr class="invoice-line-section-row">
+                    <th colspan="4" scope="rowgroup">Income</th>
+                  </tr>
                   {% for it in invoice.items.all %}
                     <tr>
                       <td>
@@ -708,8 +743,8 @@
                           <div class="invoice-item-meta">{{ it.subcategory.name|default:"—" }}</div>
                         {% endif %}
                       </td>
-                      <td class="text-end">{{ it.qty }}</td>
-                      <td class="text-end">${{ it.unit_price|floatformat:2|intcomma }}</td>
+                      <td class="text-end d-none d-sm-table-cell">{{ it.qty }}</td>
+                      <td class="text-end d-none d-sm-table-cell">${{ it.unit_price|floatformat:2|intcomma }}</td>
                       <td class="text-end fw-semibold money-counter" data-money-value="{{ it.line_total|default:0 }}">${{ it.line_total|floatformat:2|intcomma }}</td>
                     </tr>
                   {% empty %}
@@ -717,6 +752,23 @@
                       <td colspan="4" class="invoice-table-empty">No line items yet.</td>
                     </tr>
                   {% endfor %}
+                  {% if expense_breakdown %}
+                    <tr class="invoice-line-section-row">
+                      <th colspan="4" scope="rowgroup">Expenses</th>
+                    </tr>
+                    {% for expense in expense_breakdown %}
+                      <tr>
+                        <td><div class="invoice-item-desc">{{ expense.label }}</div></td>
+                        <td class="d-none d-sm-table-cell" aria-hidden="true"></td>
+                        <td class="d-none d-sm-table-cell" aria-hidden="true"></td>
+                        <td class="text-end fw-semibold money-counter" data-money-value="{{ expense.amount|default:0 }}">${{ expense.amount|floatformat:2|intcomma }}</td>
+                      </tr>
+                    {% endfor %}
+                    <tr class="invoice-expense-total-row">
+                      <th colspan="3" scope="row" class="text-end">Actual Expenses Total</th>
+                      <td class="text-end fw-bold money-counter" data-money-value="{{ expense_total|default:0 }}">${{ expense_total|floatformat:2|intcomma }}</td>
+                    </tr>
+                  {% endif %}
                 </tbody>
               </table>
             </div>

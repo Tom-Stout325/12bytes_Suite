@@ -16,6 +16,7 @@ from django.db.models.functions import ExtractMonth, ExtractYear
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.views.decorators.clickjacking import xframe_options_exempt
 
 try:
@@ -26,7 +27,9 @@ except Exception:
 
 from .forms import FlightLogCSVUploadForm, FlightLogDJIUploadForm, FlightLogForm
 from .models import FlightLog
+from .services.airdata_timezones import parse_coordinates, resolve_airdata_timestamp
 from .services.dji import import_dji_upload
+from .services.dji.bulk import BulkDJIClassification, import_dji_batch
 
 STATE_RE = re.compile(r",\s*([A-Z]{2})(?:[, ]|$)")
 
@@ -119,35 +122,6 @@ def parse_date_value(value):
         return None
 
 
-def parse_datetime_value(value):
-    value = str(value or "").strip()
-    if not value:
-        return None
-    value = re.sub(r"(\d+)(st|nd|rd|th)", r"\1", value, flags=re.IGNORECASE)
-    parsed = None
-    for fmt in (
-        "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
-        "%m/%d/%Y %H:%M:%S", "%m/%d/%Y %H:%M",
-        "%m/%d/%Y %I:%M:%S %p", "%m/%d/%Y %I:%M %p",
-        "%b %d, %Y %I:%M%p", "%b %d, %Y %I:%M:%S%p",
-        "%B %d, %Y %I:%M%p", "%B %d, %Y %I:%M:%S%p",
-        "%B %d, %Y %I:%M:%S %p", "%B %d, %Y %I:%M %p",
-    ):
-        try:
-            parsed = datetime.strptime(value, fmt)
-            break
-        except ValueError:
-            continue
-    if parsed is None:
-        try:
-            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except (TypeError, ValueError):
-            return None
-    if timezone.is_naive(parsed):
-        parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
-    return parsed
-
-
 def parse_time_value(value):
     value = str(value or "").strip()
     if not value:
@@ -185,12 +159,22 @@ def parse_duration_value(value):
 
 def _flightlog_payload_from_csv_row(row):
     """Build a FlightLog payload from either Suite exports or older AirData/FlightPlan CSVs."""
-    takeoff_datetime = parse_datetime_value(
-        row_value(row, "takeoff_datetime", "Flight Date/Time", "Flight/Service Date")
+    datetime_raw = row_value(row, "takeoff_datetime", "Flight Date/Time", "Flight/Service Date")
+    takeoff_coordinates_raw = row_value(
+        row, "takeoff_latlong", "Takeoff Lat/Long", "Takeoff Lat Long"
     )
-    flight_date = takeoff_datetime.date() if takeoff_datetime else parse_date_value(
-        row_value(row, "flight_date", "Flight Date/Time", "Flight/Service Date")
-    )
+    if datetime_raw:
+        timestamp = resolve_airdata_timestamp(
+            datetime_raw,
+            parse_coordinates(takeoff_coordinates_raw),
+        )
+        if timestamp.proposed_utc is None:
+            raise ValueError(f"AirData takeoff time could not be resolved: {timestamp.reason}.")
+        takeoff_datetime = timestamp.proposed_utc
+        flight_date = timestamp.local_wall_time.date()
+    else:
+        takeoff_datetime = None
+        flight_date = parse_date_value(row_value(row, "flight_date"))
     landing_time = parse_time_value(row_value(row, "landing_time", "Landing Time"))
     if landing_time is None:
         landing_time = parse_time_value(row_value(row, "Flight Date/Time", "Flight/Service Date"))
@@ -205,7 +189,7 @@ def _flightlog_payload_from_csv_row(row):
         "license_number": row_value(row, "license_number", "License Number"),
         "flight_application": row_value(row, "flight_application", "Flight App"),
         "remote_id": row_value(row, "remote_id", "Remote ID"),
-        "takeoff_latlong": row_value(row, "takeoff_latlong", "Takeoff Lat/Long", "Takeoff Lat Long"),
+        "takeoff_latlong": takeoff_coordinates_raw,
         "takeoff_address": row_value(row, "takeoff_address", "Takeoff Address"),
         "landing_time": landing_time,
         "air_time": air_time,
@@ -663,30 +647,56 @@ def upload_flightlog_dji(request):
     if request.method == "POST":
         form = FlightLogDJIUploadForm(request.POST, request.FILES)
         if form.is_valid():
-            result = import_dji_upload(
+            uploads = form.cleaned_data["dji_file"]
+            batch = import_dji_batch(
                 business=request.business,
                 user=request.user,
-                uploaded=form.cleaned_data["dji_file"],
+                uploads=uploads,
             )
-            source = result.source
-            if result.duplicate:
-                if source.status == source.Status.COMPLETE and source.flight_log_id:
-                    messages.info(request, "This exact DJI source was already imported.")
+            if len(batch.files) == 1:
+                item = batch.files[0]
+                source = item.source
+                if item.classification == BulkDJIClassification.DUPLICATE:
+                    if source and source.status == source.Status.COMPLETE and source.flight_log_id:
+                        messages.info(request, "This exact DJI source was already imported.")
+                        return redirect("flightlogs:flightlog_detail", pk=source.flight_log_id)
+                    messages.info(request, "This exact DJI source was already uploaded.")
+                elif item.classification in {
+                    BulkDJIClassification.IMPORTED_NEW,
+                    BulkDJIClassification.LINKED_EXISTING,
+                }:
+                    messages.success(request, "DJI flight record imported successfully.")
                     return redirect("flightlogs:flightlog_detail", pk=source.flight_log_id)
-                messages.info(request, "This exact DJI source was already uploaded.")
-            elif source.status == source.Status.COMPLETE:
-                messages.success(request, "DJI flight record imported successfully.")
-                return redirect("flightlogs:flightlog_detail", pk=source.flight_log_id)
-            else:
-                messages.error(request, source.safe_error_detail)
-            return redirect("flightlogs:flightlog_dji_upload")
+                elif item.classification in {
+                    BulkDJIClassification.REVIEW_PARTIAL,
+                    BulkDJIClassification.REVIEW_AMBIGUOUS,
+                }:
+                    messages.warning(request, item.label)
+                    return redirect(f"{reverse('flightlogs:flightlog_dji_upload')}?review=1")
+                else:
+                    messages.error(request, item.safe_error_message)
+                return redirect("flightlogs:flightlog_dji_upload")
+
+            return render(
+                request,
+                "flightlogs/flightlog_dji_upload.html",
+                {
+                    "form": FlightLogDJIUploadForm(),
+                    "current_page": "flightlogs",
+                    "bulk_result": batch,
+                },
+            )
         messages.error(request, "Please correct the DJI upload error below.")
     else:
         form = FlightLogDJIUploadForm()
     return render(
         request,
         "flightlogs/flightlog_dji_upload.html",
-        {"form": form, "current_page": "flightlogs"},
+        {
+            "form": form,
+            "current_page": "flightlogs",
+            "review_required": request.GET.get("review") == "1",
+        },
     )
 
 

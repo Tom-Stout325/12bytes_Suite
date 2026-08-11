@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import subprocess
 import tempfile
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -17,6 +18,7 @@ from core.models import Business, BusinessMembership
 from .models import FlightLog, FlightLogSource
 from .services.dji.errors import import_error
 from .services.dji.subprocess_adapter import parse_dji_source
+from .services.matching import MatchType, match_existing_flight
 from .services.weather import enrich_flightlog_weather
 
 
@@ -122,19 +124,29 @@ class FlightLogDJIUploadTests(TestCase):
             {"dji_file": SimpleUploadedFile(name, content, content_type="text/plain")},
         )
 
+    def upload_many(self, files):
+        return self.client.post(
+            reverse("flightlogs:flightlog_dji_upload"),
+            {"dji_file": files},
+        )
+
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
     def test_authenticated_upload_creates_and_links_flightlog(self, parse_mock):
         parse_mock.return_value = parser_payload()
         response = self.upload()
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("flightlogs:flightlog_detail", args=[1]))
         source = FlightLogSource.objects.get()
         log = FlightLog.objects.get()
+        self.assertEqual(
+            response.url,
+            reverse("flightlogs:flightlog_detail", args=[log.pk]),
+        )
         self.assertEqual(source.business, self.business)
         self.assertEqual(source.flight_log, log)
         self.assertEqual(source.status, FlightLogSource.Status.COMPLETE)
         self.assertEqual(source.sha256, "99c3d15f9ef32b9ff16488d70635fd89b163dd352d391db47aea5c07f539e12a")
         self.assertNotIn("DJIFlightRecord.txt", source.file.name)
+        self.assertTrue(source.file.storage.exists(source.file.name))
         self.assertEqual(log.drone_serial, "COMPONENT-AIRCRAFT-SERIAL")
         self.assertEqual(log.drone_name, "Survey Aircraft")
         self.assertEqual(log.battery_serial_internal, "COMPONENT-BATTERY-SERIAL")
@@ -239,12 +251,14 @@ class FlightLogDJIUploadTests(TestCase):
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
     def test_exact_hash_duplicate_in_same_business_returns_existing(self, parse_mock):
         parse_mock.return_value = parser_payload()
-        self.upload()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.upload()
         response = self.upload()
         self.assertEqual(response.status_code, 302)
         self.assertEqual(FlightLogSource.objects.count(), 1)
         self.assertEqual(FlightLog.objects.count(), 1)
         self.assertEqual(parse_mock.call_count, 1)
+        self.assertTrue(FlightLogSource.objects.get().file.name)
 
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
     def test_same_hash_is_independent_across_businesses(self, parse_mock):
@@ -308,6 +322,18 @@ class FlightLogDJIUploadTests(TestCase):
         self.assertFalse(FlightLogSource.objects.exists())
         self.weather_mock.assert_not_called()
 
+    def test_csv_timezone_resolution_failure_does_not_store_row(self):
+        csv_data = (
+            b"Flight Date/Time,Drone Serial Number\n"
+            b'"Jul 1st, 2026 02:30PM",CSV-SERIAL\n'
+        )
+        response = self.client.post(
+            reverse("flightlogs:flightlog_upload"),
+            {"csv_file": SimpleUploadedFile("flights.csv", csv_data, content_type="text/csv")},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(FlightLog.objects.exists())
+
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
     def test_weather_failure_does_not_fail_dji_import(self, parse_mock):
         parse_mock.return_value = parser_payload()
@@ -342,6 +368,584 @@ class FlightLogDJIUploadTests(TestCase):
         self.assertNotIn(other.pk, listed_ids)
         detail_response = self.client.get(reverse("flightlogs:flightlog_detail", args=[other.pk]))
         self.assertEqual(detail_response.status_code, 404)
+
+    def _airdata_flight(self, **overrides):
+        values = {
+            "business": self.business,
+            "flight_date": date(2025, 7, 18),
+            "takeoff_datetime": datetime(2025, 7, 18, 23, 34, tzinfo=timezone.utc),
+            "drone_serial": "COMPONENT-AIRCRAFT-SERIAL",
+            "battery_serial_internal": "AIRDATA-BATTERY",
+            "takeoff_latlong": "47.32105, -122.14326",
+            "air_time": timedelta(seconds=1740),
+            "total_mileage_ft": 8800,
+            "max_distance_ft": 2870,
+            "max_altitude_ft": 390,
+            "flight_title": "AirData value",
+        }
+        values.update(overrides)
+        return FlightLog.objects.create(**values)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_high_confidence_match_links_without_creating_or_overwriting(self, parse_mock):
+        existing = self._airdata_flight()
+        parse_mock.return_value = parser_payload()
+
+        response = self.upload(content=b"cross-source-high")
+
+        source = FlightLogSource.objects.get()
+        existing.refresh_from_db()
+        self.assertRedirects(response, reverse("flightlogs:flightlog_detail", args=[existing.pk]))
+        self.assertEqual(FlightLog.objects.count(), 1)
+        self.assertEqual(source.flight_log, existing)
+        self.assertEqual(source.status, FlightLogSource.Status.COMPLETE)
+        self.assertEqual(existing.flight_title, "AirData value")
+        self.assertEqual(existing.battery_serial_internal, "AIRDATA-BATTERY")
+        self.assertTrue(source.file.name)
+        self.assertTrue(source.file.storage.exists(source.file.name))
+        self.assertTrue(source.sha256)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_missing_full_serial_strong_evidence_requires_review(self, parse_mock):
+        self._airdata_flight(drone_serial="")
+        parse_mock.return_value = parser_payload(
+            aircraft_serial=None,
+            aircraft_serial_header="TRUNCATED-HEADER",
+        )
+
+        response = self.upload(content=b"cross-source-probable", name="probable.txt")
+
+        source = FlightLogSource.objects.get()
+        self.assertRedirects(
+            response,
+            f"{reverse('flightlogs:flightlog_dji_upload')}?review=1",
+        )
+        self.assertEqual(FlightLog.objects.count(), 1)
+        self.assertIsNone(source.flight_log)
+        self.assertEqual(source.status, FlightLogSource.Status.REVIEW)
+        self.assertTrue(source.file.name)
+        self.assertTrue(source.file.storage.exists(source.file.name))
+        followup = self.client.get(response.url)
+        self.assertContains(followup, "Possible existing flight found — review required.")
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_different_aircraft_at_same_time_is_not_matched(self, parse_mock):
+        existing = self._airdata_flight(drone_serial="OTHER-AIRCRAFT")
+        parse_mock.return_value = parser_payload()
+        self.upload(content=b"different-aircraft")
+        source = FlightLogSource.objects.get()
+        self.assertEqual(FlightLog.objects.count(), 2)
+        self.assertNotEqual(source.flight_log, existing)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_same_aircraft_outside_time_tolerance_is_not_matched(self, parse_mock):
+        existing = self._airdata_flight(
+            takeoff_datetime=datetime(2025, 7, 18, 23, 32, 59, tzinfo=timezone.utc)
+        )
+        parse_mock.return_value = parser_payload()
+        self.upload(content=b"outside-time-window")
+        source = FlightLogSource.objects.get()
+        self.assertEqual(FlightLog.objects.count(), 2)
+        self.assertNotEqual(source.flight_log, existing)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_failed_source_file_is_retained(self, parse_mock):
+        parse_mock.side_effect = import_error("DJI_PARSE_ERROR")
+        self.upload(content=b"retained-failure")
+        source = FlightLogSource.objects.get()
+        self.assertEqual(source.status, FlightLogSource.Status.FAILED)
+        self.assertTrue(source.file.name)
+        self.assertTrue(source.file.storage.exists(source.file.name))
+
+    def test_matching_time_boundary_and_business_isolation(self):
+        existing = self._airdata_flight(
+            takeoff_datetime=datetime(2025, 7, 18, 23, 33, 20, 11000, tzinfo=timezone.utc)
+        )
+        payload = {
+            "takeoff_datetime": datetime(2025, 7, 18, 23, 34, 20, 11000, tzinfo=timezone.utc),
+            "takeoff_latlong": "47.32105249, -122.14325966",
+            "air_time": timedelta(seconds=1750.5),
+            "total_mileage_ft": 8847.6,
+            "max_distance_ft": 2871.4,
+            "max_altitude_ft": 392.7,
+        }
+        result = match_existing_flight(
+            business=self.business,
+            payload=payload,
+            authoritative_aircraft_serial="COMPONENT-AIRCRAFT-SERIAL",
+        )
+        self.assertEqual(result.match_type, MatchType.HIGH_CONFIDENCE)
+        self.assertEqual(result.matched_flight, existing)
+        self.assertIn("takeoff_location_meters", result.field_differences)
+        self.assertIn("air_time_seconds", result.field_differences)
+
+        other_business = Business.objects.create(name="Isolated")
+        isolated = match_existing_flight(
+            business=other_business,
+            payload=payload,
+            authoritative_aircraft_serial="COMPONENT-AIRCRAFT-SERIAL",
+        )
+        self.assertEqual(isolated.match_type, MatchType.NO_MATCH)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_partial_airdata_match_is_retained_for_review_without_linking(self, parse_mock):
+        self._airdata_flight(
+            air_time=timedelta(seconds=700),
+            total_mileage_ft=3000,
+        )
+        parse_mock.return_value = parser_payload()
+
+        response = self.upload(content=b"partial-airdata-review")
+
+        source = FlightLogSource.objects.get()
+        self.assertRedirects(
+            response,
+            f"{reverse('flightlogs:flightlog_dji_upload')}?review=1",
+        )
+        self.assertEqual(FlightLog.objects.count(), 1)
+        self.assertIsNone(source.flight_log)
+        self.assertEqual(source.status, FlightLogSource.Status.REVIEW)
+        self.assertTrue(source.file.name)
+        self.assertTrue(source.file.storage.exists(source.file.name))
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_location_variance_high_confidence_match_links_existing_flight(self, parse_mock):
+        existing = self._airdata_flight(takeoff_latlong="47.31855, -122.14326")
+        parse_mock.return_value = parser_payload()
+
+        response = self.upload(content=b"location-variance-high")
+
+        source = FlightLogSource.objects.get()
+        self.assertRedirects(response, reverse("flightlogs:flightlog_detail", args=[existing.pk]))
+        self.assertEqual(FlightLog.objects.count(), 1)
+        self.assertEqual(source.flight_log, existing)
+        self.assertEqual(source.status, FlightLogSource.Status.COMPLETE)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_multiple_file_successful_upload(self, parse_mock):
+        parse_mock.side_effect = [
+            parser_payload(start_time="2026-08-01T12:00:00+00:00"),
+            parser_payload(start_time="2026-08-02T12:00:00+00:00"),
+        ]
+
+        response = self.upload_many(
+            [
+                SimpleUploadedFile("first.txt", b"first", content_type="text/plain"),
+                SimpleUploadedFile("second.txt", b"second", content_type="text/plain"),
+            ]
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "2 files processed sequentially")
+        self.assertContains(response, "Imported New Flight", count=4)
+        self.assertEqual(FlightLog.objects.count(), 2)
+        self.assertEqual(FlightLogSource.objects.count(), 2)
+
+    def test_default_bulk_file_limit_is_ten(self):
+        self.assertEqual(settings.DJI_BULK_MAX_FILES, 10)
+        response = self.client.get(reverse("flightlogs:flightlog_dji_upload"))
+        self.assertContains(response, "You can upload up to 10 DJI flight logs at a time.")
+        self.assertContains(response, "Choose up to 10 files.")
+
+    def test_dji_upload_has_no_custom_processing_ui(self):
+        response = self.client.get(reverse("flightlogs:flightlog_dji_upload"))
+        self.assertNotContains(response, 'id="dji-processing-state"')
+        self.assertNotContains(response, "flightplan-processing-overlay")
+        self.assertNotContains(response, "spinner-border")
+        self.assertNotContains(response, 'aria-busy="true"')
+        self.assertNotContains(response, "dji-propeller.png")
+        self.assertNotContains(response, "Importing DJI Flight Log")
+        self.assertNotContains(response, "if (submitting)")
+        self.assertContains(response, 'id="dji-selected-count"')
+        self.assertContains(response, "1 file selected.")
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_ten_file_submission_is_accepted(self, parse_mock):
+        parse_mock.side_effect = [
+            parser_payload(start_time=f"2026-08-{index + 1:02d}T12:00:00+00:00")
+            for index in range(10)
+        ]
+        response = self.upload_many(
+            [
+                SimpleUploadedFile(f"flight-{index}.txt", f"source-{index}".encode())
+                for index in range(10)
+            ]
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "10 files processed sequentially")
+        self.assertEqual(parse_mock.call_count, 10)
+        self.assertEqual(FlightLog.objects.count(), 10)
+        self.assertEqual(FlightLogSource.objects.count(), 10)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_eleven_file_submission_is_rejected(self, parse_mock):
+        response = self.upload_many(
+            [
+                SimpleUploadedFile(f"flight-{index}.txt", f"source-{index}".encode())
+                for index in range(11)
+            ]
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Select no more than 10 DJI flight records")
+        parse_mock.assert_not_called()
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_bulk_results_include_desktop_and_mobile_layouts(self, parse_mock):
+        existing = self._airdata_flight()
+        parse_mock.side_effect = [
+            parser_payload(),
+            import_error("DJI_PARSE_ERROR"),
+        ]
+        response = self.upload_many(
+            [
+                SimpleUploadedFile("FlightRecord_linked.txt", b"linked"),
+                SimpleUploadedFile("FlightRecord_failed.txt", b"failed"),
+            ]
+        )
+        detail_url = reverse("flightlogs:flightlog_detail", args=[existing.pk])
+        self.assertContains(response, 'data-testid="dji-results-desktop"')
+        self.assertContains(response, 'data-testid="dji-results-mobile"')
+        self.assertContains(response, detail_url, count=2)
+        self.assertContains(response, "FlightLog %s" % existing.pk, count=2)
+        self.assertContains(response, "Linked Existing Flight", count=2)
+        self.assertContains(response, "Failed", count=3)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_mixed_linked_new_review_failure_batch(self, parse_mock):
+        linked = self._airdata_flight()
+        self._airdata_flight(
+            takeoff_datetime=datetime(2025, 7, 19, 23, 34, tzinfo=timezone.utc),
+            flight_date=date(2025, 7, 19),
+            air_time=timedelta(seconds=500),
+            total_mileage_ft=2000,
+        )
+        review_payload = parser_payload(
+            start_time="2025-07-19T23:34:20.011+00:00",
+        )
+        parse_mock.side_effect = [
+            parser_payload(),
+            parser_payload(start_time="2026-08-02T12:00:00+00:00"),
+            review_payload,
+            import_error("DJI_PARSE_ERROR"),
+        ]
+
+        response = self.upload_many(
+            [
+                SimpleUploadedFile("linked.txt", b"linked", content_type="text/plain"),
+                SimpleUploadedFile("new.txt", b"new", content_type="text/plain"),
+                SimpleUploadedFile("review.txt", b"review", content_type="text/plain"),
+                SimpleUploadedFile("failed.txt", b"failed", content_type="text/plain"),
+            ]
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Linked Existing Flight")
+        self.assertContains(response, "Imported New Flight")
+        self.assertContains(response, "Review Required — Partial Existing Record")
+        self.assertContains(response, "Failed")
+        sources = {source.original_filename: source for source in FlightLogSource.objects.all()}
+        self.assertEqual(sources["linked.txt"].flight_log, linked)
+        self.assertEqual(sources["review.txt"].status, FlightLogSource.Status.REVIEW)
+        self.assertIsNone(sources["review.txt"].flight_log)
+        self.assertEqual(sources["failed.txt"].status, FlightLogSource.Status.FAILED)
+        self.assertEqual(FlightLog.objects.count(), 3)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_exact_duplicate_within_batch(self, parse_mock):
+        parse_mock.return_value = parser_payload(start_time="2026-08-01T12:00:00+00:00")
+        response = self.upload_many(
+            [
+                SimpleUploadedFile("first.txt", b"same-source", content_type="text/plain"),
+                SimpleUploadedFile("renamed.txt", b"same-source", content_type="text/plain"),
+            ]
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Duplicate Source")
+        self.assertEqual(parse_mock.call_count, 1)
+        self.assertEqual(FlightLog.objects.count(), 1)
+        self.assertEqual(FlightLogSource.objects.count(), 1)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_duplicate_against_previous_upload_in_batch(self, parse_mock):
+        parse_mock.side_effect = [
+            parser_payload(start_time="2026-08-01T12:00:00+00:00"),
+            parser_payload(start_time="2026-08-02T12:00:00+00:00"),
+        ]
+        self.upload(content=b"previous", name="previous.txt")
+        response = self.upload_many(
+            [
+                SimpleUploadedFile("duplicate.txt", b"previous", content_type="text/plain"),
+                SimpleUploadedFile("new.txt", b"new-source", content_type="text/plain"),
+            ]
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Duplicate Source")
+        self.assertContains(response, "Imported New Flight")
+        self.assertEqual(parse_mock.call_count, 2)
+        self.assertEqual(FlightLog.objects.count(), 2)
+        self.assertEqual(FlightLogSource.objects.count(), 2)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_parser_failure_does_not_stop_later_file(self, parse_mock):
+        parse_mock.side_effect = [
+            import_error("DJI_PARSE_ERROR"),
+            parser_payload(start_time="2026-08-02T12:00:00+00:00"),
+        ]
+        response = self.upload_many(
+            [
+                SimpleUploadedFile("failed.txt", b"failed", content_type="text/plain"),
+                SimpleUploadedFile("later.txt", b"later", content_type="text/plain"),
+            ]
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Failed")
+        self.assertContains(response, "Imported New Flight")
+        self.assertEqual(FlightLog.objects.count(), 1)
+        self.assertEqual(FlightLogSource.objects.count(), 2)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_review_does_not_stop_later_file(self, parse_mock):
+        self._airdata_flight(air_time=timedelta(seconds=500), total_mileage_ft=2000)
+        parse_mock.side_effect = [
+            parser_payload(),
+            parser_payload(start_time="2026-08-02T12:00:00+00:00"),
+        ]
+        response = self.upload_many(
+            [
+                SimpleUploadedFile("review.txt", b"review", content_type="text/plain"),
+                SimpleUploadedFile("later.txt", b"later", content_type="text/plain"),
+            ]
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Review Required — Partial Existing Record")
+        self.assertContains(response, "Imported New Flight")
+        self.assertEqual(FlightLog.objects.count(), 2)
+
+    @override_settings(DJI_BULK_MAX_FILES=2)
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_bulk_file_count_limit(self, parse_mock):
+        response = self.upload_many(
+            [
+                SimpleUploadedFile(f"{index}.txt", b"x", content_type="text/plain")
+                for index in range(3)
+            ]
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Select no more than 2 DJI flight records")
+        parse_mock.assert_not_called()
+
+    @override_settings(DJI_UPLOAD_MAX_BYTES=10, DJI_BULK_MAX_TOTAL_BYTES=5)
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_bulk_total_size_limit(self, parse_mock):
+        response = self.upload_many(
+            [
+                SimpleUploadedFile("first.txt", b"123", content_type="text/plain"),
+                SimpleUploadedFile("second.txt", b"456", content_type="text/plain"),
+            ]
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "must total 0 MB or less")
+        parse_mock.assert_not_called()
+
+    @override_settings(DJI_UPLOAD_MAX_BYTES=3, DJI_BULK_MAX_TOTAL_BYTES=10)
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_bulk_per_file_size_limit(self, parse_mock):
+        response = self.upload_many(
+            [SimpleUploadedFile("large.txt", b"1234", content_type="text/plain")]
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "must be 0 MB or smaller")
+        parse_mock.assert_not_called()
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_bulk_rejects_non_txt_and_empty_files(self, parse_mock):
+        non_txt = self.upload_many(
+            [SimpleUploadedFile("flight.pdf", b"content", content_type="application/pdf")]
+        )
+        self.assertContains(non_txt, "must be a .txt file")
+        empty = self.upload_many(
+            [SimpleUploadedFile("empty.txt", b"", content_type="text/plain")]
+        )
+        self.assertContains(empty, "is empty")
+        parse_mock.assert_not_called()
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_bulk_duplicate_is_business_isolated(self, parse_mock):
+        parse_mock.return_value = parser_payload(start_time="2026-08-01T12:00:00+00:00")
+        self.upload(content=b"shared-source", name="first.txt")
+        second_business = Business.objects.create(name="Bulk Isolated")
+        second_user = get_user_model().objects.create_user("bulk-other", password="test-password")
+        BusinessMembership.objects.create(business=second_business, user=second_user)
+        CompanyProfile.objects.create(business=second_business, company_name="Bulk Isolated")
+        self.client.force_login(second_user)
+        response = self.upload_many(
+            [
+                SimpleUploadedFile("same.txt", b"shared-source", content_type="text/plain"),
+                SimpleUploadedFile("other.txt", b"other-source", content_type="text/plain"),
+            ]
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Duplicate Source")
+        self.assertEqual(FlightLogSource.objects.filter(business=second_business).count(), 2)
+
+
+class FlightMatchingRulesTests(TestCase):
+    def setUp(self):
+        self.business = Business.objects.create(name="Matching Business")
+        self.takeoff = datetime(2026, 3, 21, 15, 44, tzinfo=timezone.utc)
+
+    def flight(self, **overrides):
+        values = {
+            "business": self.business,
+            "flight_date": self.takeoff.date(),
+            "takeoff_datetime": self.takeoff,
+            "drone_serial": "FULL-AIRCRAFT-SERIAL",
+            "takeoff_latlong": "40.000000, -86.000000",
+            "air_time": timedelta(seconds=1000),
+            "total_mileage_ft": 10000,
+            "max_altitude_ft": 400,
+        }
+        values.update(overrides)
+        return FlightLog.objects.create(**values)
+
+    def payload(self, **overrides):
+        values = {
+            "takeoff_datetime": self.takeoff + timedelta(seconds=20),
+            "takeoff_latlong": "40.000050, -86.000000",
+            "air_time": timedelta(seconds=1005),
+            "total_mileage_ft": 10050,
+            "max_distance_ft": 2500,
+            "max_altitude_ft": 402,
+        }
+        values.update(overrides)
+        return values
+
+    def match(self, payload=None, *, serial="FULL-AIRCRAFT-SERIAL", battery=""):
+        return match_existing_flight(
+            business=self.business,
+            payload=payload or self.payload(),
+            authoritative_aircraft_serial=serial,
+            authoritative_battery_serial=battery,
+        )
+
+    def test_existing_primary_high_confidence_rule_is_unchanged(self):
+        existing = self.flight()
+
+        result = self.match()
+
+        self.assertEqual(result.match_type, MatchType.HIGH_CONFIDENCE)
+        self.assertEqual(result.matched_flight, existing)
+
+    def test_location_variance_path_matches_tight_metrics_between_150_and_400_meters(self):
+        existing = self.flight()
+        payload = self.payload(
+            takeoff_latlong="40.002500, -86.000000",
+            air_time=timedelta(seconds=1009),
+            total_mileage_ft=10090,
+            max_altitude_ft=403.9,
+        )
+
+        result = self.match(payload)
+
+        self.assertEqual(result.match_type, MatchType.HIGH_CONFIDENCE_LOCATION_VARIANCE)
+        self.assertEqual(result.matched_flight, existing)
+        self.assertGreater(result.field_differences["takeoff_location_meters"], 150)
+        self.assertLess(result.field_differences["takeoff_location_meters"], 400)
+
+    def test_location_variance_over_500_meters_is_not_high_confidence(self):
+        self.flight()
+        result = self.match(self.payload(takeoff_latlong="40.005000, -86.000000"))
+        self.assertEqual(result.match_type, MatchType.NO_MATCH)
+
+    def test_duration_conflict_prevents_location_variance_auto_link(self):
+        self.flight()
+        result = self.match(
+            self.payload(
+                takeoff_latlong="40.002500, -86.000000",
+                air_time=timedelta(seconds=1020),
+            )
+        )
+        self.assertEqual(result.match_type, MatchType.NO_MATCH)
+
+    def test_distance_conflict_prevents_location_variance_auto_link(self):
+        self.flight()
+        result = self.match(
+            self.payload(
+                takeoff_latlong="40.002500, -86.000000",
+                total_mileage_ft=10200,
+            )
+        )
+        self.assertEqual(result.match_type, MatchType.NO_MATCH)
+
+    def test_altitude_conflict_prevents_location_variance_auto_link(self):
+        self.flight()
+        result = self.match(
+            self.payload(
+                takeoff_latlong="40.002500, -86.000000",
+                max_altitude_ft=410,
+            )
+        )
+        self.assertEqual(result.match_type, MatchType.NO_MATCH)
+
+    def test_conflicting_aircraft_serial_prevents_match(self):
+        self.flight()
+        self.assertEqual(self.match(serial="OTHER-SERIAL").match_type, MatchType.NO_MATCH)
+
+    def test_multiple_location_variance_candidates_are_ambiguous(self):
+        self.flight()
+        self.flight(flight_title="Second candidate")
+        result = self.match(self.payload(takeoff_latlong="40.002500, -86.000000"))
+        self.assertEqual(result.match_type, MatchType.AMBIGUOUS)
+        self.assertIsNone(result.matched_flight)
+
+    def test_partial_airdata_pattern_requires_review_and_never_auto_links(self):
+        existing = self.flight(
+            air_time=timedelta(seconds=400),
+            total_mileage_ft=3500,
+        )
+
+        result = self.match()
+
+        self.assertEqual(result.match_type, MatchType.REVIEW_PARTIAL_AIRDATA)
+        self.assertEqual(result.matched_flight, existing)
+        self.assertEqual(result.confidence, "review")
+
+    def test_adjacent_airdata_flights_are_not_summed(self):
+        existing = self.flight(
+            air_time=timedelta(seconds=400),
+            total_mileage_ft=3500,
+        )
+        self.flight(
+            takeoff_datetime=self.takeoff + timedelta(minutes=2),
+            air_time=timedelta(seconds=600),
+            total_mileage_ft=6500,
+        )
+
+        result = self.match()
+
+        self.assertEqual(result.match_type, MatchType.REVIEW_PARTIAL_AIRDATA)
+        self.assertEqual(result.matched_flight, existing)
+
+    def test_battery_identity_does_not_affect_classification(self):
+        self.flight(battery_serial_internal="MATCHING-BATTERY")
+        matching = self.match(battery="MATCHING-BATTERY")
+        conflicting = self.match(battery="OTHER-BATTERY")
+        missing = self.match(battery="")
+        self.assertEqual(
+            {matching.match_type, conflicting.match_type, missing.match_type},
+            {MatchType.HIGH_CONFIDENCE},
+        )
+        self.assertEqual(matching.reasons, conflicting.reasons)
+
+    def test_location_variance_path_is_business_isolated(self):
+        self.flight()
+        other = Business.objects.create(name="Other Matching Business")
+        result = match_existing_flight(
+            business=other,
+            payload=self.payload(takeoff_latlong="40.002500, -86.000000"),
+            authoritative_aircraft_serial="FULL-AIRCRAFT-SERIAL",
+        )
+        self.assertEqual(result.match_type, MatchType.NO_MATCH)
 
 
 @override_settings(DJI_PARSER_PATH="/test/suite-dji-parser")

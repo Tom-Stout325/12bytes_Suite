@@ -15,21 +15,7 @@
         <i class="fa-solid fa-house"></i> Home
       </a>
       {% include "partials/moneypro_sidebar_menu.html" with menu_id="suiteMoneyProMenu" %}
-      <a class="suite-nav-link {% if current_ns == 'flightlogs' %}active{% endif %}" href="{% url 'flightlogs:flightlog_list' %}">
-        <i class="fa-solid fa-drone"></i> Flight Logs
-      </a>
-      <a class="suite-nav-link {% if current_ns == 'documents' %}active{% endif %}" href="{% url 'documents:documents_portal' %}">
-        <i class="fa-solid fa-file-lines"></i> Documents
-      </a>
-      <a class="suite-nav-link {% if current_ns == 'pilot' %}active{% endif %}" href="{% url 'pilot:profile' %}">
-        <i class="fa-solid fa-user-pilot"></i> Pilots
-      </a>
-      <a class="suite-nav-link {% if current_ns == 'operations' %}active{% endif %}" href="{% url 'operations:ops_plan_index' %}">
-        <i class="fa-solid fa-briefcase"></i> Operations
-      </a>
-      <a class="suite-nav-link {% if current_ns == 'assets' %}active{% endif %}" href="{% url 'assets:asset_list' %}">
-        <i class="fa-solid fa-boxes-stacked"></i> Assets
-      </a>
+      {% include "partials/flightplan_sidebar_menu.html" with menu_id="suiteFlightPlanMenu" %}
     </div>
 
     <div class="suite-sidebar-spacer"></div>
@@ -59,11 +45,7 @@
     <div class="suite-nav">
       <a class="suite-nav-link" href="{% url 'dashboard:home' %}"><i class="fa-solid fa-house"></i> Home</a>
       {% include "partials/moneypro_sidebar_menu.html" with menu_id="suiteMoneyProMenuMobile" %}
-      <a class="suite-nav-link" href="{% url 'flightlogs:flightlog_list' %}"><i class="fa-solid fa-drone"></i> Flight Logs</a>
-      <a class="suite-nav-link" href="{% url 'documents:documents_portal' %}"><i class="fa-solid fa-file-lines"></i> Documents</a>
-      <a class="suite-nav-link" href="{% url 'pilot:profile' %}"><i class="fa-solid fa-user-pilot"></i> Pilots</a>
-      <a class="suite-nav-link" href="{% url 'operations:ops_plan_index' %}"><i class="fa-solid fa-briefcase"></i> Operations</a>
-      <a class="suite-nav-link" href="{% url 'assets:asset_list' %}"><i class="fa-solid fa-boxes-stacked"></i> Assets</a>
+      {% include "partials/flightplan_sidebar_menu.html" with menu_id="suiteFlightPlanMenuMobile" %}
       <a class="suite-nav-link" href="{% url 'accounts:settings' %}"><i class="fa-solid fa-gear"></i> Settings</a>
     </div>
   </div>

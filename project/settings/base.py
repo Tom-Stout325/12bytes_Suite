@@ -45,6 +45,18 @@ DJI_PARSER_PATH = env(
     "DJI_PARSER_PATH",
     default=str(BASE_DIR / "rust" / "suite-dji-parser" / "target" / "release" / "suite-dji-parser"),
 )
+# Product-level source retention remains configurable. Review and failed sources
+# are always retained by the importer regardless of this setting.
+DJI_DELETE_SUCCESSFUL_SOURCE_FILES = env.bool(
+    "DJI_DELETE_SUCCESSFUL_SOURCE_FILES",
+    default=False,
+)
+DJI_UPLOAD_MAX_BYTES = env.int("DJI_UPLOAD_MAX_BYTES", default=100 * 1024 * 1024)
+DJI_BULK_MAX_FILES = env.int("DJI_BULK_MAX_FILES", default=10)
+DJI_BULK_MAX_TOTAL_BYTES = env.int(
+    "DJI_BULK_MAX_TOTAL_BYTES",
+    default=100 * 1024 * 1024,
+)
 
 
 # ------------------------------------------------------------------------------

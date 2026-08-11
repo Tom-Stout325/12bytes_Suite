@@ -1,0 +1,38 @@
+{% comment %}
+Reusable FlightPlan submenu for the 12Bytes Suite sidebar.
+Expected context:
+- current_ns
+- menu_id
+{% endcomment %}
+
+<button class="suite-nav-link suite-nav-toggle {% if current_ns == 'flightlogs' or current_ns == 'documents' or current_ns == 'pilot' or current_ns == 'assets' or current_ns == 'operations' %}active{% endif %}"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#{{ menu_id }}"
+        aria-expanded="{% if current_ns == 'flightlogs' or current_ns == 'documents' or current_ns == 'pilot' or current_ns == 'assets' or current_ns == 'operations' %}true{% else %}false{% endif %}"
+        aria-controls="{{ menu_id }}">
+  <span class="suite-nav-toggle-label">
+    <i class="fa-solid fa-drone"></i> FlightPlan
+  </span>
+  <i class="fa-solid fa-chevron-down suite-nav-caret" aria-hidden="true"></i>
+</button>
+
+<div class="collapse {% if current_ns == 'flightlogs' or current_ns == 'documents' or current_ns == 'pilot' or current_ns == 'assets' or current_ns == 'operations' %}show{% endif %}" id="{{ menu_id }}">
+  <div class="suite-subnav" aria-label="FlightPlan navigation">
+    <a class="suite-subnav-link {% if current_ns == 'flightlogs' %}active{% endif %}" href="{% url 'flightlogs:flightlog_list' %}">
+      <i class="fa-solid fa-drone"></i> Flight Logs
+    </a>
+    <a class="suite-subnav-link {% if current_ns == 'documents' %}active{% endif %}" href="{% url 'documents:documents_portal' %}">
+      <i class="fa-solid fa-file-lines"></i> Documents
+    </a>
+    <a class="suite-subnav-link {% if current_ns == 'pilot' %}active{% endif %}" href="{% url 'pilot:profile' %}">
+      <i class="fa-solid fa-user-pilot"></i> Pilots
+    </a>
+    <a class="suite-subnav-link {% if current_ns == 'assets' %}active{% endif %}" href="{% url 'assets:asset_list' %}">
+      <i class="fa-solid fa-boxes-stacked"></i> Assets
+    </a>
+    <a class="suite-subnav-link {% if current_ns == 'operations' %}active{% endif %}" href="{% url 'operations:ops_plan_index' %}">
+      <i class="fa-solid fa-briefcase"></i> Operations
+    </a>
+  </div>
+</div>

@@ -133,10 +133,11 @@ class FlightLogSource(BusinessOwnedModelMixin):
         PARSING = "parsing", "Parsing"
         COMPLETE = "complete", "Complete"
         FAILED = "failed", "Failed"
+        REVIEW = "review", "Review required"
 
     source_type = models.CharField(max_length=20, choices=SourceType.choices)
     original_filename = models.CharField(max_length=255)
-    file = models.FileField(upload_to=dji_source_upload_path)
+    file = models.FileField(upload_to=dji_source_upload_path, blank=True)
     sha256 = models.CharField(max_length=64)
     size_bytes = models.PositiveBigIntegerField()
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.UPLOADED)
