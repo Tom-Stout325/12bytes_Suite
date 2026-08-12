@@ -237,6 +237,100 @@ body.suite-shell{
 /* Login page */
 body.suite-auth-body{
   background: #06111f;
+  overflow: hidden;
+}
+
+.suites-splash{
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background-color: #06111f;
+  background-image: var(--splash-desktop);
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.suites-splash__login{
+  position: absolute;
+  z-index: 1;
+  top: 78%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 10.5rem;
+  min-height: 3.25rem;
+  border: 0;
+  border-radius: .7rem;
+  background: linear-gradient(135deg, #0d6efd, #0758d1);
+  box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .35);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.suites-splash__login:hover,
+.suites-splash__login:focus-visible{
+  background: #0758d1;
+}
+
+.suite-login-modal .modal-dialog{
+  width: calc(100% - 1.5rem);
+  max-width: 430px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.suite-login-modal .modal-content{
+  border: 1px solid rgba(255,255,255,.45);
+  border-radius: 1.1rem;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 1.5rem 4rem rgba(0,0,0,.35);
+}
+
+.suite-login-modal .form-control{
+  min-height: 3rem;
+  border-color: rgba(15,23,42,.16);
+  border-radius: .55rem;
+  font-size: 1rem;
+}
+
+.suite-login-modal .btn-primary{
+  min-height: 3rem;
+  border: 0;
+  border-radius: .55rem;
+  background: linear-gradient(135deg, #0d6efd, #0758d1);
+  font-weight: 800;
+}
+
+@media (max-width: 575.98px){
+  .suites-splash{
+    background-image: var(--splash-mobile);
+    background-position: center center;
+  }
+  .suites-splash__login{
+    top: 72%;
+    width: min(85vw, 360px);
+  }
+  .suite-login-modal .modal-body,
+  .suite-login-modal .modal-header{
+    padding-right: 1.25rem;
+    padding-left: 1.25rem;
+  }
+}
+
+@media (min-width: 768px){
+  .suites-splash__login{ min-width: 12rem; }
+}
+
+/* Cover crops the artwork vertically on landscape screens, moving the product
+   row lower in the viewport. Keep the action immediately beneath that row. */
+@media (min-aspect-ratio: 8/5){
+  .suites-splash__login{ top: 89%; }
+}
+
+@media (min-aspect-ratio: 16/9){
+  .suites-splash__login{ top: 92%; }
 }
 
 .suite-login-page{

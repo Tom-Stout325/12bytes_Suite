@@ -1,20 +1,61 @@
 {% extends "account/base.html" %}
-{% load crispy_forms_tags %}
+{% load crispy_forms_tags static %}
 
-{% block account_content %}
-  <h1 class="h4 mb-1 text-center fw-bold">Welcome Back</h1>
-  <p class="text-muted small text-center mb-4">Sign in to access your 12Bytes Suites</p>
-
-  <form method="post" novalidate class="auth-form">
-    {% csrf_token %}
-    {{ form|crispy }}
-
-    <button type="submit" class="btn btn-primary w-100 mt-2">
-      <i class="fa-solid fa-lock me-1"></i> Sign In
+{% block account_page %}
+  <main class="suites-splash"
+        style="--splash-desktop: url('{% static 'images/suites/suites-splash.png' %}'); --splash-mobile: url('{% static 'images/suites-splash-mobile.png' %}')"
+        aria-label="12Bytes Suites sign in">
+    <button type="button" class="btn btn-primary suites-splash__login"
+            data-bs-toggle="modal" data-bs-target="#suiteLoginModal"
+            aria-controls="suiteLoginModal">
+      <i class="fa-solid fa-lock me-2" aria-hidden="true"></i>Sign In
     </button>
-  </form>
+  </main>
 
-  <div class="text-center mt-3">
-    <a class="small" href="{% url 'account_reset_password' %}">Forgot your password?</a>
+  <div class="modal fade suite-login-modal" id="suiteLoginModal" tabindex="-1"
+       aria-labelledby="suiteLoginModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <div>
+            <h1 class="modal-title h4 fw-bold" id="suiteLoginModalLabel">Welcome Back</h1>
+            <p class="text-muted small mb-0">Sign in to access your 12Bytes Suites</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body pt-4">
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-{{ message.tags }}" role="alert">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+
+          <form method="post" action="{% url 'account_login' %}" novalidate class="auth-form">
+            {% csrf_token %}
+            {{ form|crispy }}
+            {% if redirect_field_value %}
+              <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+            {% endif %}
+            <button type="submit" class="btn btn-primary w-100 mt-2">
+              <i class="fa-solid fa-lock me-1" aria-hidden="true"></i> Sign In
+            </button>
+          </form>
+
+          <div class="text-center mt-3">
+            <a class="small" href="{% url 'account_reset_password' %}">Forgot your password?</a>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
+{% endblock %}
+
+{% block extra_js %}
+  {% if form.errors %}
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        bootstrap.Modal.getOrCreateInstance(document.getElementById("suiteLoginModal")).show();
+      });
+    </script>
+  {% endif %}
 {% endblock %}

@@ -5,8 +5,9 @@
 {% block body_class %}suite-auth-body{% endblock %}
 
 {% block public_content %}
+  {% block account_page %}
   <main class="suite-login-page">
-    <section class="suite-login-card" aria-label="Sign in">
+    <section class="suite-login-card" aria-label="Account">
       {% block account_header %}
         <div class="suite-login-logo-mark"><i class="fa-solid fa-drone"></i></div>
         <div class="suite-login-logo"><span class="blue">12</span><span class="dark">Bytes</span></div>
@@ -27,4 +28,5 @@
     </section>
     <div class="suite-login-footer">© {% now "Y" %} 12Bytes Suites. All rights reserved.</div>
   </main>
+  {% endblock %}
 {% endblock %}
