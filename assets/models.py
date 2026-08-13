@@ -12,6 +12,14 @@ from django.utils.text import slugify
 from core.models import BusinessOwnedModelMixin
 
 
+def normalize_aircraft_model_name(value: str) -> str:
+    """Normalize harmless aircraft-model formatting without fuzzy matching."""
+    value = " ".join((value or "").strip().lower().split())
+    if value.startswith("dji "):
+        value = value[4:]
+    return slugify(value)
+
+
 def asset_receipt_upload_to(instance: "Asset", filename: str) -> str:
     """
     Upload path for asset receipts.
@@ -65,6 +73,44 @@ class AssetType(BusinessOwnedModelMixin):
         return super().save(*args, **kwargs)
 
 
+class AircraftModel(BusinessOwnedModelMixin):
+    """A tenant-owned canonical aircraft model shared by physical equipment."""
+
+    manufacturer = models.CharField(max_length=100, blank=True)
+    name = models.CharField(max_length=150)
+    normalized_name = models.SlugField(max_length=180, editable=False)
+    dji_model_code = models.PositiveSmallIntegerField(null=True, blank=True)
+    aliases = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["manufacturer", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["business", "normalized_name"],
+                name="uniq_aircraft_model_business_name",
+            ),
+            models.UniqueConstraint(
+                fields=["business", "dji_model_code"],
+                condition=models.Q(dji_model_code__isnull=False),
+                name="uniq_aircraft_model_business_dji_code",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return " ".join(part for part in (self.manufacturer, self.name) if part)
+
+    def clean(self):
+        super().clean()
+        if not isinstance(self.aliases, list) or not all(isinstance(value, str) for value in self.aliases):
+            raise ValidationError({"aliases": "Aliases must be a list of text values."})
+
+    def save(self, *args, **kwargs):
+        self.normalized_name = normalize_aircraft_model_name(self.name)
+        return super().save(*args, **kwargs)
+
+
 class Asset(BusinessOwnedModelMixin):
     class DepreciationMethod(models.TextChoices):
         MACRS_5 = "macrs_5", "MACRS 5-Year"
@@ -75,12 +121,29 @@ class Asset(BusinessOwnedModelMixin):
     uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 
     name = models.CharField(max_length=255)
+    manufacturer = models.CharField(max_length=100, blank=True)
+    model = models.CharField(max_length=150, blank=True)
+    serial_number = models.CharField(max_length=100, blank=True)
     asset_type = models.ForeignKey(
         AssetType,
         on_delete=models.PROTECT,
         related_name="assets",
     )
     is_active = models.BooleanField(default=True)
+    aircraft_model = models.ForeignKey(
+        AircraftModel,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="equipment",
+    )
+    drone_model = models.ForeignKey(
+        "drones.DroneModel",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="equipment",
+    )
 
     purchase_date = models.DateField()
     placed_in_service_date = models.DateField(blank=True, null=True)
@@ -137,3 +200,5 @@ class Asset(BusinessOwnedModelMixin):
 
         if self.asset_type_id and self.business_id and self.asset_type.business_id != self.business_id:
             raise ValidationError({"asset_type": "Select an asset type for this business."})
+        if self.aircraft_model_id and self.business_id and self.aircraft_model.business_id != self.business_id:
+            raise ValidationError({"aircraft_model": "Select an aircraft model for this business."})

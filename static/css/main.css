@@ -825,3 +825,19 @@ button[aria-expanded="true"] i {
 
   .card + .card { margin-top: 1.25rem; }
 }
+
+
+
+.hr.accent {
+  border: none;
+  height: 4px;
+  width: 60px;
+  background-color: #f1c40f;
+  margin: 20px 0; /* Aligns left; use 'margin: 20px auto' to center */
+}
+
+hr.gradient {
+  border: none;
+  height: 2px;
+  background: linear-gradient(to right, transparent, #3498db, transparent);
+}

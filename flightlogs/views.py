@@ -28,8 +28,10 @@ except Exception:
 from .forms import FlightLogCSVUploadForm, FlightLogDJIUploadForm, FlightLogForm
 from .models import FlightLog
 from .services.airdata_timezones import parse_coordinates, resolve_airdata_timestamp
+from .services.aircraft_models import resolve_aircraft_model
 from .services.dji import import_dji_upload
 from .services.dji.bulk import BulkDJIClassification, import_dji_batch
+from .services.locations import parse_takeoff_address
 
 STATE_RE = re.compile(r",\s*([A-Z]{2})(?:[, ]|$)")
 
@@ -65,13 +67,6 @@ def safe_pct(value):
 def extract_state(address):
     match = STATE_RE.search(address or "")
     return match.group(1) if match else None
-
-
-def _extract_city(addr):
-    if not addr:
-        return None
-    city = addr.split(",", 1)[0].strip()
-    return city or None
 
 
 def _normalise_key(value):
@@ -180,6 +175,8 @@ def _flightlog_payload_from_csv_row(row):
         landing_time = parse_time_value(row_value(row, "Flight Date/Time", "Flight/Service Date"))
     air_time = parse_duration_value(row_value(row, "air_time", "Air Time", "Air Seconds"))
 
+    takeoff_address = row_value(row, "takeoff_address", "Takeoff Address")
+    parsed_location = parse_takeoff_address(takeoff_address)
     return {
         "flight_date": flight_date,
         "takeoff_datetime": takeoff_datetime,
@@ -190,7 +187,11 @@ def _flightlog_payload_from_csv_row(row):
         "flight_application": row_value(row, "flight_application", "Flight App"),
         "remote_id": row_value(row, "remote_id", "Remote ID"),
         "takeoff_latlong": takeoff_coordinates_raw,
-        "takeoff_address": row_value(row, "takeoff_address", "Takeoff Address"),
+        "takeoff_address": takeoff_address,
+        "takeoff_city": row_value(row, "takeoff_city", "Takeoff City") or parsed_location.city,
+        "takeoff_state": row_value(row, "takeoff_state", "Takeoff State") or parsed_location.state,
+        "takeoff_country": row_value(row, "takeoff_country", "Takeoff Country") or parsed_location.country,
+        "takeoff_postal_code": row_value(row, "takeoff_postal_code", "Takeoff Postal Code") or parsed_location.postal_code,
         "landing_time": landing_time,
         "air_time": air_time,
         "above_sea_level_ft": safe_float(row_value(row, "above_sea_level_ft", "Above Sea Level (Feet)")),
@@ -207,6 +208,10 @@ def _flightlog_payload_from_csv_row(row):
         "landing_battery_pct": safe_pct(row_value(row, "landing_battery_pct", "Landing Bat %")),
         "landing_mah": safe_int(row_value(row, "landing_mah", "Landing mAh")),
         "landing_volts": safe_float(row_value(row, "landing_volts", "Landing Volts")),
+        "battery_cycle_count": safe_int(row_value(row, "battery_cycle_count", "Battery Cycle Count")),
+        "battery_life_raw": safe_int(row_value(row, "battery_life_raw", "Battery Life Raw")),
+        "minimum_cell_voltage_v": safe_float(row_value(row, "minimum_cell_voltage_v", "Minimum Cell Voltage")),
+        "maximum_cell_voltage_v": safe_float(row_value(row, "maximum_cell_voltage_v", "Maximum Cell Voltage")),
         "max_altitude_ft": safe_float(row_value(row, "max_altitude_ft", "Max Altitude (Feet)")),
         "max_distance_ft": safe_float(row_value(row, "max_distance_ft", "Max Distance (Feet)")),
         "max_battery_temp_f": safe_float(row_value(row, "max_battery_temp_f", "Max Bat Temp (f)")),
@@ -404,30 +409,43 @@ def flightlog_list(request):
     base_qs = _business_logs(request)
     logs_qs = base_qs
 
-    years = sorted(y for y in base_qs.annotate(y=ExtractYear("flight_date")).values_list("y", flat=True).distinct() if y)
-    months_present = sorted(m for m in base_qs.annotate(m=ExtractMonth("flight_date")).values_list("m", flat=True).distinct() if m)
+    years = list(
+        base_qs.order_by()
+        .annotate(y=ExtractYear("flight_date"))
+        .values_list("y", flat=True)
+        .distinct()
+        .order_by("-y")
+    )
+    months_present = list(
+        base_qs.order_by()
+        .annotate(m=ExtractMonth("flight_date"))
+        .values_list("m", flat=True)
+        .distinct()
+        .order_by("m")
+    )
     month_labels = {i: month_name[i] for i in range(1, 13)}
     pilots = list(base_qs.exclude(pilot_in_command="").values_list("pilot_in_command", flat=True).distinct().order_by("pilot_in_command"))
     drones = list(base_qs.exclude(drone_name="").values_list("drone_name", flat=True).distinct().order_by("drone_name"))
 
-    addresses = list(base_qs.exclude(takeoff_address__exact="").values_list("takeoff_address", flat=True))
-    states = sorted({extract_state(addr) for addr in addresses if extract_state(addr)})
-    cities = sorted({
-        city
-        for addr in addresses
-        if not sel_state or extract_state(addr) == sel_state
-        for city in [_extract_city(addr)]
-        if city
-    })
+    states = list(
+        base_qs.order_by().exclude(takeoff_state="").exclude(takeoff_state__isnull=True)
+        .values_list("takeoff_state", flat=True).distinct().order_by("takeoff_state")
+    )
+    city_choices_qs = base_qs.order_by().exclude(takeoff_city="").exclude(takeoff_city__isnull=True)
+    if sel_state:
+        city_choices_qs = city_choices_qs.filter(takeoff_state=sel_state)
+    cities = list(
+        city_choices_qs.values_list("takeoff_city", flat=True).distinct().order_by("takeoff_city")
+    )
 
     if sel_year.isdigit():
         logs_qs = logs_qs.filter(flight_date__year=int(sel_year))
     if sel_month.isdigit():
         logs_qs = logs_qs.filter(flight_date__month=int(sel_month))
     if sel_state:
-        logs_qs = logs_qs.filter(takeoff_address__regex=rf",\s*{re.escape(sel_state)}(?:[, ]|$)")
+        logs_qs = logs_qs.filter(takeoff_state=sel_state)
     if sel_city:
-        logs_qs = logs_qs.filter(takeoff_address__istartswith=f"{sel_city},")
+        logs_qs = logs_qs.filter(takeoff_city=sel_city)
     if sel_pilot:
         logs_qs = logs_qs.filter(pilot_in_command=sel_pilot)
     if sel_drone:
@@ -489,7 +507,13 @@ def export_flightlogs_csv(request):
     response["Content-Disposition"] = 'attachment; filename="flight_logs.csv"'
     writer = csv.writer(response)
     fields = [f.name for f in FlightLog._meta.fields if f.name != "business"]
-    writer.writerow(fields)
+    export_headers = {
+        "takeoff_city": "Takeoff City",
+        "takeoff_state": "Takeoff State",
+        "takeoff_postal_code": "Takeoff Postal Code",
+        "takeoff_country": "Takeoff Country",
+    }
+    writer.writerow([export_headers.get(field, field) for field in fields])
     for log in _business_logs(request).order_by("-flight_date"):
         writer.writerow([getattr(log, name) for name in fields])
     return response
@@ -565,6 +589,11 @@ def upload_flightlog_csv(request):
             return redirect("flightlogs:flightlog_upload")
         reader.fieldnames = [h.strip().replace("\ufeff", "") for h in reader.fieldnames]
 
+        from assets.models import AircraftModel
+        aircraft_models = list(
+            AircraftModel.objects.filter(business=request.business)
+        )
+
         # Build the duplicate set once instead of querying the database once per CSV row.
         # This keeps large AirData uploads under Heroku's 30-second web request limit.
         existing_logs = list(
@@ -586,6 +615,13 @@ def upload_flightlog_csv(request):
             try:
                 row = _normalised_row(raw_row)
                 payload = _flightlog_payload_from_csv_row(row)
+                payload["aircraft_model"] = resolve_aircraft_model(
+                    business=request.business,
+                    drone_type=payload.get("drone_type", ""),
+                    drone_name=payload.get("drone_name", ""),
+                    drone_serial=payload.get("drone_serial", ""),
+                    aircraft_models=aircraft_models,
+                )
 
                 if not payload.get("flight_date"):
                     skipped += 1

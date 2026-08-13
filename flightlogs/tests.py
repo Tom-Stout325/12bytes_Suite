@@ -3,23 +3,248 @@ from __future__ import annotations
 import json
 import subprocess
 import tempfile
+from io import StringIO
 from datetime import date, datetime, timedelta, timezone
 from unittest import mock
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.core.management import call_command
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import CompanyProfile
+from assets.models import AircraftModel
 from core.models import Business, BusinessMembership
 
 from .models import FlightLog, FlightLogSource
 from .services.dji.errors import import_error
 from .services.dji.subprocess_adapter import parse_dji_source
 from .services.matching import MatchType, match_existing_flight
+from .services.aircraft_models import resolve_aircraft_model
 from .services.weather import enrich_flightlog_weather
+from .services.locations import (
+    LocationComponents,
+    clear_location_cache,
+    enrich_flightlog_location,
+    parse_takeoff_address,
+)
+from .views import _flightlog_payload_from_csv_row, _normalised_row
+
+
+class AircraftModelResolverTests(TestCase):
+    def setUp(self):
+        self.business = Business.objects.create(name="Resolver Business")
+        self.other = Business.objects.create(name="Other Resolver Business")
+        self.mavic_pro = AircraftModel.objects.create(
+            business=self.business, manufacturer="DJI", name="Mavic 3 Pro",
+            aliases=["DJI Mavic 3 Pro"], dji_model_code=84,
+        )
+        self.mavic_classic = AircraftModel.objects.create(
+            business=self.business, manufacturer="DJI", name="Mavic 3 Classic"
+        )
+
+    def test_exact_alias_normalization_and_distinct_models(self):
+        self.assertEqual(resolve_aircraft_model(business=self.business, drone_type="MAVIC 3 PRO"), self.mavic_pro)
+        self.assertEqual(resolve_aircraft_model(business=self.business, drone_type="DJI Mavic 3 Pro"), self.mavic_pro)
+        self.assertEqual(resolve_aircraft_model(business=self.business, drone_type="Mavic 3 Classic"), self.mavic_classic)
+        self.assertIsNone(resolve_aircraft_model(business=self.business, drone_type="Mavic 4 Pro"))
+
+    def test_dji_code_priority_and_tenant_isolation(self):
+        AircraftModel.objects.create(business=self.other, name="Other Model", dji_model_code=84)
+        self.assertEqual(resolve_aircraft_model(business=self.business, drone_type="unknown", dji_model_code=84), self.mavic_pro)
+        self.assertIsNone(resolve_aircraft_model(business=self.other, drone_type="Mavic 3 Pro"))
+
+    def test_fly_more_combo_is_removed_only_for_exact_known_model(self):
+        self.assertEqual(
+            resolve_aircraft_model(business=self.business, drone_type="Mavic 3 Pro Fly More Combo"),
+            self.mavic_pro,
+        )
+        self.assertIsNone(resolve_aircraft_model(business=self.business, drone_type="Mystery Drone Combo"))
+
+
+class TakeoffAddressParserTests(SimpleTestCase):
+    def assert_location(self, raw, city, state, postal, country):
+        result = parse_takeoff_address(raw)
+        self.assertEqual((result.city, result.state, result.postal_code, result.country), (city, state, postal, country))
+
+    def test_supported_us_addresses(self):
+        self.assert_location("1661 Fairplex Dr, La Verne, CA 91750, USA", "La Verne", "CA", "91750", "USA")
+        self.assert_location("100 Albemarle House Dr, Charlottesville, VA 22902, USA", "Charlottesville", "VA", "22902", "USA")
+        self.assert_location("123 Main St, Salt Lake City, UT 84101, USA", "Salt Lake City", "UT", "84101", "USA")
+        self.assert_location("123 Main St, Springfield, IL 62701-1234, USA", "Springfield", "IL", "62701-1234", "USA")
+        self.assert_location("123 Main St, Las Vegas, NV 89101", "Las Vegas", "NV", "89101", "USA")
+
+    def test_blank_and_malformed_addresses_are_safe(self):
+        self.assertEqual(parse_takeoff_address(""), LocationComponents())
+        self.assertEqual(parse_takeoff_address("10965 Olio Rd"), LocationComponents())
+        self.assertEqual(parse_takeoff_address("not an address"), LocationComponents())
+
+    def test_international_address_does_not_invent_us_fields(self):
+        result = parse_takeoff_address("10 Downing St, London, United Kingdom")
+        self.assertEqual((result.city, result.state, result.postal_code), ("", "", ""))
+        self.assertEqual(result.country, "United Kingdom")
+
+
+@override_settings(
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+)
+class FlightLogListFilterTests(TestCase):
+    def setUp(self):
+        self.business = Business.objects.create(name="Filter Business")
+        self.other_business = Business.objects.create(name="Other Filter Business")
+        self.user = get_user_model().objects.create_user("filter-owner", password="test-password")
+        BusinessMembership.objects.create(
+            business=self.business,
+            user=self.user,
+            role=BusinessMembership.Role.OWNER,
+        )
+        CompanyProfile.objects.create(
+            business=self.business,
+            created_by=self.user,
+            company_name="Filter Business",
+        )
+        self.client.force_login(self.user)
+        self.url = reverse("flightlogs:flightlog_list")
+
+    def _flight(self, flight_date, *, address="", city="", state=""):
+        return FlightLog.objects.create(
+            business=self.business,
+            flight_date=flight_date,
+            takeoff_address=address,
+            takeoff_city=city,
+            takeoff_state=state,
+        )
+
+    def test_year_month_choices_are_distinct_ordered_and_tenant_scoped(self):
+        self._flight(date(2023, 3, 1), address="10965 Olio Rd", city="Fishers", state="IN")
+        self._flight(date(2023, 3, 2), address="1 Cooper St", city="Fishers", state="IN")
+        self._flight(date(2022, 1, 1), address="10 Main St", city="Anderson", state="IN")
+        self._flight(date(2024, 12, 1), address="Blank City Rd")
+        FlightLog.objects.create(
+            business=self.other_business,
+            flight_date=date(2030, 6, 1),
+            takeoff_address="Other Tenant St",
+            takeoff_city="Outside City",
+            takeoff_state="OH",
+        )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.context["years"], [2024, 2023, 2022])
+        self.assertEqual(response.context["months_present"], [1, 3, 12])
+        self.assertEqual(response.context["cities"], ["Anderson", "Fishers"])
+        self.assertEqual(response.context["states"], ["IN"])
+        self.assertNotIn("1 Cooper St", response.context["cities"])
+        self.assertNotIn("10965 Olio Rd", response.context["cities"])
+        self.assertContains(response, 'name="city"')
+        self.assertContains(response, 'name="state"')
+        self.assertNotIn(2030, response.context["years"])
+        self.assertNotIn(6, response.context["months_present"])
+
+    def test_existing_year_and_month_filters_still_return_correct_records(self):
+        expected = self._flight(date(2023, 3, 1), address="10965 Olio Rd")
+        self._flight(date(2023, 4, 1), address="Second St")
+        self._flight(date(2022, 3, 1), address="Fourth St")
+
+        response = self.client.get(self.url, {"year": "2023", "month": "3"})
+
+        self.assertEqual(response.context["total_flights"], 1)
+        self.assertEqual([log.pk for log in response.context["logs"]], [expected.pk])
+
+    def test_state_and_city_filters_use_normalized_fields(self):
+        expected = self._flight(date(2023, 3, 1), address="Street A", city="Fishers", state="IN")
+        self._flight(date(2023, 3, 2), address="Street B", city="Columbus", state="OH")
+        self._flight(date(2023, 3, 3), address="Street C", city="Indianapolis", state="IN")
+
+        response = self.client.get(self.url, {"state": "IN", "city": "Fishers"})
+
+        self.assertEqual(response.context["cities"], ["Fishers", "Indianapolis"])
+        self.assertEqual(response.context["total_flights"], 1)
+        self.assertEqual([log.pk for log in response.context["logs"]], [expected.pk])
+
+
+class FlightLogLocationServiceTests(TestCase):
+    def setUp(self):
+        clear_location_cache()
+        self.business = Business.objects.create(name="Location Service")
+
+    def test_address_enrichment_preserves_raw_address(self):
+        raw = "1661 Fairplex Dr, La Verne, CA 91750, USA"
+        flight = FlightLog.objects.create(business=self.business, flight_date=date(2026, 1, 1), takeoff_address=raw)
+        result = enrich_flightlog_location(flight, allow_geocode=False)
+        flight.refresh_from_db()
+        self.assertEqual(result.source, "address")
+        self.assertEqual(flight.takeoff_address, raw)
+        self.assertEqual((flight.takeoff_city, flight.takeoff_state, flight.takeoff_postal_code, flight.takeoff_country), ("La Verne", "CA", "91750", "USA"))
+
+    @mock.patch("flightlogs.services.locations.reverse_geocode_coordinates")
+    def test_reverse_geocode_and_coordinate_cache(self, reverse_mock):
+        reverse_mock.return_value = LocationComponents("Fishers", "IN", "USA", "46037")
+        first = FlightLog.objects.create(business=self.business, flight_date=date(2026, 1, 1), takeoff_latlong="39.956754, -85.968544")
+        second = FlightLog.objects.create(business=self.business, flight_date=date(2026, 1, 2), takeoff_latlong="39.9567539, -85.9685441")
+        enrich_flightlog_location(first)
+        enrich_flightlog_location(second)
+        second.refresh_from_db()
+        reverse_mock.assert_called_once()
+        self.assertEqual((second.takeoff_city, second.takeoff_state), ("Fishers", "IN"))
+
+    @mock.patch("flightlogs.services.locations.reverse_geocode_coordinates")
+    def test_populated_or_invalid_coordinate_does_not_geocode(self, reverse_mock):
+        populated = FlightLog.objects.create(business=self.business, flight_date=date(2026, 1, 1), takeoff_latlong="39.9, -85.9", takeoff_city="Fishers", takeoff_state="IN")
+        invalid = FlightLog.objects.create(business=self.business, flight_date=date(2026, 1, 2), takeoff_latlong="invalid")
+        enrich_flightlog_location(populated)
+        enrich_flightlog_location(invalid)
+        reverse_mock.assert_not_called()
+
+    @mock.patch("flightlogs.services.locations._fetch_json", side_effect=TimeoutError)
+    def test_geocoder_timeout_is_nonfatal(self, _fetch_mock):
+        flight = FlightLog.objects.create(business=self.business, flight_date=date(2026, 1, 1), takeoff_latlong="39.9, -85.9")
+        result = enrich_flightlog_location(flight)
+        self.assertEqual(result.updated_fields, ())
+        self.assertTrue(FlightLog.objects.filter(pk=flight.pk).exists())
+
+
+class NormalizeFlightLogLocationsCommandTests(TestCase):
+    def setUp(self):
+        clear_location_cache()
+        self.business = Business.objects.create(name="Command Business")
+
+    def run_command(self, *args, **kwargs):
+        output = StringIO()
+        call_command("normalize_flightlog_locations", *args, stdout=output, **kwargs)
+        return output.getvalue()
+
+    def test_no_geocode_backfills_address_and_is_idempotent(self):
+        flight = FlightLog.objects.create(business=self.business, flight_date=date(2026, 1, 1), takeoff_address="123 Main St, St Louis, MO 63101, USA")
+        first_output = self.run_command("--no-geocode", business=str(self.business.pk))
+        second_output = self.run_command("--no-geocode", business=str(self.business.pk))
+        flight.refresh_from_db()
+        self.assertEqual((flight.takeoff_city, flight.takeoff_state), ("St Louis", "MO"))
+        self.assertIn("updated=1", first_output)
+        self.assertIn("processed=0", second_output)
+
+    def test_default_does_not_overwrite_and_force_refreshes(self):
+        flight = FlightLog.objects.create(business=self.business, flight_date=date(2026, 1, 1), takeoff_address="123 Main St, Las Vegas, NV 89101", takeoff_city="Existing", takeoff_state="NV", takeoff_country="USA", takeoff_postal_code="89101")
+        self.run_command("--no-geocode", business=str(self.business.pk))
+        flight.refresh_from_db()
+        self.assertEqual(flight.takeoff_city, "Existing")
+        self.run_command("--no-geocode", "--force", business=str(self.business.pk))
+        flight.refresh_from_db()
+        self.assertEqual(flight.takeoff_city, "Las Vegas")
+
+    @mock.patch("flightlogs.services.locations.reverse_geocode_coordinates")
+    def test_reverse_geocode_fallback_is_mocked(self, reverse_mock):
+        reverse_mock.return_value = LocationComponents("Fishers", "IN", "USA", "46037")
+        flight = FlightLog.objects.create(business=self.business, flight_date=date(2026, 1, 1), takeoff_latlong="39.9, -85.9")
+        output = self.run_command(business=str(self.business.pk), limit=1)
+        flight.refresh_from_db()
+        self.assertEqual(flight.takeoff_city, "Fishers")
+        self.assertIn("reverse_geocoded=1", output)
 
 
 def parser_payload(**overrides):
@@ -98,6 +323,11 @@ class FlightLogDJIUploadTests(TestCase):
         super().tearDownClass()
 
     def setUp(self):
+        self.location_patcher = mock.patch(
+            "flightlogs.services.dji.importer.enrich_flightlog_location",
+        )
+        self.location_mock = self.location_patcher.start()
+        self.addCleanup(self.location_patcher.stop)
         self.weather_patcher = mock.patch(
             "flightlogs.services.dji.importer.enrich_flightlog_weather",
             return_value=False,
@@ -180,6 +410,29 @@ class FlightLogDJIUploadTests(TestCase):
         self.assertAlmostEqual(log.max_altitude_ft, 392.716535433, places=6)
         self.assertAlmostEqual(log.total_mileage_ft, 8847.6476378, places=5)
         self.weather_mock.assert_called_once_with(log)
+        self.location_mock.assert_called_once_with(log)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_dji_model_code_resolves_canonical_aircraft_model(self, parse_mock):
+        model = AircraftModel.objects.create(
+            business=self.business, manufacturer="DJI", name="Mavic 3 Pro",
+            aliases=["DJI Mavic 3 Pro"], dji_model_code=84,
+        )
+        parse_mock.return_value = parser_payload()
+        self.upload(content=b"canonical-model")
+        self.assertEqual(FlightLog.objects.get().aircraft_model, model)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_location_enrichment_failure_does_not_fail_dji_import(self, parse_mock):
+        parse_mock.return_value = parser_payload()
+        self.location_mock.side_effect = TimeoutError("geocoder unavailable")
+
+        response = self.upload(content=b"location-timeout")
+
+        self.assertEqual(response.status_code, 302)
+        source = FlightLogSource.objects.get()
+        self.assertEqual(source.status, FlightLogSource.Status.COMPLETE)
+        self.assertIsNotNone(source.flight_log_id)
 
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
     def test_battery_header_serial_is_fallback_when_component_serial_absent(self, parse_mock):
@@ -321,6 +574,96 @@ class FlightLogDJIUploadTests(TestCase):
         self.assertEqual(log.drone_serial, "CSV-SERIAL")
         self.assertFalse(FlightLogSource.objects.exists())
         self.weather_mock.assert_not_called()
+
+    def test_airdata_takeoff_address_maps_and_normalizes(self):
+        row = _normalised_row(
+            {
+                "flight_date": "2025-01-02",
+                "Takeoff Address": "100 Albemarle House Dr, Charlottesville, VA 22902, USA",
+                "Takeoff Lat/Long": "38.123, -77.456",
+            }
+        )
+
+        payload = _flightlog_payload_from_csv_row(row)
+
+        self.assertEqual(payload["takeoff_address"], "100 Albemarle House Dr, Charlottesville, VA 22902, USA")
+        self.assertEqual(payload["takeoff_latlong"], "38.123, -77.456")
+        self.assertEqual(payload["takeoff_city"], "Charlottesville")
+        self.assertEqual(payload["takeoff_state"], "VA")
+        self.assertEqual(payload["takeoff_postal_code"], "22902")
+        self.assertEqual(payload["takeoff_country"], "USA")
+
+    def test_native_csv_location_fields_override_address_parser(self):
+        row = _normalised_row({
+            "flight_date": "2025-01-02",
+            "Takeoff Address": "100 Main St, Parsed City, VA 22902, USA",
+            "Takeoff City": "Explicit City",
+            "Takeoff State": "EX",
+            "Takeoff Postal Code": "00000",
+            "Takeoff Country": "Explicit Country",
+        })
+        payload = _flightlog_payload_from_csv_row(row)
+        self.assertEqual((payload["takeoff_city"], payload["takeoff_state"], payload["takeoff_postal_code"], payload["takeoff_country"]), ("Explicit City", "EX", "00000", "Explicit Country"))
+
+    def test_native_csv_restores_newer_battery_fields(self):
+        payload = _flightlog_payload_from_csv_row(_normalised_row({
+            "flight_date": "2025-01-02",
+            "battery_cycle_count": "42",
+            "battery_life_raw": "97",
+            "minimum_cell_voltage_v": "3.55",
+            "maximum_cell_voltage_v": "4.31",
+        }))
+        self.assertEqual(payload["battery_cycle_count"], 42)
+        self.assertEqual(payload["battery_life_raw"], 97)
+        self.assertEqual(payload["minimum_cell_voltage_v"], 3.55)
+        self.assertEqual(payload["maximum_cell_voltage_v"], 4.31)
+
+    def test_csv_import_resolves_model_and_unknown_remains_null(self):
+        model = AircraftModel.objects.create(
+            business=self.business, manufacturer="DJI", name="Mavic 4 Pro",
+            aliases=["DJI Mavic 4 Pro"],
+        )
+        csv_data = b"flight_date,Drone Type,Drone Name\n2025-01-02,Mavic 4 Pro,Primary\n2025-01-03,Unknown Model,Unknown\n"
+        self.client.post(
+            reverse("flightlogs:flightlog_upload"),
+            {"csv_file": SimpleUploadedFile("models.csv", csv_data, content_type="text/csv")},
+        )
+        self.assertEqual(FlightLog.objects.get(flight_date=date(2025, 1, 2)).aircraft_model, model)
+        self.assertIsNone(FlightLog.objects.get(flight_date=date(2025, 1, 3)).aircraft_model)
+
+    def test_export_and_reimport_preserve_new_battery_fields(self):
+        FlightLog.objects.create(
+            business=self.business, flight_date=date(2025, 1, 2),
+            battery_serial_internal="BAT-1", battery_cycle_count=42,
+            battery_life_raw=97, minimum_cell_voltage_v=3.55,
+            maximum_cell_voltage_v=4.31,
+        )
+        response = self.client.get(reverse("flightlogs:export_flightlogs_csv"))
+        text = response.content.decode()
+        for header in ("battery_cycle_count", "battery_life_raw", "minimum_cell_voltage_v", "maximum_cell_voltage_v"):
+            self.assertIn(header, text.splitlines()[0])
+
+        FlightLog.objects.all().delete()
+        self.client.post(
+            reverse("flightlogs:flightlog_upload"),
+            {"csv_file": SimpleUploadedFile("suite-export.csv", response.content, content_type="text/csv")},
+        )
+        restored = FlightLog.objects.get()
+        self.assertEqual((restored.battery_cycle_count, restored.battery_life_raw), (42, 97))
+        self.assertEqual((restored.minimum_cell_voltage_v, restored.maximum_cell_voltage_v), (3.55, 4.31))
+
+    def test_csv_reimport_remains_idempotent_with_derived_location(self):
+        csv_data = (
+            b"flight_date,Takeoff Address,flight_title\n"
+            b'2025-01-02,"100 Main St, St Louis, MO 63101, USA",Same Flight\n'
+        )
+        for _ in range(2):
+            self.client.post(
+                reverse("flightlogs:flightlog_upload"),
+                {"csv_file": SimpleUploadedFile("flights.csv", csv_data, content_type="text/csv")},
+            )
+        self.assertEqual(FlightLog.objects.count(), 1)
+        self.assertEqual(FlightLog.objects.get().takeoff_city, "St Louis")
 
     def test_csv_timezone_resolution_failure_does_not_store_row(self):
         csv_data = (

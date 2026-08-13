@@ -11,6 +11,65 @@
   </div>
 </div>
 
+<section class="row g-3 mb-4" aria-label="Current operations summary">
+  <h2 class="text-primary text-center">Current Snapshot</h2>
+  <div class="col-12 col-lg-4">
+    <div class="suite-overview-card h-100">
+      <div class="suite-overview-header">
+
+        <span class="suite-overview-icon suite-gradient-blue"><i class="fa-solid fa-chart-line" aria-hidden="true"></i></span>
+        <div>
+          <h2 class="suite-overview-title">Finance Overview</h2>
+          <div class="suite-overview-period">{{ current_month_label }}</div>
+        </div>
+      </div>
+      <div class="suite-overview-metrics">
+        <div class="suite-overview-metric"><span>Monthly Income</span><strong class="text-success">${{ monthly_income|floatformat:2|intcomma }}</strong></div>
+        <div class="suite-overview-metric"><span>Monthly Expenses</span><strong>${{ monthly_expenses|floatformat:2|intcomma }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="suite-overview-card h-100">
+      <div class="suite-overview-header">
+        <span class="suite-overview-icon suite-gradient-green"><i class="fa-solid fa-plane" aria-hidden="true"></i></span>
+        <div>
+          <h2 class="suite-overview-title">Flight Operations</h2>
+          <div class="suite-overview-period">{{ current_month_label }}</div>
+        </div>
+      </div>
+      <div class="suite-overview-metrics">
+        <div class="suite-overview-metric"><span>Flights</span><strong>{{ flights_mtd|intcomma }}</strong></div>
+        <div class="suite-overview-metric"><span>Hours</span><strong>{{ flight_hours_mtd|floatformat:1 }}</strong></div>
+        <div class="suite-overview-metric"><span>Locations</span><strong>{{ flight_locations_mtd|intcomma }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="suite-overview-card h-100">
+      <div class="suite-overview-header">
+        <span class="suite-overview-icon suite-gradient-purple"><i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i></span>
+        <div>
+          <h2 class="suite-overview-title">Airspace Management</h2>
+          <div class="suite-overview-period">{{ current_year }} Year to Date</div>
+        </div>
+      </div>
+      <div class="suite-overview-metrics">
+        <div class="suite-overview-metric"><span>Approved Waivers</span><strong class="text-success">{{ approved_waivers_ytd|intcomma }}</strong></div>
+        <div class="suite-overview-metric"><span>Pending Waivers</span><strong class="text-warning">{{ pending_waivers_ytd|intcomma }}</strong></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="hr gradient">
+
+<h2 class="text-primary text-center">FlightPlan Portals</h2>
+
+<hr class="hr gradient">
+
 <div class="suite-app-grid mb-4">
   <a class="suite-app-card" href="{% url 'dashboard:moneypro_home' %}">
     <span class="suite-app-icon suite-gradient-blue"><i class="fa-solid fa-chart-column"></i></span>
@@ -20,7 +79,7 @@
   </a>
 
   <a class="suite-app-card" href="{% url 'flightlogs:flightlog_list' %}">
-    <span class="suite-app-icon suite-gradient-green"><i class="fa-solid fa-drone"></i></span>
+    <span class="suite-app-icon suite-gradient-green"><i class="fa-solid fa-plane"></i></span>
     <span class="suite-app-title">Flight Logs</span>
     <span class="suite-app-text">View, manage and analyze flight log records.</span>
     <span class="suite-open-link">Open <i class="fa-solid fa-arrow-right ms-1"></i></span>
@@ -34,7 +93,7 @@
   </a>
 
   <a class="suite-app-card" href="{% url 'pilot:profile' %}">
-    <span class="suite-app-icon suite-gradient-blue"><i class="fa-solid fa-user-pilot"></i></span>
+    <span class="suite-app-icon suite-gradient-blue"><i class="fa-solid fa-user-tie"></i></span>
     <span class="suite-app-title">Pilots</span>
     <span class="suite-app-text">Manage pilot profiles, certifications and training.</span>
     <span class="suite-open-link">Open <i class="fa-solid fa-arrow-right ms-1"></i></span>
@@ -56,7 +115,7 @@
 
   <a class="suite-app-card" href="{% url 'assets:asset_list' %}">
     <span class="suite-app-icon suite-gradient-slate"><i class="fa-solid fa-boxes-stacked"></i></span>
-    <span class="suite-app-title">Assets</span>
+    <span class="suite-app-title">Equipment</span>
     <span class="suite-app-text">Track drones, controllers, batteries and equipment.</span>
     <span class="suite-open-link">Open <i class="fa-solid fa-arrow-right ms-1"></i></span>
   </a>
@@ -109,7 +168,7 @@
         <div class="d-flex justify-content-between"><span>Flights (MTD)</span><strong class="text-success">{{ flights_mtd|intcomma }}</strong></div>
         <div class="d-flex justify-content-between"><span>Active Ops Plans</span><strong>{{ active_jobs|intcomma }}</strong></div>
         <div class="d-flex justify-content-between"><span>Open Invoices</span><strong class="text-warning">{{ open_invoices|intcomma }}</strong></div>
-        <div class="d-flex justify-content-between"><span>Active Assets</span><strong>{{ active_assets|intcomma }}</strong></div>
+        <div class="d-flex justify-content-between"><span>Active Equipment</span><strong>{{ active_assets|intcomma }}</strong></div>
       </div>
     </div>
   </div>

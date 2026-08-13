@@ -124,6 +124,8 @@ LOCAL_APPS = [
     "operations",
     "pilot",
     "helpcenter",
+    "airspace",
+    "drones",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + LOCAL_APPS + THIRD_PARTY_APPS

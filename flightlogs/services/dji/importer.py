@@ -12,6 +12,8 @@ from django.utils.dateparse import parse_datetime
 from flightlogs.models import FlightLog, FlightLogSource
 from flightlogs.services.matching import MatchType, match_existing_flight
 from flightlogs.services.weather import enrich_flightlog_weather
+from flightlogs.services.locations import enrich_flightlog_location
+from flightlogs.services.aircraft_models import assign_aircraft_model
 
 from .errors import DJIImportError, import_error
 from .subprocess_adapter import parse_dji_source
@@ -361,9 +363,21 @@ def import_dji_upload(*, business, user, uploaded):
     except Exception:
         _mark_failed(source, import_error("DJI_PARSER_WORKER_FAILURE"))
     else:
+        if source.status == FlightLogSource.Status.COMPLETE and source.flight_log_id:
+            try:
+                assign_aircraft_model(
+                    source.flight_log,
+                    dji_model_code=source.aircraft_model_code,
+                )
+            except Exception:
+                logger.warning("DJI aircraft-model resolution failed safely")
         # Weather is optional enrichment and must never change a successful DJI
         # parser/import result into a failure. CSV imports do not call this path.
         if match.match_type == MatchType.NO_MATCH:
+            try:
+                enrich_flightlog_location(flight_log)
+            except Exception:
+                logger.warning("DJI location enrichment failed safely")
             try:
                 enrich_flightlog_weather(flight_log)
             except Exception:

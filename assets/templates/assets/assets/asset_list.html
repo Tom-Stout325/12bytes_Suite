@@ -1,7 +1,7 @@
 {% extends "index.html" %}
 {% load humanize %}
 
-{% block title %}Assets | MoneyPro{% endblock %}
+{% block title %}Equipment | Suites{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-2 px-md-3 py-3">
@@ -9,7 +9,7 @@
   <!-- Header -->
   <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
     <div>
-      <h1 class="h4 mb-0 text-secondary-brand">Assets</h1>
+      <h1 class="h4 mb-0 text-secondary-brand">Equipment</h1>
       <div class="text-muted small">Track business property, receipts, and depreciation details</div>
     </div>
     <div class="d-grid d-md-flex gap-2">
@@ -17,8 +17,13 @@
         <i class="fa-solid fa-tags me-1"></i> Types
       </a>
       <a class="btn btn-brand" href="{% url 'assets:asset_create' %}">
-        <i class="fa-solid fa-plus me-1"></i> Add asset
+        <i class="fa-solid fa-plus me-1"></i> Add Equipment
       </a>
+      {% if show_all %}
+        <a class="btn btn-outline-secondary" href="?{% if type_filter %}type={{ type_filter|urlencode }}{% endif %}">Show Active Equipment</a>
+      {% else %}
+        <a class="btn btn-outline-secondary" href="?show=all{% if type_filter %}&amp;type={{ type_filter|urlencode }}{% endif %}">Show All Equipment</a>
+      {% endif %}
       {% include "core/_export_button.html" %}
     </div>
   </div>
@@ -39,7 +44,7 @@
 
         <div class="col-12 col-md-8 d-flex justify-content-md-end">
           {% if type_filter %}
-            <a class="btn btn-outline-secondary mt-2 mt-md-0" href="{% url 'assets:asset_list' %}">
+            <a class="btn btn-outline-secondary mt-2 mt-md-0" href="{% url 'assets:asset_list' %}{% if show_all %}?show=all{% endif %}">
               Clear filter
             </a>
           {% endif %}
@@ -134,10 +139,10 @@
 
       {% else %}
         <div class="p-4">
-          <div class="text-muted">No assets yet.</div>
+          <div class="text-muted">No equipment found.</div>
           <div class="mt-2">
             <a class="btn btn-brand" href="{% url 'assets:asset_create' %}">
-              <i class="fa-solid fa-plus me-1"></i> Add your first asset
+              <i class="fa-solid fa-plus me-1"></i> Add your first Equipment
             </a>
           </div>
         </div>

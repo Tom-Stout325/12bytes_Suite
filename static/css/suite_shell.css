@@ -152,6 +152,68 @@ body.suite-shell{
   margin-bottom: 0;
 }
 
+.suite-overview-card{
+  padding: 1.25rem;
+  border: 1px solid rgba(15,23,42,.08);
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15,23,42,.06);
+}
+
+.suite-overview-header{
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  margin-bottom: 1.1rem;
+}
+
+.suite-overview-icon{
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: .8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.15rem;
+  box-shadow: 0 8px 18px rgba(15,23,42,.14);
+}
+
+.suite-overview-title{
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .025em;
+}
+
+.suite-overview-period{
+  margin-top: .15rem;
+  color: #64748b;
+  font-size: .84rem;
+}
+
+.suite-overview-metrics{
+  display: grid;
+  gap: .65rem;
+}
+
+.suite-overview-metric{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #475569;
+}
+
+.suite-overview-metric strong{
+  color: #0f172a;
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+
 .suite-app-grid{
   display: grid;
   grid-template-columns: 1fr;

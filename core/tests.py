@@ -30,7 +30,7 @@ class FlightPlanSidebarTests(SimpleTestCase):
             ("Flight Logs", "flightlogs:flightlog_list"),
             ("Documents", "documents:documents_portal"),
             ("Pilots", "pilot:profile"),
-            ("Assets", "assets:asset_list"),
+            ("Equipment", "assets:asset_list"),
             ("Operations", "operations:ops_plan_index"),
         ):
             self.assertEqual(html.count(f'href="{reverse(route_name)}"'), 2)

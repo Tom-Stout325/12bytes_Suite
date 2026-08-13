@@ -22,6 +22,9 @@ class AssetForm(forms.ModelForm):
         fields = [
             "name",
             "asset_type",
+            "manufacturer",
+            "model",
+            "serial_number",
             "is_active",
             "purchase_date",
             "placed_in_service_date",
@@ -37,6 +40,9 @@ class AssetForm(forms.ModelForm):
         widgets = {
             "name": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., DJI Air 3S"}),
             "asset_type": forms.Select(attrs={"class": "form-select"}),
+            "manufacturer": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., DJI"}),
+            "model": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., Mavic 4 Pro"}),
+            "serial_number": forms.TextInput(attrs={"class": "form-control"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "purchase_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
             "placed_in_service_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),

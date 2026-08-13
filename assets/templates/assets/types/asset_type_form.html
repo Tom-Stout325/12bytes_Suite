@@ -1,12 +1,12 @@
 {% extends "index.html" %}
 
-{% block title %}{% if object %}Edit Asset Type{% else %}Add Asset Type{% endif %} | MoneyPro{% endblock %}
+{% block title %}{% if object %}Edit Equipment Type{% else %}Add Equipment Type{% endif %} | Suites{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-2 px-md-3 py-3">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-      <h1 class="h4 mb-0 text-secondary-brand">{% if object %}Edit Asset Type{% else %}Add Asset Type{% endif %}</h1>
+      <h1 class="h4 mb-0 text-secondary-brand">{% if object %}Edit Equipment Type{% else %}Add Equipment Type{% endif %}</h1>
       <div class="text-muted small">Examples: Drone, Controller, Battery, Computer</div>
     </div>
     <a class="btn btn-outline-secondary" href="{% url 'assets:asset_type_list' %}">Back</a>

@@ -30,6 +30,10 @@ class FlightLog(BusinessOwnedModelMixin):
     # Takeoff & Landing
     takeoff_latlong = models.CharField(max_length=100, blank=True)
     takeoff_address = models.CharField(max_length=255, blank=True)
+    takeoff_city = models.CharField(max_length=100, blank=True)
+    takeoff_state = models.CharField(max_length=100, blank=True)
+    takeoff_country = models.CharField(max_length=100, blank=True)
+    takeoff_postal_code = models.CharField(max_length=20, blank=True)
     landing_time = models.TimeField(null=True, blank=True)
     air_time = models.DurationField(null=True, blank=True)
     above_sea_level_ft = models.FloatField(null=True, blank=True)
@@ -41,6 +45,20 @@ class FlightLog(BusinessOwnedModelMixin):
     drone_reg_number = models.CharField(max_length=100, blank=True)
     rc_serial = models.CharField(max_length=100, blank=True)
     camera_serial = models.CharField(max_length=100, blank=True)
+    aircraft_model = models.ForeignKey(
+        "assets.AircraftModel",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="flight_logs",
+    )
+    drone_model = models.ForeignKey(
+        "drones.DroneModel",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="flight_logs",
+    )
 
     # Battery Info
     battery_name = models.CharField(max_length=100, blank=True)
@@ -118,6 +136,8 @@ class FlightLog(BusinessOwnedModelMixin):
 
     def clean(self):
         super().clean()
+        if self.aircraft_model_id and self.business_id and self.aircraft_model.business_id != self.business_id:
+            raise ValidationError({"aircraft_model": "Select an aircraft model for this business."})
         if self.takeoff_battery_pct is not None and not 0 <= self.takeoff_battery_pct <= 100:
             raise ValidationError({"takeoff_battery_pct": "Battery percentage must be between 0 and 100."})
         if self.landing_battery_pct is not None and not 0 <= self.landing_battery_pct <= 100:

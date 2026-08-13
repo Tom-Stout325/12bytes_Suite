@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from django.contrib import admin
 
-from assets.models import Asset, AssetType
+from assets.models import AircraftModel, Asset, AssetType
+
+
+@admin.register(AircraftModel)
+class AircraftModelAdmin(admin.ModelAdmin):
+    list_display = ("name", "manufacturer", "dji_model_code", "business")
+    list_filter = ("manufacturer", "business")
+    search_fields = ("name", "manufacturer", "aliases")
 
 
 @admin.register(AssetType)
@@ -18,7 +25,10 @@ class AssetTypeAdmin(admin.ModelAdmin):
 class AssetAdmin(admin.ModelAdmin):
     list_display = (
         "name",
+        "manufacturer",
+        "model",
         "asset_type",
+        "drone_model",
         "is_active",
         "purchase_date",
         "purchase_price",
@@ -26,5 +36,5 @@ class AssetAdmin(admin.ModelAdmin):
         "business",
     )
     list_filter = ("asset_type", "is_active", "depreciation_method")
-    search_fields = ("name",)
+    search_fields = ("name", "manufacturer", "model", "serial_number")
     ordering = ("-purchase_date", "name")

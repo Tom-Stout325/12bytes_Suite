@@ -84,6 +84,7 @@ class FlightLogForm(forms.ModelForm):
         model = FlightLog
         exclude = (
             "business",
+            "aircraft_model",
             "rc_serial",
             "camera_serial",
             "battery_cycle_count",

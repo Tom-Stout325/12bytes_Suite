@@ -274,26 +274,62 @@ def dashboard_home(request):
     )
 
     today = timezone.localdate()
-    mtd_income = (
-        Transaction.objects.filter(
-            business=business,
-            trans_type=Transaction.TransactionType.INCOME,
-            date__year=today.year,
-            date__month=today.month,
-        ).aggregate(total=Sum(_signed_amount_expr()))["total"]
+    monthly_transactions = Transaction.objects.filter(
+        business=business,
+        date__year=today.year,
+        date__month=today.month,
+    )
+    monthly_income = (
+        monthly_transactions.filter(trans_type=Transaction.TransactionType.INCOME)
+        .aggregate(total=Sum(_signed_amount_expr()))["total"]
+        or 0
+    )
+    monthly_expenses = (
+        monthly_transactions.filter(trans_type=Transaction.TransactionType.EXPENSE)
+        .aggregate(total=Sum(_signed_amount_expr()))["total"]
         or 0
     )
 
+    monthly_flights = FlightLog.objects.filter(
+        business=business,
+        flight_date__year=today.year,
+        flight_date__month=today.month,
+    )
+    flights_mtd = monthly_flights.count()
+    total_air_time = monthly_flights.aggregate(total=Sum("air_time"))["total"]
+    flight_hours_mtd = total_air_time.total_seconds() / 3600 if total_air_time else 0.0
+    flight_locations_mtd = (
+        monthly_flights.exclude(takeoff_address="")
+        .exclude(takeoff_address__isnull=True)
+        .values("takeoff_address")
+        .distinct()
+        .count()
+    )
+
+    current_year_waivers = OpsPlan.objects.filter(
+        business=business,
+        plan_year=today.year,
+        waivers_required=True,
+    )
+    approved_waivers_ytd = current_year_waivers.filter(status=OpsPlan.APPROVED).count()
+    pending_waivers_ytd = current_year_waivers.exclude(
+        status__in=[OpsPlan.APPROVED, OpsPlan.ARCHIVED]
+    ).count()
+
     context = {
-        "mtd_income": float(mtd_income),
-        "flights_mtd": FlightLog.objects.filter(
-            business=business,
-            flight_date__year=today.year,
-            flight_date__month=today.month,
-        ).count(),
+        "mtd_income": float(monthly_income),
+        "flights_mtd": flights_mtd,
         "active_jobs": OpsPlan.objects.filter(business=business).exclude(status=OpsPlan.ARCHIVED).count(),
         "open_invoices": Invoice.objects.filter(business=business).exclude(status__iexact="paid").count(),
         "active_assets": Asset.objects.filter(business=business, is_active=True).count(),
+        "monthly_income": monthly_income,
+        "monthly_expenses": monthly_expenses,
+        "flight_hours_mtd": flight_hours_mtd,
+        "flight_locations_mtd": flight_locations_mtd,
+        "approved_waivers_ytd": approved_waivers_ytd,
+        "pending_waivers_ytd": pending_waivers_ytd,
+        "current_month_label": today.strftime("%B %Y"),
+        "current_year": today.year,
         "recent_transactions": recent_transactions,
         "recent_invoices": recent_invoices,
     }

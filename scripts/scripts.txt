@@ -56,7 +56,5 @@ clear lockouts:  heroku run -a suites -- python manage.py axes_reset
 
 
 
-Change Flight Logs in the left side menu to FlightPlan and make it a dropdown like MoneyPro, then move Flight Logs, Documents, Pilots, Assets, and Operations into the FlightPlan DropDown.  
-
 Add a menu item for AirSpace
 

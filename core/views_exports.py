@@ -160,6 +160,5 @@ def export_teams_csv(request: HttpRequest) -> HttpResponse:
 def export_assets_csv(request: HttpRequest) -> HttpResponse:
     Asset = _find_unique_model_by_classnames(["Asset"])  # type: ignore
     qs = _business_scoped_queryset(request, Asset).order_by(*_default_ordering(Asset))
-    spec = _spec_for(Asset, "assets")
+    spec = _spec_for(Asset, "equipment")
     return export_queryset_csv(request=request, queryset=qs, spec=spec)
-
