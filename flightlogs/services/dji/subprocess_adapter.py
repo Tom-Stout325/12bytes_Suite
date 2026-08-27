@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import subprocess
@@ -10,6 +11,8 @@ from pathlib import Path
 from django.conf import settings
 
 from .errors import DJIImportError, import_error
+
+logger = logging.getLogger(__name__)
 
 PARSER_TIMEOUT_SECONDS = 60
 MAX_STDOUT_BYTES = 64 * 1024
@@ -23,6 +26,17 @@ CODE_ALIASES = {
     "DJI_MALFORMED_RESPONSE": "DJI_KEYCHAIN_RESPONSE_INVALID",
     "DJI_RECORD_PARSE_FAILURE": "DJI_PARSE_ERROR",
 }
+
+
+def _safe_stderr(stderr):
+    """Return bounded diagnostics while redacting the configured credential."""
+    text = stderr[:MAX_STDERR_BYTES].decode("utf-8", errors="replace")
+    api_key = os.environ.get("DJI_API_KEY", "")
+    if api_key:
+        text = text.replace(api_key, "[REDACTED]")
+    return " ".join(text.split())[:2000]
+
+
 EXPECTED_FIELDS = {
     "success",
     "parser_version",
@@ -102,19 +116,28 @@ def _validate_result(payload):
 
 
 def parse_dji_source(source_file):
-    parser_path = Path(settings.DJI_PARSER_PATH)
-    child_env = {}
+    parser_path = Path(settings.DJI_PARSER_PATH).expanduser().resolve()
+    exists = parser_path.is_file()
+    executable = exists and os.access(parser_path, os.X_OK)
+    if not executable:
+        logger.error(
+            "DJI parser unavailable path=%s exists=%s executable=%s",
+            parser_path,
+            exists,
+            executable,
+        )
+        raise import_error("DJI_PARSER_MISSING")
+
+    child_env = os.environ.copy()
     api_key = os.environ.get("DJI_API_KEY")
     if api_key:
         child_env["DJI_API_KEY"] = api_key
 
     with tempfile.NamedTemporaryFile(suffix=".txt") as input_file:
         source_file.open("rb")
-        try:
-            for chunk in source_file.chunks():
-                input_file.write(chunk)
-        finally:
-            source_file.close()
+        for chunk in source_file.chunks():
+            input_file.write(chunk)
+        source_file.seek(0)
         input_file.flush()
 
         with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
@@ -129,10 +152,27 @@ def parse_dji_source(source_file):
                     check=False,
                 )
             except FileNotFoundError as exc:
+                logger.exception(
+                    "DJI parser launch failed path=%s exists=%s executable=%s",
+                    parser_path,
+                    parser_path.is_file(),
+                    os.access(parser_path, os.X_OK),
+                )
                 raise import_error("DJI_PARSER_MISSING") from exc
             except subprocess.TimeoutExpired as exc:
+                logger.error(
+                    "DJI parser timed out path=%s timeout_seconds=%s",
+                    parser_path,
+                    PARSER_TIMEOUT_SECONDS,
+                )
                 raise import_error("DJI_PARSER_TIMEOUT") from exc
             except OSError as exc:
+                logger.exception(
+                    "DJI parser OS failure path=%s exists=%s executable=%s",
+                    parser_path,
+                    parser_path.is_file(),
+                    os.access(parser_path, os.X_OK),
+                )
                 raise import_error("DJI_PARSER_WORKER_FAILURE") from exc
 
             stdout_size = stdout_file.tell()
@@ -143,11 +183,32 @@ def parse_dji_source(source_file):
             stderr = stderr_file.read(MAX_STDERR_BYTES)
 
     if completed.returncode != 0:
-        raise import_error(_safe_code_from_stderr(stderr))
+        code = _safe_code_from_stderr(stderr)
+        logger.error(
+            "DJI parser rejected input path=%s returncode=%s stderr=%r diagnostic_code=%s",
+            parser_path,
+            completed.returncode,
+            _safe_stderr(stderr),
+            code,
+        )
+        raise import_error(code)
     if stdout_size > MAX_STDOUT_BYTES or stderr_size > MAX_STDERR_BYTES:
+        logger.error(
+            "DJI parser output exceeded limit path=%s returncode=%s stdout_bytes=%s stderr_bytes=%s",
+            parser_path,
+            completed.returncode,
+            stdout_size,
+            stderr_size,
+        )
         raise import_error("DJI_PARSER_OUTPUT_INVALID")
     try:
         payload = json.loads(stdout.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        logger.exception(
+            "DJI parser returned invalid JSON path=%s returncode=%s stderr=%r",
+            parser_path,
+            completed.returncode,
+            _safe_stderr(stderr),
+        )
         raise import_error("DJI_PARSER_OUTPUT_INVALID") from exc
     return _validate_result(payload)

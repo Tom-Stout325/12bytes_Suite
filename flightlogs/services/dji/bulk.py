@@ -4,12 +4,15 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+import logging
 
 from flightlogs.models import FlightLogSource
 from flightlogs.services.matching import MatchType
 
-from .errors import ERROR_DETAILS
+from .errors import DJIImportError, ERROR_DETAILS
 from .importer import DJIImportResult, import_dji_upload
+
+logger = logging.getLogger(__name__)
 
 
 class BulkDJIClassification(StrEnum):
@@ -96,7 +99,18 @@ def import_dji_batch(*, business, user, uploads) -> BulkDJIImportResult:
                 uploaded=uploaded,
             )
             files.append(_classify_result(filename, result))
+        except DJIImportError as failure:
+            files.append(
+                BulkDJIFileResult(
+                    filename=filename,
+                    classification=BulkDJIClassification.FAILED,
+                    label="Failed",
+                    safe_error_code=failure.code,
+                    safe_error_message=failure.detail,
+                )
+            )
         except Exception:
+            logger.exception("Unexpected DJI import failure filename=%r", filename)
             files.append(
                 BulkDJIFileResult(
                     filename=filename,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import tempfile
+from pathlib import Path
 from io import StringIO
 from datetime import date, datetime, timedelta, timezone
 from unittest import mock
@@ -245,6 +246,54 @@ class NormalizeFlightLogLocationsCommandTests(TestCase):
         flight.refresh_from_db()
         self.assertEqual(flight.takeoff_city, "Fishers")
         self.assertIn("reverse_geocoded=1", output)
+
+
+class CleanupFailedDJISourcesCommandTests(TestCase):
+    def setUp(self):
+        self.business = Business.objects.create(name="DJI Cleanup")
+        self.digest = "a" * 64
+
+    def run_command(self, *args):
+        output = StringIO()
+        call_command("cleanup_failed_dji_sources", *args, stdout=output)
+        return output.getvalue()
+
+    def test_only_confirmed_unlinked_failed_source_is_deleted(self):
+        failed = FlightLogSource.objects.create(
+            business=self.business,
+            source_type=FlightLogSource.SourceType.DJI_TXT,
+            original_filename="failed.txt",
+            sha256=self.digest,
+            size_bytes=10,
+            status=FlightLogSource.Status.FAILED,
+        )
+        args = ("--business-id", str(self.business.pk), "--sha256", self.digest)
+        self.assertIn("Would delete", self.run_command(*args))
+        self.assertTrue(FlightLogSource.objects.filter(pk=failed.pk).exists())
+        self.run_command(*args, "--confirm")
+        self.assertFalse(FlightLogSource.objects.filter(pk=failed.pk).exists())
+
+    def test_successful_source_is_never_deleted(self):
+        flight = FlightLog.objects.create(
+            business=self.business,
+            flight_date=date(2026, 1, 1),
+        )
+        source = FlightLogSource.objects.create(
+            business=self.business,
+            source_type=FlightLogSource.SourceType.DJI_TXT,
+            original_filename="successful.txt",
+            sha256=self.digest,
+            size_bytes=10,
+            status=FlightLogSource.Status.COMPLETE,
+            flight_log=flight,
+        )
+        output = self.run_command(
+            "--business-id", str(self.business.pk),
+            "--sha256", self.digest,
+            "--confirm",
+        )
+        self.assertIn("nothing changed", output)
+        self.assertTrue(FlightLogSource.objects.filter(pk=source.pk).exists())
 
 
 def parser_payload(**overrides):
@@ -535,16 +584,55 @@ class FlightLogDJIUploadTests(TestCase):
         )
 
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
-    def test_parser_panic_keeps_failed_source_without_flightlog(self, parse_mock):
+    def test_parser_panic_rolls_back_source_and_flightlog(self, parse_mock):
         parse_mock.side_effect = import_error("DJI_PARSER_PANIC")
         response = self.upload()
         self.assertRedirects(response, reverse("flightlogs:flightlog_dji_upload"))
-        source = FlightLogSource.objects.get()
-        self.assertEqual(source.status, FlightLogSource.Status.FAILED)
-        self.assertEqual(source.safe_error_code, "DJI_PARSER_PANIC")
-        self.assertIn("parser update", source.safe_error_detail)
-        self.assertIsNone(source.flight_log)
+        self.assertFalse(FlightLogSource.objects.exists())
         self.assertFalse(FlightLog.objects.exists())
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_failed_first_attempt_can_retry_same_file_successfully(self, parse_mock):
+        parse_mock.side_effect = [
+            import_error("DJI_PARSE_ERROR"),
+            parser_payload(),
+        ]
+
+        first = self.upload(content=b"retryable-source")
+        second = self.upload(content=b"retryable-source")
+
+        self.assertRedirects(first, reverse("flightlogs:flightlog_dji_upload"))
+        source = FlightLogSource.objects.get()
+        self.assertRedirects(
+            second,
+            reverse("flightlogs:flightlog_detail", args=[source.flight_log_id]),
+        )
+        self.assertEqual(parse_mock.call_count, 2)
+        self.assertEqual(FlightLog.objects.count(), 1)
+
+    @mock.patch("flightlogs.services.dji.importer.FlightLogSource.save", autospec=True)
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_database_failure_rolls_back_flight_and_cleans_stored_file(
+        self, parse_mock, save_mock
+    ):
+        files_before = set(Path(self.media_directory.name).rglob("*.txt"))
+        parse_mock.return_value = parser_payload()
+        calls = 0
+
+        def fail_second_save(instance, *args, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise RuntimeError("simulated persistence failure")
+            return super(FlightLogSource, instance).save(*args, **kwargs)
+
+        save_mock.side_effect = fail_second_save
+        response = self.upload(content=b"partial-write")
+
+        self.assertRedirects(response, reverse("flightlogs:flightlog_dji_upload"))
+        self.assertFalse(FlightLogSource.objects.exists())
+        self.assertFalse(FlightLog.objects.exists())
+        self.assertEqual(set(Path(self.media_directory.name).rglob("*.txt")), files_before)
 
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
     def test_unknown_model_code_does_not_invent_model_and_component_serial_wins(self, parse_mock):
@@ -792,13 +880,12 @@ class FlightLogDJIUploadTests(TestCase):
         self.assertNotEqual(source.flight_log, existing)
 
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
-    def test_failed_source_file_is_retained(self, parse_mock):
+    def test_failed_source_file_and_record_are_not_stored(self, parse_mock):
+        files_before = set(Path(self.media_directory.name).rglob("*.txt"))
         parse_mock.side_effect = import_error("DJI_PARSE_ERROR")
         self.upload(content=b"retained-failure")
-        source = FlightLogSource.objects.get()
-        self.assertEqual(source.status, FlightLogSource.Status.FAILED)
-        self.assertTrue(source.file.name)
-        self.assertTrue(source.file.storage.exists(source.file.name))
+        self.assertFalse(FlightLogSource.objects.exists())
+        self.assertEqual(set(Path(self.media_directory.name).rglob("*.txt")), files_before)
 
     def test_matching_time_boundary_and_business_isolation(self):
         existing = self._airdata_flight(
@@ -990,7 +1077,7 @@ class FlightLogDJIUploadTests(TestCase):
         self.assertEqual(sources["linked.txt"].flight_log, linked)
         self.assertEqual(sources["review.txt"].status, FlightLogSource.Status.REVIEW)
         self.assertIsNone(sources["review.txt"].flight_log)
-        self.assertEqual(sources["failed.txt"].status, FlightLogSource.Status.FAILED)
+        self.assertNotIn("failed.txt", sources)
         self.assertEqual(FlightLog.objects.count(), 3)
 
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
@@ -1044,7 +1131,7 @@ class FlightLogDJIUploadTests(TestCase):
         self.assertContains(response, "Failed")
         self.assertContains(response, "Imported New Flight")
         self.assertEqual(FlightLog.objects.count(), 1)
-        self.assertEqual(FlightLogSource.objects.count(), 2)
+        self.assertEqual(FlightLogSource.objects.count(), 1)
 
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
     def test_review_does_not_stop_later_file(self, parse_mock):
@@ -1293,6 +1380,18 @@ class FlightMatchingRulesTests(TestCase):
 
 @override_settings(DJI_PARSER_PATH="/test/suite-dji-parser")
 class DJIParserAdapterTests(TestCase):
+    def setUp(self):
+        path_patcher = mock.patch(
+            "flightlogs.services.dji.subprocess_adapter.Path.is_file", return_value=True
+        )
+        access_patcher = mock.patch(
+            "flightlogs.services.dji.subprocess_adapter.os.access", return_value=True
+        )
+        path_patcher.start()
+        access_patcher.start()
+        self.addCleanup(path_patcher.stop)
+        self.addCleanup(access_patcher.stop)
+
     def source(self):
         return SimpleUploadedFile("DJIFlightRecord.txt", b"record", content_type="text/plain")
 
@@ -1333,10 +1432,12 @@ class DJIParserAdapterTests(TestCase):
 
     @mock.patch("flightlogs.services.dji.subprocess_adapter.subprocess.run")
     def test_parser_executable_missing(self, run_mock):
-        run_mock.side_effect = FileNotFoundError
-        with self.assertRaises(Exception) as caught:
+        with mock.patch(
+            "flightlogs.services.dji.subprocess_adapter.Path.is_file", return_value=False
+        ), self.assertRaises(Exception) as caught:
             parse_dji_source(self.source())
         self.assertEqual(caught.exception.code, "DJI_PARSER_MISSING")
+        run_mock.assert_not_called()
 
     @mock.patch("flightlogs.services.dji.subprocess_adapter.subprocess.run")
     def test_valid_json_contract(self, run_mock):
@@ -1344,7 +1445,7 @@ class DJIParserAdapterTests(TestCase):
         result = parse_dji_source(self.source())
         self.assertEqual(result["log_version"], 14)
         command = run_mock.call_args.args[0]
-        self.assertEqual(command[0], "/test/suite-dji-parser")
+        self.assertEqual(command[0], str(Path("/test/suite-dji-parser").resolve()))
         self.assertEqual(len(command), 2)
         self.assertFalse(run_mock.call_args.kwargs["shell"])
 

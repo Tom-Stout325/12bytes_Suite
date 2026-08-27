@@ -166,7 +166,10 @@ fn process_parsed_log(parser: &DJILog) -> Result<Output, Failure> {
             .ok()
             .filter(|value| !value.trim().is_empty())
             .ok_or_else(|| {
-                Failure::user_safe("DJI_API_KEY is required to decrypt this flight record.")
+                Failure::coded(
+                    "DJI_API_KEY is required to decrypt this flight record.",
+                    "DJI_API_KEY_MISSING",
+                )
             })?;
 
         // Build the request explicitly so this proof of concept verifies the

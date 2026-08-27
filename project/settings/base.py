@@ -43,10 +43,10 @@ REPLY_TO_EMAIL = env("REPLY_TO_EMAIL", default="")
 SENDGRID_API_KEY = env("SENDGRID_API_KEY", default="")
 DJI_PARSER_PATH = env(
     "DJI_PARSER_PATH",
-    default=str(BASE_DIR / "rust" / "suite-dji-parser" / "target" / "release" / "suite-dji-parser"),
+    default=str(BASE_DIR / "target" / "release" / "suite-dji-parser"),
 )
-# Product-level source retention remains configurable. Review and failed sources
-# are always retained by the importer regardless of this setting.
+# Product-level source retention remains configurable. Review sources are
+# retained; parser failures are never persisted so the same bytes can retry.
 DJI_DELETE_SUCCESSFUL_SOURCE_FILES = env.bool(
     "DJI_DELETE_SUCCESSFUL_SOURCE_FILES",
     default=False,

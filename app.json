@@ -1,0 +1,17 @@
+{
+  "name": "Suite",
+  "buildpacks": [
+    { "url": "https://github.com/emk/heroku-buildpack-rust" },
+    { "url": "heroku/python" }
+  ],
+  "env": {
+    "DJI_PARSER_PATH": {
+      "description": "Absolute parser path inside the slug.",
+      "value": "/app/target/release/suite-dji-parser"
+    },
+    "DJI_API_KEY": {
+      "description": "DJI developer API key used for encrypted flight records.",
+      "required": true
+    }
+  }
+}

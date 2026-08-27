@@ -13,12 +13,12 @@ ERROR_DETAILS = {
     "DJI_UNSUPPORTED_LOG": "This DJI flight-record version is not supported.",
     "DJI_KEYCHAIN_UNAVAILABLE": "DJI decryption information is temporarily unavailable. Please try again later.",
     "DJI_KEYCHAIN_RESPONSE_INVALID": "DJI returned invalid decryption information. Please try again later.",
-    "DJI_PARSE_ERROR": "The DJI flight record could not be decoded.",
+    "DJI_PARSE_ERROR": "The DJI parser rejected or could not decode this flight record.",
     "DJI_PARSER_PANIC": "The log could not be decoded by the installed DJI parser and can be retried after a parser update.",
     "DJI_PARSER_TIMEOUT": "The DJI parser timed out. Please try again.",
     "DJI_API_KEY_MISSING": "DJI decryption is not configured on this server.",
-    "DJI_PARSER_WORKER_FAILURE": "The DJI parser stopped unexpectedly.",
-    "DJI_PARSER_MISSING": "The DJI parser is not installed or configured correctly.",
+    "DJI_PARSER_WORKER_FAILURE": "An unexpected internal parsing failure occurred.",
+    "DJI_PARSER_MISSING": "The DJI parser executable is missing or is not executable.",
     "DJI_PARSER_OUTPUT_INVALID": "The DJI parser returned an invalid result.",
 }
 

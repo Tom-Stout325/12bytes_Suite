@@ -15,7 +15,7 @@ from flightlogs.services.weather import enrich_flightlog_weather
 from flightlogs.services.locations import enrich_flightlog_location
 from flightlogs.services.aircraft_models import assign_aircraft_model
 
-from .errors import DJIImportError, import_error
+from .errors import import_error
 from .subprocess_adapter import parse_dji_source
 
 METERS_TO_FEET = 3.280839895013123
@@ -264,13 +264,6 @@ def _flightlog_payload(payload):
     }
 
 
-def _mark_failed(source, failure):
-    source.status = FlightLogSource.Status.FAILED
-    source.safe_error_code = failure.code
-    source.safe_error_detail = failure.detail
-    source.save(update_fields=["status", "safe_error_code", "safe_error_detail", "updated_at"])
-
-
 def _delete_successful_source_file(source_id, stored_name, storage):
     try:
         storage.delete(stored_name)
@@ -282,10 +275,19 @@ def _delete_successful_source_file(source_id, stored_name, storage):
 
 def import_dji_upload(*, business, user, uploaded):
     sha256 = _uploaded_sha256(uploaded)
-    existing = FlightLogSource.objects.filter(business=business, sha256=sha256).first()
+    existing = FlightLogSource.objects.filter(
+        business=business,
+        sha256=sha256,
+        status__in=(FlightLogSource.Status.COMPLETE, FlightLogSource.Status.REVIEW),
+    ).first()
     if existing:
         return DJIImportResult(existing, duplicate=True)
 
+    # Parsing is deliberately performed before a source row or storage object
+    # is created. Parser failures therefore leave no hash that can block retry.
+    parsed = parse_dji_source(uploaded)
+    metadata = _source_metadata(parsed)
+    flight_payload = _flightlog_payload(parsed)
     source = FlightLogSource(
         business=business,
         source_type=FlightLogSource.SourceType.DJI_TXT,
@@ -295,25 +297,25 @@ def import_dji_upload(*, business, user, uploaded):
         size_bytes=uploaded.size,
         created_by=user,
     )
-    stored_name = None
+    stored_name = ""
     try:
         with transaction.atomic():
+            stale = (
+                FlightLogSource.objects.select_for_update()
+                .filter(business=business, sha256=sha256)
+                .first()
+            )
+            if stale and stale.status in {
+                FlightLogSource.Status.COMPLETE,
+                FlightLogSource.Status.REVIEW,
+            }:
+                return DJIImportResult(stale, duplicate=True)
+            stale_file_name = stale.file.name if stale and stale.file else ""
+            stale_storage = stale.file.storage if stale_file_name else None
+            if stale:
+                stale.delete()
             source.save()
             stored_name = source.file.name
-    except IntegrityError:
-        stored_name = source.file.name if source.file._committed else stored_name
-        if stored_name:
-            source.file.storage.delete(stored_name)
-        existing = FlightLogSource.objects.get(business=business, sha256=sha256)
-        return DJIImportResult(existing, duplicate=True)
-
-    source.status = FlightLogSource.Status.PARSING
-    source.save(update_fields=["status", "updated_at"])
-    try:
-        parsed = parse_dji_source(source.file)
-        metadata = _source_metadata(parsed)
-        flight_payload = _flightlog_payload(parsed)
-        with transaction.atomic():
             match = match_existing_flight(
                 business=business,
                 payload=flight_payload,
@@ -349,6 +351,10 @@ def import_dji_upload(*, business, user, uploaded):
             source.safe_error_code = ""
             source.safe_error_detail = ""
             source.save()
+            if stale_file_name:
+                transaction.on_commit(
+                    lambda: stale_storage.delete(stale_file_name)
+                )
             if (
                 source.status == FlightLogSource.Status.COMPLETE
                 and settings.DJI_DELETE_SUCCESSFUL_SOURCE_FILES
@@ -358,10 +364,21 @@ def import_dji_upload(*, business, user, uploaded):
                 transaction.on_commit(
                     lambda: _delete_successful_source_file(source.pk, committed_name, storage)
                 )
-    except DJIImportError as failure:
-        _mark_failed(source, failure)
+    except IntegrityError:
+        if stored_name:
+            source.file.storage.delete(stored_name)
+        existing = FlightLogSource.objects.filter(
+            business=business,
+            sha256=sha256,
+            status__in=(FlightLogSource.Status.COMPLETE, FlightLogSource.Status.REVIEW),
+        ).first()
+        if existing:
+            return DJIImportResult(existing, duplicate=True)
+        raise
     except Exception:
-        _mark_failed(source, import_error("DJI_PARSER_WORKER_FAILURE"))
+        if stored_name:
+            source.file.storage.delete(stored_name)
+        raise
     else:
         if source.status == FlightLogSource.Status.COMPLETE and source.flight_log_id:
             try:
@@ -382,4 +399,4 @@ def import_dji_upload(*, business, user, uploaded):
                 enrich_flightlog_weather(flight_log)
             except Exception:
                 logger.warning("DJI weather enrichment failed safely")
-    return DJIImportResult(source, match_type=match.match_type if 'match' in locals() else None)
+    return DJIImportResult(source, match_type=match.match_type)
