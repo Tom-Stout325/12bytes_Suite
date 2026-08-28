@@ -64,6 +64,7 @@ class AssetForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         if business is not None:
+            self.instance.business = business
             type_qs = AssetType.objects.filter(business=business, is_active=True).order_by("sort_order", "name")
             if self.instance and self.instance.pk and self.instance.asset_type_id:
                 type_qs = AssetType.objects.filter(business=business).filter(

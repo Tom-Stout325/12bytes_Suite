@@ -124,7 +124,9 @@ class Asset(BusinessOwnedModelMixin):
     manufacturer = models.CharField(max_length=100, blank=True)
     model = models.CharField(max_length=150, blank=True)
     serial_number = models.CharField(max_length=100, blank=True)
+    normalized_serial_number = models.CharField(max_length=200, blank=True, editable=False)
     faa_registration = models.CharField(
+        "FAA Registration",
         max_length=100,
         blank=True,
         help_text="FAA aircraft registration number, if applicable.",
@@ -186,6 +188,13 @@ class Asset(BusinessOwnedModelMixin):
             models.Index(fields=["business", "is_active"], name="assets_asse_busines_620d2e_idx"),
             models.Index(fields=["business", "purchase_date"], name="assets_asse_busines_067ce9_idx"),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["business", "normalized_serial_number"],
+                condition=~models.Q(normalized_serial_number=""),
+                name="uniq_asset_business_normalized_serial",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.name}"
@@ -199,6 +208,9 @@ class Asset(BusinessOwnedModelMixin):
         return self.purchase_price or Decimal("0.00")
 
     def clean(self):
+        self.serial_number = (self.serial_number or "").strip()
+        self.normalized_serial_number = self.serial_number.casefold()
+        self.faa_registration = (self.faa_registration or "").strip().upper()
         # Default placed_in_service_date to purchase_date if not provided.
         if not self.placed_in_service_date and self.purchase_date:
             self.placed_in_service_date = self.purchase_date
@@ -207,3 +219,24 @@ class Asset(BusinessOwnedModelMixin):
             raise ValidationError({"asset_type": "Select an asset type for this business."})
         if self.aircraft_model_id and self.business_id and self.aircraft_model.business_id != self.business_id:
             raise ValidationError({"aircraft_model": "Select an aircraft model for this business."})
+        if self.business_id and self.normalized_serial_number:
+            duplicate = Asset.objects.filter(
+                business_id=self.business_id,
+                normalized_serial_number=self.normalized_serial_number,
+            )
+            if self.pk:
+                duplicate = duplicate.exclude(pk=self.pk)
+            if duplicate.exists():
+                raise ValidationError({"serial_number": "This serial number already exists for this business."})
+
+    def save(self, *args, **kwargs):
+        self.serial_number = (self.serial_number or "").strip()
+        self.normalized_serial_number = self.serial_number.casefold()
+        self.faa_registration = (self.faa_registration or "").strip().upper()
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            update_fields = set(update_fields)
+            if "serial_number" in update_fields:
+                update_fields.add("normalized_serial_number")
+            kwargs["update_fields"] = update_fields
+        return super().save(*args, **kwargs)

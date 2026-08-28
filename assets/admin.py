@@ -27,6 +27,8 @@ class AssetAdmin(admin.ModelAdmin):
         "name",
         "manufacturer",
         "model",
+        "serial_number",
+        "faa_registration",
         "asset_type",
         "drone_model",
         "is_active",
@@ -36,5 +38,5 @@ class AssetAdmin(admin.ModelAdmin):
         "business",
     )
     list_filter = ("asset_type", "is_active", "depreciation_method")
-    search_fields = ("name", "manufacturer", "model", "serial_number")
+    search_fields = ("name", "manufacturer", "model", "serial_number", "faa_registration")
     ordering = ("-purchase_date", "name")

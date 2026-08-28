@@ -18,6 +18,7 @@ from django.urls import reverse
 from accounts.models import CompanyProfile
 from assets.models import AircraftModel, Asset, AssetType
 from core.models import Business, BusinessMembership
+from drones.models import DroneModel
 from pilot.models import PilotProfile
 
 from .models import FlightLog, FlightLogSource
@@ -404,8 +405,17 @@ class FlightLogDJIUploadTests(TestCase):
             user=self.user,
             license_number="REMOTE-123",
         )
+        self.drone_model = DroneModel.objects.create(manufacturer="DJI", name="DJI Upload Test Aircraft")
 
-    def make_equipment(self, *, serial="COMPONENT-AIRCRAFT-SERIAL", registration="N123SU", business=None, asset_type_name="Drone"):
+    def make_equipment(
+        self,
+        *,
+        serial="COMPONENT-AIRCRAFT-SERIAL",
+        registration="N123SU",
+        business=None,
+        asset_type_name="Drone",
+        drone_model=True,
+    ):
         business = business or self.business
         asset_type, _ = AssetType.objects.get_or_create(
             business=business,
@@ -418,6 +428,7 @@ class FlightLogDJIUploadTests(TestCase):
             asset_type=asset_type,
             serial_number=serial,
             faa_registration=registration,
+            drone_model=self.drone_model if drone_model else None,
             purchase_date=date(2025, 1, 1),
         )
 
@@ -561,9 +572,21 @@ class FlightLogDJIUploadTests(TestCase):
         self.assertEqual(log.drone_reg_number, "")
 
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
-    def test_ambiguous_equipment_match_requires_review_without_guessing(self, parse_mock):
-        self.make_equipment()
-        self.make_equipment()
+    def test_generic_equipment_with_matching_serial_is_not_selected(self, parse_mock):
+        self.make_equipment(asset_type_name="Controller", drone_model=False)
+        parse_mock.return_value = parser_payload()
+        self.upload(content=b"equipment-generic")
+        log = FlightLog.objects.get()
+        self.assertIsNone(log.equipment)
+        self.assertEqual(log.drone_reg_number, "")
+
+    @mock.patch("flightlogs.services.dji.bulk.aircraft_equipment_for_business")
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_ambiguous_equipment_match_requires_review_without_guessing(self, parse_mock, candidates_mock):
+        candidates_mock.return_value = (
+            Asset(business=self.business, serial_number="COMPONENT-AIRCRAFT-SERIAL", drone_model=self.drone_model),
+            Asset(business=self.business, serial_number=" component-aircraft-serial ", drone_model=self.drone_model),
+        )
         parse_mock.return_value = parser_payload()
         response = self.upload(content=b"equipment-ambiguous")
         source = FlightLogSource.objects.get()

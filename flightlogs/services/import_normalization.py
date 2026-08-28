@@ -44,11 +44,10 @@ def aircraft_equipment_for_business(business) -> tuple[Asset, ...]:
     return tuple(
         Asset.objects.filter(business=business)
         .filter(
-            Q(asset_type__slug__in=("drone", "aircraft"))
-            | Q(asset_type__name__iexact="drone")
-            | Q(asset_type__name__iexact="aircraft")
+            Q(drone_model__isnull=False)
+            | Q(aircraft_model__isnull=False)
         )
-        .select_related("asset_type")
+        .select_related("drone_model", "aircraft_model")
     )
 
 
@@ -56,7 +55,11 @@ def match_aircraft_equipment(serial_number: object, equipment: tuple[Asset, ...]
     normalized = normalize_serial_number(serial_number)
     if not normalized:
         return EquipmentMatch(EquipmentMatchStatus.UNMATCHED)
-    matches = [item for item in equipment if normalize_serial_number(item.serial_number) == normalized]
+    matches = [
+        item
+        for item in equipment
+        if (item.normalized_serial_number or normalize_serial_number(item.serial_number)) == normalized
+    ]
     if len(matches) == 1:
         return EquipmentMatch(EquipmentMatchStatus.MATCHED, matches[0])
     if len(matches) > 1:

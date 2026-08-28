@@ -75,6 +75,65 @@ class EquipmentTests(TestCase):
         self.assertEqual(first.drone_model, second.drone_model)
         self.assertEqual((first.manufacturer, first.model, first.serial_number), ("DJI", "Mavic 4 Pro", "AIRCRAFT-1"))
 
+    def test_identification_fields_appear_on_create_edit_and_detail(self):
+        create_response = self.client.get(reverse("assets:asset_create"))
+        self.assertContains(create_response, 'name="serial_number"')
+        self.assertContains(create_response, 'name="faa_registration"')
+        equipment = self.equipment("Identified", model=self.model)
+        equipment.serial_number = "Aircraft-Serial-1"
+        equipment.faa_registration = "fa1234"
+        equipment.save()
+        edit_response = self.client.get(reverse("assets:asset_update", args=[equipment.pk]))
+        self.assertContains(edit_response, 'name="serial_number"')
+        self.assertContains(edit_response, 'name="faa_registration"')
+        detail_response = self.client.get(reverse("assets:asset_detail", args=[equipment.pk]))
+        self.assertContains(detail_response, "Identification")
+        self.assertContains(detail_response, "Aircraft-Serial-1")
+        self.assertContains(detail_response, "FA1234")
+
+    def test_blank_identifiers_are_optional_and_do_not_conflict(self):
+        first = self.equipment("Blank One")
+        second = self.equipment("Blank Two")
+        first.full_clean()
+        second.full_clean()
+        self.assertEqual(first.serial_number, "")
+        self.assertEqual(second.faa_registration, "")
+
+    def test_identifiers_are_trimmed_with_serial_case_preserved_and_registration_uppercased(self):
+        equipment = self.equipment("Normalized")
+        equipment.serial_number = "  AbC-Serial-9  "
+        equipment.faa_registration = "  fa-77x  "
+        equipment.save()
+        equipment.refresh_from_db()
+        self.assertEqual(equipment.serial_number, "AbC-Serial-9")
+        self.assertEqual(equipment.normalized_serial_number, "abc-serial-9")
+        self.assertEqual(equipment.faa_registration, "FA-77X")
+
+    def test_duplicate_nonblank_serial_is_rejected_within_business(self):
+        first = self.equipment("First")
+        first.serial_number = "Aircraft-AbC"
+        first.save()
+        duplicate = Asset(
+            business=self.business,
+            name="Duplicate",
+            asset_type=self.drone_type,
+            purchase_date=date(2026, 1, 2),
+            serial_number=" aircraft-abc ",
+        )
+        with self.assertRaises(ValidationError) as error:
+            duplicate.full_clean()
+        self.assertIn("serial_number", error.exception.message_dict)
+
+    def test_same_serial_is_allowed_in_different_businesses(self):
+        first = self.equipment("Mine")
+        first.serial_number = "SHARED-SERIAL"
+        first.save()
+        other_type = AssetType.objects.create(business=self.other_business, name="Drone", slug="drone")
+        other = self.equipment("Theirs", business=self.other_business, asset_type=other_type)
+        other.serial_number = " shared-serial "
+        other.save()
+        self.assertNotEqual(first.business_id, other.business_id)
+
     def test_creator_variant_is_distinct_but_can_share_battery_family(self):
         creator = DroneModel.objects.create(
             manufacturer="DJI",

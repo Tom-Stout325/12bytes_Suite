@@ -3,6 +3,31 @@
 from django.db import migrations, models
 
 
+def normalize_equipment_identifiers(apps, schema_editor):
+    Asset = apps.get_model("assets", "Asset")
+    seen = set()
+    updates = []
+    for asset in Asset.objects.order_by("business_id", "pk").iterator():
+        asset.serial_number = (asset.serial_number or "").strip()
+        asset.normalized_serial_number = asset.serial_number.casefold()
+        asset.faa_registration = (asset.faa_registration or "").strip().upper()
+        key = (asset.business_id, asset.normalized_serial_number)
+        if asset.normalized_serial_number and key in seen:
+            raise RuntimeError(
+                "Duplicate nonblank Equipment serial numbers exist within a business; "
+                "resolve them before applying assets migration 0007."
+            )
+        if asset.normalized_serial_number:
+            seen.add(key)
+        updates.append(asset)
+    if updates:
+        Asset.objects.bulk_update(
+            updates,
+            ["serial_number", "normalized_serial_number", "faa_registration"],
+            batch_size=500,
+        )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -13,6 +38,16 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='asset',
             name='faa_registration',
-            field=models.CharField(blank=True, help_text='FAA aircraft registration number, if applicable.', max_length=100),
+            field=models.CharField('FAA Registration', blank=True, help_text='FAA aircraft registration number, if applicable.', max_length=100),
+        ),
+        migrations.AddField(
+            model_name='asset',
+            name='normalized_serial_number',
+            field=models.CharField(blank=True, editable=False, max_length=200),
+        ),
+        migrations.RunPython(normalize_equipment_identifiers, migrations.RunPython.noop),
+        migrations.AddConstraint(
+            model_name='asset',
+            constraint=models.UniqueConstraint(condition=~models.Q(normalized_serial_number=''), fields=('business', 'normalized_serial_number'), name='uniq_asset_business_normalized_serial'),
         ),
     ]
