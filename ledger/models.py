@@ -561,15 +561,6 @@ class Transaction(BusinessOwnedModelMixin):
                 self.is_refund = True
                 self.trans_type = Transaction.TransactionType.INCOME
 
-            # Optional: auto-create an Asset record for capitalizable purchases
-            if sc.account_type == SubCategory.AccountType.ASSET and sc.is_capitalizable and not self.asset_id:
-                self.asset = Asset.objects.create(
-                    business=self.business,
-                    name=(self.description or "Asset")[:200],
-                    placed_in_service=self.date,
-                    cost_basis=self.amount or Decimal("0.00"),
-                )
-
         self.full_clean()
         return super().save(*args, **kwargs)
     

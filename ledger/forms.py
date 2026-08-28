@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from ledger.models import Category, Job, Contact, SubCategory, Transaction, Team, RecurringExpense
 from vehicles.models import Vehicle
-from assets.models import Asset
+from assets.models import Asset, AssetType
 
 
 class TransactionForm(forms.ModelForm):
@@ -20,6 +20,20 @@ class TransactionForm(forms.ModelForm):
     - Shows Type + Category as derived badges after Subcategory selection.
     - Uses explicit Transport + Vehicle fields (Vehicle appears only when relevant).
     """
+
+    create_equipment_asset = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Track as fixed asset",
+        help_text="Create an equipment record for this purchase. Leave off for accessories and ordinary expenses.",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+    equipment_asset_type = forms.ModelChoiceField(
+        queryset=AssetType.objects.none(),
+        required=False,
+        label="Equipment type",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
 
     class Meta:
         model = Transaction
@@ -43,6 +57,7 @@ class TransactionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.business = kwargs.pop("business", None)
         super().__init__(*args, **kwargs)
+        self.existing_asset_id = self.instance.asset_id if self.instance and self.instance.pk else None
 
         if not self.business:
             raise ValueError("TransactionForm requires business=...")
@@ -92,6 +107,9 @@ class TransactionForm(forms.ModelForm):
         self.fields["asset"].label = "Asset"
         self.fields["asset"].queryset = Asset.objects.filter(business=self.business).order_by("name")
         self.fields["asset"].widget.attrs.setdefault("class", "form-select")
+        self.fields["equipment_asset_type"].queryset = AssetType.objects.filter(
+            business=self.business, is_active=True
+        ).order_by("sort_order", "name")
 
         # Receipt upload
         self.fields["receipt"].required = False
@@ -144,6 +162,15 @@ class TransactionForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+
+        if cleaned.get("create_equipment_asset"):
+            if self.existing_asset_id or cleaned.get("asset"):
+                self.add_error(
+                    "create_equipment_asset",
+                    "This transaction already has an asset selected. Clear it to create a new one.",
+                )
+            if not cleaned.get("equipment_asset_type"):
+                self.add_error("equipment_asset_type", "Select an equipment type for the new asset.")
 
         sc = cleaned.get("subcategory")
         transport = (cleaned.get("transport_type") or "").strip()

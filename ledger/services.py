@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from assets.models import Asset
+
 from django.db import transaction
 from django.utils.text import slugify
 
@@ -330,3 +332,28 @@ def seed_schedule_c_defaults(business) -> None:
 
     if to_create:
         SubCategory.objects.bulk_create(to_create)
+
+
+@transaction.atomic
+def save_transaction_with_optional_asset(*, form, business):
+    """Save a transaction and its explicitly requested equipment record as one unit."""
+    ledger_transaction = form.save(commit=False)
+    ledger_transaction.business = business
+    ledger_transaction.save()
+
+    if form.cleaned_data.get("create_equipment_asset") and not ledger_transaction.asset_id:
+        asset = Asset(
+            business=business,
+            asset_type=form.cleaned_data["equipment_asset_type"],
+            name=(ledger_transaction.description or "Asset")[:255],
+            purchase_date=ledger_transaction.date,
+            placed_in_service_date=ledger_transaction.date,
+            purchase_price=ledger_transaction.amount,
+        )
+        asset.full_clean()
+        asset.save()
+        ledger_transaction.asset = asset
+        ledger_transaction.save(update_fields=["asset", "updated_at"])
+
+    form.save_m2m()
+    return ledger_transaction

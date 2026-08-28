@@ -28,14 +28,15 @@ from .forms import (
 
 
 from .models import (
-        Contact, 
-        SubCategory, 
-        Transaction, 
-        RecurringExpense,
-        Team, 
-        Category,
-        Job,
-    )
+    Contact,
+    SubCategory,
+    Transaction,
+    RecurringExpense,
+    Team,
+    Category,
+    Job,
+)
+from .services import save_transaction_with_optional_asset
 
 
 class TransactionListView(LoginRequiredMixin, ListView):
@@ -120,8 +121,8 @@ class TransactionCreateView(LoginRequiredMixin, CreateView):
         return kwargs
 
     def form_valid(self, form):
-        form.instance.business = self.request.business
-        return super().form_valid(form)
+        self.object = save_transaction_with_optional_asset(form=form, business=self.request.business)
+        return redirect(self.get_success_url())
 
 
 class TransactionUpdateView(LoginRequiredMixin, UpdateView):
@@ -139,8 +140,8 @@ class TransactionUpdateView(LoginRequiredMixin, UpdateView):
         return kwargs
 
     def form_valid(self, form):
-        form.instance.business = self.request.business
-        return super().form_valid(form)
+        self.object = save_transaction_with_optional_asset(form=form, business=self.request.business)
+        return redirect(self.get_success_url())
 
 
 class TransactionDetailView(LoginRequiredMixin, DetailView):
