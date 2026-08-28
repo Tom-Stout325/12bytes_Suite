@@ -14,6 +14,7 @@ from .forms import InvoiceForm, InvoiceItemForm
 from .models import Invoice, InvoiceItem, allocate_next_invoice_number, bump_counter_if_needed
 from .services import (
     create_revision,
+    recalc_totals,
     mark_paid,
     render_invoice_pdf_bytes,
     send_invoice,
@@ -61,6 +62,7 @@ class InvoiceDetailView(LoginRequiredMixin, BusinessScopedMixin, DetailView):
         ctx = super().get_context_data(**kwargs)
         invoice: Invoice = ctx["invoice"]
         business = self.get_business()
+        recalc_totals(invoice=invoice, save=False)
 
         # ------------------------------------------------------------------
         # Mileage entries linked to this invoice (UNCHANGED from your version)
@@ -289,6 +291,7 @@ def invoice_create(request: HttpRequest) -> HttpResponse:
                 it.save()
             for it in formset.deleted_objects:
                 it.delete()
+            recalc_totals(invoice=invoice, save=True)
             messages.success(request, "Invoice created.")
             return redirect("invoices:invoice_detail", pk=invoice.pk)
 
@@ -349,6 +352,7 @@ def invoice_update(request: HttpRequest, pk: int) -> HttpResponse:
                 it.save()
             for it in formset.deleted_objects:
                 it.delete()
+            recalc_totals(invoice=invoice, save=True)
             messages.success(request, "Invoice updated.")
             return redirect("invoices:invoice_detail", pk=invoice.pk)
 

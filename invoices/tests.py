@@ -1,7 +1,9 @@
 from decimal import Decimal
 from datetime import date
+from io import StringIO
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
@@ -168,3 +170,41 @@ class InvoiceDetailExpenseBreakdownTests(TestCase):
         self.assertNotContains(response, "Private Category")
         self.assertEqual(self.invoice.subtotal, Decimal("500.00"))
         self.assertEqual(self.invoice.total, Decimal("500.00"))
+
+    def test_invoice_review_uses_authoritative_items_when_cached_totals_are_zero(self):
+        Invoice.objects.filter(pk=self.invoice.pk).update(
+            subtotal=Decimal("0.00"), total=Decimal("0.00")
+        )
+
+        response = self.detail()
+
+        self.assertEqual(response.context["invoice"].subtotal, Decimal("500.00"))
+        self.assertEqual(response.context["invoice"].total, Decimal("500.00"))
+        self.assertContains(response, "$500.00")
+
+    def test_repair_invoice_totals_updates_cache_but_does_not_fabricate_missing_items(self):
+        Invoice.objects.filter(pk=self.invoice.pk).update(
+            subtotal=Decimal("0.00"), total=Decimal("0.00")
+        )
+        missing = Invoice.objects.create(
+            business=self.business,
+            contact=self.contact,
+            invoice_number="260102",
+            issue_date=date(2026, 1, 20),
+            subtotal=Decimal("700.00"),
+            total=Decimal("700.00"),
+        )
+        output = StringIO()
+
+        call_command(
+            "repair_invoice_totals",
+            business=str(self.business.pk),
+            apply=True,
+            stdout=output,
+        )
+
+        self.invoice.refresh_from_db()
+        missing.refresh_from_db()
+        self.assertEqual(self.invoice.total, Decimal("500.00"))
+        self.assertEqual(missing.total, Decimal("700.00"))
+        self.assertIn("missing_items=1", output.getvalue())

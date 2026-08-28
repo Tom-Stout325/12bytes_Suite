@@ -19,6 +19,7 @@ from django.views.generic import TemplateView
 from core.feature_mixins import FeatureRequiredMixin
 
 from invoices.models import Invoice
+from invoices.services import amount_paid
 from ledger.models import Transaction
 
     
@@ -499,7 +500,8 @@ class TravelExpenseSummaryView(
                 business=business,
                 issue_date__year=selected_year,
             )
-            .select_related("job")
+            .select_related("job", "income_transaction")
+            .prefetch_related("items", "payments")
             .order_by("issue_date", "invoice_number")
         )
 
@@ -537,6 +539,19 @@ class TravelExpenseSummaryView(
             if bucket:
                 expense_totals[invoice_number][bucket] += amount
 
+        payment_transaction_totals = {
+            row["invoice_number"]: row["total"] or Decimal("0.00")
+            for row in (
+                Transaction.objects.filter(
+                    business=business,
+                    invoice_number__in=invoice_numbers,
+                    trans_type=Transaction.TransactionType.INCOME,
+                )
+                .values("invoice_number")
+                .annotate(total=Sum("amount"))
+            )
+        }
+
         rows = []
 
         totals = {
@@ -550,7 +565,11 @@ class TravelExpenseSummaryView(
         }
 
         for invoice in invoices:
-            invoice_amount = invoice.total or Decimal("0.00")
+            invoice_total = invoice.total_amount
+            invoice_amount = amount_paid(
+                invoice=invoice,
+                invoice_number_transaction_total=payment_transaction_totals.get(invoice.invoice_number),
+            )
             expenses = expense_totals[invoice.invoice_number]
 
             total_expense = (
@@ -566,6 +585,7 @@ class TravelExpenseSummaryView(
                 "invoice": invoice,
                 "event_name": invoice.job.label if invoice.job_id else "",
                 "invoice_amount": invoice_amount,
+                "invoice_total": invoice_total,
                 "airfare": expenses["airfare"],
                 "hotels": expenses["hotels"],
                 "car_rental": expenses["car_rental"],

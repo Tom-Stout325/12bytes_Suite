@@ -8,7 +8,7 @@ import mimetypes
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.mail import EmailMultiAlternatives
-from django.db import models, transaction
+from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone
 
@@ -98,6 +98,27 @@ def recalc_totals(*, invoice: Invoice, save: bool = False) -> tuple[Decimal, Dec
     return subtotal, total
 
 
+def amount_paid(*, invoice: Invoice, invoice_number_transaction_total=None) -> Decimal:
+    """Return cash received using one authoritative payment representation.
+
+    Explicit InvoicePayment rows take precedence. Current invoices use the linked
+    income transaction; imported legacy invoices may only be associated by invoice
+    number, supplied by the report's tenant-scoped bulk query.
+    """
+    recorded_payments = [
+        payment for payment in invoice.payments.all()
+        if payment.business_id == invoice.business_id
+    ]
+    if recorded_payments:
+        return sum((Decimal(payment.amount) for payment in recorded_payments), Decimal("0.00"))
+
+    linked = invoice.income_transaction
+    if linked and linked.business_id == invoice.business_id:
+        return Decimal(linked.amount or Decimal("0.00"))
+
+    return Decimal(invoice_number_transaction_total or Decimal("0.00"))
+
+
 def snapshot_bill_to(*, invoice: Invoice) -> None:
     p = invoice.contact
     invoice.bill_to_name = getattr(p, "display_name", "") or ""
@@ -142,7 +163,7 @@ def render_invoice_pdf_bytes(*, invoice: Invoice, base_url: str | None = None) -
     company = getattr(invoice.business, "company_profile", None)
 
     # Ensure totals are current for rendering (Option A)
-    recalc_totals(invoice=invoice, save=False)
+    recalc_totals(invoice=invoice, save=True)
 
     html = render_to_string(
         "invoices/pdf/invoice_final.html",
@@ -227,7 +248,7 @@ def mark_paid(*, invoice: Invoice, paid_date=None) -> Transaction:
     paid_date = paid_date or timezone.localdate()
 
     # Ensure totals current (Option A)
-    _, total = recalc_totals(invoice=invoice, save=False)
+    _, total = recalc_totals(invoice=invoice, save=True)
 
     # choose posting subcategory: first line item with subcategory required
     first = invoice.items.exclude(subcategory__isnull=True).select_related("subcategory").first()

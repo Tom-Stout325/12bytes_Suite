@@ -149,7 +149,7 @@
 
   <div class="summary-row">
     <div class="summary-card">
-      <div class="summary-label">Invoice Total</div>
+      <div class="summary-label">Amount Paid</div>
       <div class="summary-value">${{ totals.invoice_amount|default_if_none:0|floatformat:2|intcomma }}</div>
     </div>
     <div class="summary-card">
@@ -168,7 +168,7 @@
         <tr>
           <th class="invoice">Invoice #</th>
           <th class="job">Job</th>
-          <th class="num money-col">Invoice Amount</th>
+          <th class="num money-col">Amount Paid</th>
           <th class="num money-col">Airfare</th>
           <th class="num money-col">Hotels</th>
           <th class="num money-col">Car Rental</th>
