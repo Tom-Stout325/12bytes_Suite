@@ -66,6 +66,12 @@
   <form method="post" enctype="multipart/form-data" class="card card-body shadow-sm">
     {% csrf_token %}
     <div class="mb-3">
+      <label class="form-label" for="{{ form.pilot.id_for_label }}">{{ form.pilot.label }}</label>
+      {{ form.pilot }}
+      <div class="form-text">This pilot will be recorded on every successfully imported flight in this batch.</div>
+      {% for error in form.pilot.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+    </div>
+    <div class="mb-3">
       <label class="form-label" for="{{ form.dji_file.id_for_label }}">{{ form.dji_file.label }}</label>
       {{ form.dji_file }}
       <div id="dji-selected-count" class="form-text" aria-live="polite">No files selected.</div>

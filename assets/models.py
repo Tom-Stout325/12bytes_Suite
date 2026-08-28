@@ -124,6 +124,11 @@ class Asset(BusinessOwnedModelMixin):
     manufacturer = models.CharField(max_length=100, blank=True)
     model = models.CharField(max_length=150, blank=True)
     serial_number = models.CharField(max_length=100, blank=True)
+    faa_registration = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="FAA aircraft registration number, if applicable.",
+    )
     asset_type = models.ForeignKey(
         AssetType,
         on_delete=models.PROTECT,

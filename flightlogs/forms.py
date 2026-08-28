@@ -3,6 +3,8 @@ from __future__ import annotations
 from django import forms
 from django.conf import settings
 
+from pilot.models import PilotProfile
+
 from .models import FlightLog
 
 
@@ -33,6 +35,11 @@ class FlightLogCSVUploadForm(forms.Form):
 
 
 class FlightLogDJIUploadForm(forms.Form):
+    pilot = forms.ModelChoiceField(
+        queryset=PilotProfile.objects.none(),
+        empty_label="Select a pilot",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
     dji_file = MultipleFileField(
         label="DJI FlightRecord .txt files",
         widget=MultipleFileInput(
@@ -44,7 +51,17 @@ class FlightLogDJIUploadForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
+        business = kwargs.pop("business", None)
+        user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
+        pilots = PilotProfile.objects.none()
+        if business is not None:
+            pilots = PilotProfile.objects.filter(business=business).select_related("user")
+        self.fields["pilot"].queryset = pilots
+        if not self.is_bound and user is not None:
+            current = list(pilots.filter(user=user)[:2])
+            if len(current) == 1:
+                self.initial["pilot"] = current[0]
         self.max_files = settings.DJI_BULK_MAX_FILES
         self.fields["dji_file"].help_text = (
             f"Choose up to {self.max_files} files. "
@@ -85,6 +102,8 @@ class FlightLogForm(forms.ModelForm):
         exclude = (
             "business",
             "aircraft_model",
+            "pilot",
+            "equipment",
             "rc_serial",
             "camera_serial",
             "battery_cycle_count",

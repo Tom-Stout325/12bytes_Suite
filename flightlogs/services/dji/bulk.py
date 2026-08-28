@@ -8,6 +8,7 @@ import logging
 
 from flightlogs.models import FlightLogSource
 from flightlogs.services.matching import MatchType
+from flightlogs.services.import_normalization import aircraft_equipment_for_business
 
 from .errors import DJIImportError, ERROR_DETAILS
 from .importer import DJIImportResult, import_dji_upload
@@ -52,6 +53,9 @@ def _classify_result(filename: str, result: DJIImportResult) -> BulkDJIFileResul
     elif source.status == FlightLogSource.Status.FAILED:
         classification = BulkDJIClassification.FAILED
         label = "Failed"
+    elif source.safe_error_code == "DJI_EQUIPMENT_AMBIGUOUS":
+        classification = BulkDJIClassification.REVIEW_AMBIGUOUS
+        label = "Review Required — Ambiguous Aircraft Equipment"
     elif result.match_type == MatchType.NO_MATCH:
         classification = BulkDJIClassification.IMPORTED_NEW
         label = "Imported New Flight"
@@ -87,9 +91,10 @@ def _classify_result(filename: str, result: DJIImportResult) -> BulkDJIFileResul
     )
 
 
-def import_dji_batch(*, business, user, uploads) -> BulkDJIImportResult:
+def import_dji_batch(*, business, user, uploads, pilot=None) -> BulkDJIImportResult:
     """Import a bounded batch sequentially; each file owns its transaction lifecycle."""
     files = []
+    equipment_candidates = aircraft_equipment_for_business(business)
     for uploaded in uploads:
         filename = (getattr(uploaded, "name", "") or "DJIFlightRecord.txt")[:255]
         try:
@@ -97,6 +102,8 @@ def import_dji_batch(*, business, user, uploads) -> BulkDJIImportResult:
                 business=business,
                 user=user,
                 uploaded=uploaded,
+                pilot=pilot,
+                equipment_candidates=equipment_candidates,
             )
             files.append(_classify_result(filename, result))
         except DJIImportError as failure:

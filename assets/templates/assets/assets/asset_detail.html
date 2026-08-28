@@ -48,6 +48,7 @@
             {% if asset.manufacturer or asset.model or asset.serial_number %}
               <div class="col-12 col-md-6"><div class="small text-muted">Manufacturer / Model</div><div class="fw-semibold">{{ asset.manufacturer }} {{ asset.model }}</div></div>
               <div class="col-12 col-md-6"><div class="small text-muted">Serial Number</div><div class="fw-semibold">{{ asset.serial_number|default:"—" }}</div></div>
+              <div class="col-12 col-md-6"><div class="small text-muted">FAA Registration</div><div class="fw-semibold">{{ asset.faa_registration|default:"—" }}</div></div>
             {% endif %}
             {% if asset.drone_model %}
               <div class="col-12 col-md-6"><div class="small text-muted">Aircraft Variant</div><div class="fw-semibold">{{ asset.drone_model }}</div></div>

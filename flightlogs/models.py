@@ -24,6 +24,13 @@ class FlightLog(BusinessOwnedModelMixin):
     flight_description = models.TextField(blank=True)
     pilot_in_command = models.CharField(max_length=100, blank=True)
     license_number = models.CharField(max_length=100, blank=True)
+    pilot = models.ForeignKey(
+        "pilot.PilotProfile",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="flight_logs",
+    )
     flight_application = models.CharField(max_length=100, blank=True)
     remote_id = models.CharField(max_length=100, blank=True)
 
@@ -43,6 +50,13 @@ class FlightLog(BusinessOwnedModelMixin):
     drone_type = models.CharField(max_length=100, blank=True)
     drone_serial = models.CharField(max_length=100, blank=True)
     drone_reg_number = models.CharField(max_length=100, blank=True)
+    equipment = models.ForeignKey(
+        "assets.Asset",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="flight_logs",
+    )
     rc_serial = models.CharField(max_length=100, blank=True)
     camera_serial = models.CharField(max_length=100, blank=True)
     aircraft_model = models.ForeignKey(
@@ -138,6 +152,10 @@ class FlightLog(BusinessOwnedModelMixin):
         super().clean()
         if self.aircraft_model_id and self.business_id and self.aircraft_model.business_id != self.business_id:
             raise ValidationError({"aircraft_model": "Select an aircraft model for this business."})
+        if self.pilot_id and self.business_id and self.pilot.business_id != self.business_id:
+            raise ValidationError({"pilot": "Select a pilot for this business."})
+        if self.equipment_id and self.business_id and self.equipment.business_id != self.business_id:
+            raise ValidationError({"equipment": "Select equipment for this business."})
         if self.takeoff_battery_pct is not None and not 0 <= self.takeoff_battery_pct <= 100:
             raise ValidationError({"takeoff_battery_pct": "Battery percentage must be between 0 and 100."})
         if self.landing_battery_pct is not None and not 0 <= self.landing_battery_pct <= 100:

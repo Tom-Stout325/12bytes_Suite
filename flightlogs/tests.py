@@ -16,8 +16,9 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import CompanyProfile
-from assets.models import AircraftModel
+from assets.models import AircraftModel, Asset, AssetType
 from core.models import Business, BusinessMembership
+from pilot.models import PilotProfile
 
 from .models import FlightLog, FlightLogSource
 from .services.dji.errors import import_error
@@ -314,6 +315,7 @@ def parser_payload(**overrides):
         "airborne_duration_seconds": 1750.5,
         "takeoff_latitude": 47.32105249,
         "takeoff_longitude": -122.14325966,
+        "takeoff_altitude_asl_m": 250.0,
         "maximum_altitude_relative_m": 119.7,
         "maximum_distance_from_home_m": 875.2,
         "total_distance_m": 2696.763,
@@ -372,6 +374,7 @@ class FlightLogDJIUploadTests(TestCase):
         super().tearDownClass()
 
     def setUp(self):
+        clear_location_cache()
         self.location_patcher = mock.patch(
             "flightlogs.services.dji.importer.enrich_flightlog_location",
         )
@@ -396,17 +399,46 @@ class FlightLogDJIUploadTests(TestCase):
             company_name="Alpha Drone",
         )
         self.client.force_login(self.user)
+        self.pilot = PilotProfile.objects.create(
+            business=self.business,
+            user=self.user,
+            license_number="REMOTE-123",
+        )
 
-    def upload(self, content=b"dji-flight-record", name="DJIFlightRecord.txt"):
+    def make_equipment(self, *, serial="COMPONENT-AIRCRAFT-SERIAL", registration="N123SU", business=None, asset_type_name="Drone"):
+        business = business or self.business
+        asset_type, _ = AssetType.objects.get_or_create(
+            business=business,
+            slug=asset_type_name.lower(),
+            defaults={"name": asset_type_name},
+        )
+        return Asset.objects.create(
+            business=business,
+            name="DJI aircraft",
+            asset_type=asset_type,
+            serial_number=serial,
+            faa_registration=registration,
+            purchase_date=date(2025, 1, 1),
+        )
+
+    def upload(self, content=b"dji-flight-record", name="DJIFlightRecord.txt", pilot=None):
+        if pilot is None:
+            current_user_id = int(self.client.session["_auth_user_id"])
+            pilot = PilotProfile.objects.filter(user_id=current_user_id).first()
         return self.client.post(
             reverse("flightlogs:flightlog_dji_upload"),
-            {"dji_file": SimpleUploadedFile(name, content, content_type="text/plain")},
+            {
+                "pilot": pilot.pk if pilot else "",
+                "dji_file": SimpleUploadedFile(name, content, content_type="text/plain"),
+            },
         )
 
     def upload_many(self, files):
+        current_user_id = int(self.client.session["_auth_user_id"])
+        pilot = PilotProfile.objects.filter(user_id=current_user_id).first()
         return self.client.post(
             reverse("flightlogs:flightlog_dji_upload"),
-            {"dji_file": files},
+            {"pilot": pilot.pk if pilot else "", "dji_file": files},
         )
 
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
@@ -427,6 +459,10 @@ class FlightLogDJIUploadTests(TestCase):
         self.assertNotIn("DJIFlightRecord.txt", source.file.name)
         self.assertTrue(source.file.storage.exists(source.file.name))
         self.assertEqual(log.drone_serial, "COMPONENT-AIRCRAFT-SERIAL")
+        self.assertEqual(log.pilot, self.pilot)
+        self.assertEqual(log.pilot_in_command, "alpha")
+        self.assertEqual(log.license_number, "REMOTE-123")
+        self.assertAlmostEqual(log.above_sea_level_ft, 820.209973753, places=6)
         self.assertEqual(log.drone_name, "Survey Aircraft")
         self.assertEqual(log.battery_serial_internal, "COMPONENT-BATTERY-SERIAL")
         self.assertEqual(log.battery_name, "")
@@ -460,6 +496,146 @@ class FlightLogDJIUploadTests(TestCase):
         self.assertAlmostEqual(log.total_mileage_ft, 8847.6476378, places=5)
         self.weather_mock.assert_called_once_with(log)
         self.location_mock.assert_called_once_with(log)
+
+    def test_pilot_dropdown_is_tenant_scoped_and_current_user_is_selected(self):
+        other_business = Business.objects.create(name="Other Pilots")
+        other_user = get_user_model().objects.create_user("outside-pilot")
+        BusinessMembership.objects.create(business=other_business, user=other_user)
+        outside = PilotProfile.objects.create(business=other_business, user=other_user)
+
+        response = self.client.get(reverse("flightlogs:flightlog_dji_upload"))
+
+        self.assertEqual(list(response.context["form"].fields["pilot"].queryset), [self.pilot])
+        self.assertEqual(response.context["form"].initial["pilot"], self.pilot)
+        self.assertContains(response, f'value="{self.pilot.pk}" selected')
+        self.assertNotContains(response, f'value="{outside.pk}"')
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_cross_business_pilot_submission_is_rejected(self, parse_mock):
+        other_business = Business.objects.create(name="Other Pilot Tenant")
+        other_user = get_user_model().objects.create_user("wrong-pilot")
+        BusinessMembership.objects.create(business=other_business, user=other_user)
+        outside = PilotProfile.objects.create(business=other_business, user=other_user)
+
+        response = self.upload(content=b"cross-pilot", pilot=outside)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Select a valid choice")
+        parse_mock.assert_not_called()
+        self.assertFalse(FlightLog.objects.exists())
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_selected_pilot_applies_to_every_successful_batch_file(self, parse_mock):
+        parse_mock.side_effect = [
+            parser_payload(start_time="2026-08-01T12:00:00+00:00"),
+            parser_payload(start_time="2026-08-02T12:00:00+00:00"),
+        ]
+        self.upload_many([
+            SimpleUploadedFile("one.txt", b"one"),
+            SimpleUploadedFile("two.txt", b"two"),
+        ])
+        self.assertEqual(FlightLog.objects.filter(pilot=self.pilot).count(), 2)
+        self.assertEqual(
+            set(FlightLog.objects.values_list("license_number", flat=True)),
+            {"REMOTE-123"},
+        )
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_exact_normalized_equipment_serial_populates_registration(self, parse_mock):
+        equipment = self.make_equipment(serial="  component-aircraft-serial  ")
+        parse_mock.return_value = parser_payload()
+        self.upload(content=b"equipment-exact")
+        log = FlightLog.objects.get()
+        self.assertEqual(log.equipment, equipment)
+        self.assertEqual(log.drone_reg_number, "N123SU")
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_partial_and_cross_business_serials_do_not_match(self, parse_mock):
+        self.make_equipment(serial="COMPONENT-AIRCRAFT")
+        other = Business.objects.create(name="Other Equipment")
+        self.make_equipment(serial="COMPONENT-AIRCRAFT-SERIAL", business=other)
+        parse_mock.return_value = parser_payload()
+        self.upload(content=b"equipment-unmatched")
+        log = FlightLog.objects.get()
+        self.assertIsNone(log.equipment)
+        self.assertEqual(log.drone_reg_number, "")
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_ambiguous_equipment_match_requires_review_without_guessing(self, parse_mock):
+        self.make_equipment()
+        self.make_equipment()
+        parse_mock.return_value = parser_payload()
+        response = self.upload(content=b"equipment-ambiguous")
+        source = FlightLogSource.objects.get()
+        self.assertEqual(source.status, FlightLogSource.Status.REVIEW)
+        self.assertEqual(source.safe_error_code, "DJI_EQUIPMENT_AMBIGUOUS")
+        self.assertIsNone(source.flight_log.equipment)
+        self.assertEqual(response.url, f"{reverse('flightlogs:flightlog_dji_upload')}?review=1")
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_blank_equipment_registration_does_not_erase_existing_snapshot(self, parse_mock):
+        existing = self._airdata_flight(drone_reg_number="N-KEEP")
+        self.make_equipment(registration="")
+        parse_mock.return_value = parser_payload()
+        self.upload(content=b"keep-registration")
+        existing.refresh_from_db()
+        self.assertEqual(existing.drone_reg_number, "N-KEEP")
+
+    @mock.patch("flightlogs.services.locations.reverse_geocode_coordinates")
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_coordinates_populate_formatted_location_and_reuse_cache(self, parse_mock, reverse_mock):
+        parse_mock.side_effect = [
+            parser_payload(start_time="2026-08-01T12:00:00+00:00"),
+            parser_payload(start_time="2026-08-02T12:00:00+00:00"),
+        ]
+        reverse_mock.return_value = LocationComponents(
+            "Fishers", "IN", "USA", "46037", "100 Main St, Fishers, IN 46037, USA"
+        )
+        self.location_mock.side_effect = enrich_flightlog_location
+        self.upload_many([
+            SimpleUploadedFile("geo-one.txt", b"geo-one"),
+            SimpleUploadedFile("geo-two.txt", b"geo-two"),
+        ])
+        self.assertEqual(reverse_mock.call_count, 1)
+        for log in FlightLog.objects.all():
+            self.assertEqual(log.takeoff_address, "100 Main St, Fishers, IN 46037, USA")
+            self.assertEqual((log.takeoff_city, log.takeoff_state, log.takeoff_postal_code, log.takeoff_country), ("Fishers", "IN", "46037", "USA"))
+
+    @mock.patch(
+        "flightlogs.services.locations.reverse_geocode_coordinates",
+        side_effect=TimeoutError("geocoder timeout"),
+    )
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_reverse_geocoding_failure_does_not_fail_import(self, parse_mock, _reverse_mock):
+        parse_mock.return_value = parser_payload()
+        self.location_mock.side_effect = enrich_flightlog_location
+        response = self.upload(content=b"geocode-failure")
+        log = FlightLog.objects.get()
+        self.assertEqual(response.url, reverse("flightlogs:flightlog_detail", args=[log.pk]))
+        self.assertEqual(log.takeoff_address, "")
+        self.assertTrue(log.takeoff_latlong)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_missing_or_invalid_asl_does_not_use_relative_altitude(self, parse_mock):
+        parse_mock.side_effect = [
+            parser_payload(takeoff_altitude_asl_m=None, maximum_altitude_relative_m=100.0, start_time="2026-08-01T12:00:00+00:00"),
+            parser_payload(takeoff_altitude_asl_m=-999.0, maximum_altitude_relative_m=100.0, start_time="2026-08-02T12:00:00+00:00"),
+        ]
+        self.upload_many([
+            SimpleUploadedFile("missing-asl.txt", b"missing-asl"),
+            SimpleUploadedFile("invalid-asl.txt", b"invalid-asl"),
+        ])
+        self.assertFalse(FlightLog.objects.exclude(above_sea_level_ft__isnull=True).exists())
+
+    def test_drone_type_row_is_removed_from_detail_mobile_friendly_grid(self):
+        log = FlightLog.objects.create(
+            business=self.business,
+            flight_date=date(2026, 1, 1),
+            drone_type="Legacy Type",
+        )
+        response = self.client.get(reverse("flightlogs:flightlog_detail", args=[log.pk]))
+        self.assertNotContains(response, "<span>Type</span>", html=True)
+        self.assertContains(response, "report-grid-wide")
 
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
     def test_dji_model_code_resolves_canonical_aircraft_model(self, parse_mock):
@@ -571,6 +747,7 @@ class FlightLogDJIUploadTests(TestCase):
         second_user = get_user_model().objects.create_user("bravo", password="test-password")
         BusinessMembership.objects.create(business=second_business, user=second_user)
         CompanyProfile.objects.create(business=second_business, company_name="Bravo Drone")
+        PilotProfile.objects.create(business=second_business, user=second_user)
         self.client.force_login(second_user)
         response = self.upload()
 
@@ -1207,6 +1384,7 @@ class FlightLogDJIUploadTests(TestCase):
         second_user = get_user_model().objects.create_user("bulk-other", password="test-password")
         BusinessMembership.objects.create(business=second_business, user=second_user)
         CompanyProfile.objects.create(business=second_business, company_name="Bulk Isolated")
+        PilotProfile.objects.create(business=second_business, user=second_user)
         self.client.force_login(second_user)
         response = self.upload_many(
             [

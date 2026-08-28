@@ -32,6 +32,7 @@ class LocationComponents:
     state: str = ""
     country: str = ""
     postal_code: str = ""
+    formatted_address: str = ""
 
     def as_model_fields(self) -> dict[str, str]:
         return {
@@ -39,6 +40,7 @@ class LocationComponents:
             "takeoff_state": self.state,
             "takeoff_country": self.country,
             "takeoff_postal_code": self.postal_code,
+            "takeoff_address": self.formatted_address,
         }
 
 
@@ -117,6 +119,7 @@ def _nominatim_components(payload: object) -> LocationComponents:
         state=state[:100],
         country=_country_value(address.get("country"), address.get("country_code")),
         postal_code=str(address.get("postcode") or "").strip()[:20],
+        formatted_address=str(payload.get("display_name") or "").strip()[:255],
     )
 
 
@@ -157,6 +160,7 @@ def _existing_components(flight_log: FlightLog, coordinates: tuple[float, float]
                 candidate.takeoff_state,
                 candidate.takeoff_country,
                 candidate.takeoff_postal_code,
+                candidate.takeoff_address,
             )
             _coordinate_cache[key] = components
             return components
@@ -167,6 +171,7 @@ def enrich_flightlog_location(
     flight_log: FlightLog, *, allow_geocode: bool = True, force: bool = False
 ) -> LocationEnrichmentResult:
     current = {
+        "takeoff_address": flight_log.takeoff_address,
         "takeoff_city": flight_log.takeoff_city,
         "takeoff_state": flight_log.takeoff_state,
         "takeoff_country": flight_log.takeoff_country,

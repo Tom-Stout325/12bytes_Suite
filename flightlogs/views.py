@@ -681,13 +681,19 @@ def upload_flightlog_dji(request):
     if request.business is None:
         return redirect("accounts:onboarding")
     if request.method == "POST":
-        form = FlightLogDJIUploadForm(request.POST, request.FILES)
+        form = FlightLogDJIUploadForm(
+            request.POST,
+            request.FILES,
+            business=request.business,
+            user=request.user,
+        )
         if form.is_valid():
             uploads = form.cleaned_data["dji_file"]
             batch = import_dji_batch(
                 business=request.business,
                 user=request.user,
                 uploads=uploads,
+                pilot=form.cleaned_data["pilot"],
             )
             if len(batch.files) == 1:
                 item = batch.files[0]
@@ -717,14 +723,17 @@ def upload_flightlog_dji(request):
                 request,
                 "flightlogs/flightlog_dji_upload.html",
                 {
-                    "form": FlightLogDJIUploadForm(),
+                    "form": FlightLogDJIUploadForm(
+                        business=request.business,
+                        user=request.user,
+                    ),
                     "current_page": "flightlogs",
                     "bulk_result": batch,
                 },
             )
         messages.error(request, "Please correct the DJI upload error below.")
     else:
-        form = FlightLogDJIUploadForm()
+        form = FlightLogDJIUploadForm(business=request.business, user=request.user)
     return render(
         request,
         "flightlogs/flightlog_dji_upload.html",

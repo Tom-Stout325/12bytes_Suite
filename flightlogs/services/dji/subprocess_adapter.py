@@ -54,6 +54,7 @@ EXPECTED_FIELDS = {
     "airborne_duration_seconds",
     "takeoff_latitude",
     "takeoff_longitude",
+    "takeoff_altitude_asl_m",
     "maximum_altitude_relative_m",
     "maximum_distance_from_home_m",
     "total_distance_m",

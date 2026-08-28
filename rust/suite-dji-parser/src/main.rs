@@ -39,6 +39,7 @@ struct Output {
     airborne_duration_seconds: Option<f64>,
     takeoff_latitude: Option<f64>,
     takeoff_longitude: Option<f64>,
+    takeoff_altitude_asl_m: Option<f32>,
     maximum_altitude_relative_m: Option<f32>,
     maximum_distance_from_home_m: Option<f64>,
     total_distance_m: Option<f32>,
@@ -223,6 +224,7 @@ fn process_parsed_log(parser: &DJILog) -> Result<Output, Failure> {
         airborne_duration_seconds: airborne_duration_seconds(&frames),
         takeoff_latitude,
         takeoff_longitude,
+        takeoff_altitude_asl_m: takeoff_altitude_asl_m(details.take_off_altitude, &frames),
         maximum_altitude_relative_m: maximum_relative_altitude(details.max_height, &frames),
         maximum_distance_from_home_m: maximum_distance_from_home(&frames),
         total_distance_m: total_distance_m(details.total_distance),
@@ -1083,6 +1085,19 @@ fn maximum_relative_altitude(details_max_height: f32, frames: &[Frame]) -> Optio
     }
 }
 
+fn plausible_asl_m(value: f32) -> Option<f32> {
+    (value.is_finite() && (-500.0..=10_000.0).contains(&value)).then_some(value)
+}
+
+fn takeoff_altitude_asl_m(details_takeoff_altitude: f32, frames: &[Frame]) -> Option<f32> {
+    plausible_asl_m(details_takeoff_altitude).or_else(|| {
+        frames
+            .iter()
+            .find(|frame| frame.home.is_home_record)
+            .and_then(|frame| plausible_asl_m(frame.home.altitude))
+    })
+}
+
 fn maximum_distance_from_home(frames: &[Frame]) -> Option<f64> {
     frames
         .iter()
@@ -1315,6 +1330,7 @@ mod tests {
             airborne_duration_seconds: None,
             takeoff_latitude: None,
             takeoff_longitude: None,
+            takeoff_altitude_asl_m: None,
             maximum_altitude_relative_m: None,
             maximum_distance_from_home_m: None,
             total_distance_m: None,
@@ -1497,6 +1513,13 @@ mod tests {
     #[test]
     fn haversine_is_zero_for_same_point() {
         assert_eq!(haversine_m(39.0, -86.0, 39.0, -86.0), 0.0);
+    }
+
+    #[test]
+    fn takeoff_asl_accepts_plausible_details_and_rejects_sentinels() {
+        assert_eq!(takeoff_altitude_asl_m(250.5, &[]), Some(250.5));
+        assert_eq!(takeoff_altitude_asl_m(-999.0, &[]), None);
+        assert_eq!(takeoff_altitude_asl_m(f32::NAN, &[]), None);
     }
 
     #[test]

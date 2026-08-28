@@ -20,6 +20,7 @@ ERROR_DETAILS = {
     "DJI_PARSER_WORKER_FAILURE": "An unexpected internal parsing failure occurred.",
     "DJI_PARSER_MISSING": "The DJI parser executable is missing or is not executable.",
     "DJI_PARSER_OUTPUT_INVALID": "The DJI parser returned an invalid result.",
+    "DJI_EQUIPMENT_AMBIGUOUS": "Multiple aircraft equipment records have this serial number; select the correct equipment during review.",
 }
 
 

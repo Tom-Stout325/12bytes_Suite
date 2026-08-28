@@ -14,6 +14,14 @@ from flightlogs.services.matching import MatchType, match_existing_flight
 from flightlogs.services.weather import enrich_flightlog_weather
 from flightlogs.services.locations import enrich_flightlog_location
 from flightlogs.services.aircraft_models import assign_aircraft_model
+from flightlogs.services.import_normalization import (
+    EquipmentMatchStatus,
+    aircraft_equipment_for_business,
+    assign_equipment_snapshot,
+    assign_pilot_snapshot,
+    match_aircraft_equipment,
+    meters_asl_to_feet,
+)
 
 from .errors import import_error
 from .subprocess_adapter import parse_dji_source
@@ -115,6 +123,7 @@ def _flightlog_payload(payload):
 
     # FlightLog stores imperial performance fields. Rust emits validated meters.
     altitude_m = _optional_number(payload, "maximum_altitude_relative_m")
+    takeoff_altitude_asl_ft = meters_asl_to_feet(payload.get("takeoff_altitude_asl_m"))
     max_distance_m = _optional_number(payload, "maximum_distance_from_home_m")
     total_distance_m = _optional_number(payload, "total_distance_m")
     maximum_speed_m_s = _optional_number(payload, "maximum_horizontal_speed_m_s")
@@ -181,6 +190,7 @@ def _flightlog_payload(payload):
         "takeoff_latlong": (
             f"{latitude:.8f}, {longitude:.8f}" if latitude is not None else ""
         ),
+        "above_sea_level_ft": takeoff_altitude_asl_ft,
         # Unlike Details.total_time (motor-start record duration), this is
         # summed only across decoded airborne OSD frame intervals.
         "air_time": (
@@ -273,7 +283,9 @@ def _delete_successful_source_file(source_id, stored_name, storage):
     FlightLogSource.objects.filter(pk=source_id, file=stored_name).update(file="")
 
 
-def import_dji_upload(*, business, user, uploaded):
+def import_dji_upload(*, business, user, uploaded, pilot=None, equipment_candidates=None):
+    if pilot is not None and pilot.business_id != business.pk:
+        raise ValueError("Pilot and DJI upload must belong to the same business.")
     sha256 = _uploaded_sha256(uploaded)
     existing = FlightLogSource.objects.filter(
         business=business,
@@ -288,6 +300,11 @@ def import_dji_upload(*, business, user, uploaded):
     parsed = parse_dji_source(uploaded)
     metadata = _source_metadata(parsed)
     flight_payload = _flightlog_payload(parsed)
+    if equipment_candidates is None:
+        equipment_candidates = aircraft_equipment_for_business(business)
+    equipment_match = match_aircraft_equipment(
+        metadata["aircraft_serial"], equipment_candidates
+    )
     source = FlightLogSource(
         business=business,
         source_type=FlightLogSource.SourceType.DJI_TXT,
@@ -335,6 +352,13 @@ def import_dji_upload(*, business, user, uploaded):
                 flight_log = None
             else:
                 flight_log = FlightLog.objects.create(business=business, **flight_payload)
+            if flight_log is not None:
+                updated_fields = []
+                if pilot is not None:
+                    updated_fields.extend(assign_pilot_snapshot(flight_log, pilot))
+                updated_fields.extend(assign_equipment_snapshot(flight_log, equipment_match))
+                if updated_fields:
+                    flight_log.save(update_fields=list(dict.fromkeys(updated_fields)))
             for field, value in metadata.items():
                 setattr(source, field, value)
             source.flight_log = flight_log
@@ -348,8 +372,16 @@ def import_dji_upload(*, business, user, uploaded):
                 }
                 else FlightLogSource.Status.COMPLETE
             )
-            source.safe_error_code = ""
-            source.safe_error_detail = ""
+            if (
+                source.status == FlightLogSource.Status.COMPLETE
+                and equipment_match.status == EquipmentMatchStatus.AMBIGUOUS
+            ):
+                source.status = FlightLogSource.Status.REVIEW
+                source.safe_error_code = "DJI_EQUIPMENT_AMBIGUOUS"
+                source.safe_error_detail = "Multiple aircraft equipment records matched the complete serial number."
+            else:
+                source.safe_error_code = ""
+                source.safe_error_detail = ""
             source.save()
             if stale_file_name:
                 transaction.on_commit(
@@ -380,7 +412,10 @@ def import_dji_upload(*, business, user, uploaded):
             source.file.storage.delete(stored_name)
         raise
     else:
-        if source.status == FlightLogSource.Status.COMPLETE and source.flight_log_id:
+        if (
+            source.status in {FlightLogSource.Status.COMPLETE, FlightLogSource.Status.REVIEW}
+            and source.flight_log_id
+        ):
             try:
                 assign_aircraft_model(
                     source.flight_log,

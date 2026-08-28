@@ -91,6 +91,10 @@ argument.
 - `takeoff_latitude` / `takeoff_longitude`: WGS84 position of the first decoded
   frame that reports motor on, aircraft not on ground, GPS in use, GPS level at
   least 3, and valid coordinates. If no such frame exists, both are `null`.
+- `takeoff_altitude_asl_m`: DJI Details `take_off_altitude` in meters, with the
+  first recorded Home altitude as a fallback. Non-finite values and values
+  outside -500 through 10,000 meters are treated as missing. This is absolute
+  takeoff/home altitude and is distinct from relative OSD height.
 - `maximum_altitude_relative_m`: maximum of the Details maximum height and
   decoded OSD relative height. Both represent meters above the takeoff/home
   reference, not altitude above mean sea level.
