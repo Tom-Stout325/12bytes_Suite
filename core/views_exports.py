@@ -136,7 +136,7 @@ def export_contacts_csv(request: HttpRequest) -> HttpResponse:
 @login_required
 def export_jobs_csv(request: HttpRequest) -> HttpResponse:
     Job = _find_unique_model_by_classnames(["Job"])  # type: ignore
-    qs = _business_scoped_queryset(request, Job).order_by(*_default_ordering(Job))
+    qs = _business_scoped_queryset(request, Job).order_by(*Job._meta.ordering)
     spec = _spec_for(Job, "jobs")
     return export_queryset_csv(request=request, queryset=qs, spec=spec)
 

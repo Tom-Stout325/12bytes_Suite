@@ -10,7 +10,103 @@ from django.urls import reverse
 from accounts.models import CompanyProfile
 from assets.models import Asset, AssetType
 from core.models import Business, BusinessMembership
-from ledger.models import Category, SubCategory, Transaction
+from ledger.models import Category, Job, SubCategory, Transaction
+
+
+class JobOrderingTests(TestCase):
+    def setUp(self):
+        self.business = Business.objects.create(name="Jobs Business")
+        self.user = get_user_model().objects.create_user("jobs-owner", password="test-password")
+        BusinessMembership.objects.create(
+            business=self.business,
+            user=self.user,
+            role=BusinessMembership.Role.OWNER,
+        )
+        CompanyProfile.objects.create(
+            business=self.business,
+            created_by=self.user,
+            company_name="Jobs Business",
+        )
+        self.client.force_login(self.user)
+
+    def create_job(self, *, seq, year=2026, active=True, label=None, prefix="CLIENT"):
+        job = Job.objects.create(
+            business=self.business,
+            label=label or f"Job {seq}",
+            job_year=year,
+            is_active=active,
+        )
+        Job.objects.filter(pk=job.pk).update(
+            job_seq=seq,
+            job_number=f"{prefix}-{str(year)[-2:]}{seq:04d}" if seq else f"GENERAL-{year}",
+        )
+        job.refresh_from_db()
+        return job
+
+    def response_job_numbers(self, response):
+        return [job.job_number for job in response.context["jobs"]]
+
+    def test_list_orders_by_status_year_and_descending_sequence(self):
+        seq_16 = self.create_job(seq=16, prefix="ZZZ")
+        seq_18 = self.create_job(seq=18, prefix="AAA")
+        seq_17 = self.create_job(seq=17, prefix="MMM")
+        general = self.create_job(seq=0, label="General")
+        older = self.create_job(seq=99, year=2025)
+        inactive = self.create_job(seq=100, active=False)
+
+        response = self.client.get(reverse("ledger:job_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context["jobs"]),
+            [seq_18, seq_17, seq_16, general, older, inactive],
+        )
+
+    def test_search_and_filters_preserve_newest_first_ordering(self):
+        seq_16 = self.create_job(seq=16, label="Survey", prefix="ZZZ")
+        seq_18 = self.create_job(seq=18, label="Survey", prefix="AAA")
+        seq_17 = self.create_job(seq=17, label="Survey", prefix="MMM")
+        Job.objects.filter(pk__in=[seq_16.pk, seq_17.pk, seq_18.pk]).update(
+            job_type=Job.JobType.MAPPING
+        )
+        self.create_job(seq=19, label="Photography")
+
+        response = self.client.get(
+            reverse("ledger:job_list"),
+            {"q": "Survey", "job_type": Job.JobType.MAPPING, "active": "1"},
+        )
+
+        self.assertEqual(
+            self.response_job_numbers(response),
+            [seq_18.job_number, seq_17.job_number, seq_16.job_number],
+        )
+
+    def test_pagination_preserves_newest_first_ordering(self):
+        for seq in range(1, 28):
+            self.create_job(seq=seq)
+
+        first_page = self.client.get(reverse("ledger:job_list"))
+        second_page = self.client.get(reverse("ledger:job_list"), {"page": 2})
+
+        self.assertEqual(self.response_job_numbers(first_page)[0], "CLIENT-260027")
+        self.assertEqual(self.response_job_numbers(first_page)[-1], "CLIENT-260003")
+        self.assertEqual(
+            self.response_job_numbers(second_page),
+            ["CLIENT-260002", "CLIENT-260001"],
+        )
+
+    def test_csv_export_uses_newest_first_ordering(self):
+        self.create_job(seq=16, prefix="ZZZ")
+        self.create_job(seq=18, prefix="AAA")
+        self.create_job(seq=17, prefix="MMM")
+
+        response = self.client.get(reverse("exports:jobs_csv"))
+        rows = response.content.decode("utf-8").splitlines()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("AAA-260018", rows[1])
+        self.assertIn("MMM-260017", rows[2])
+        self.assertIn("ZZZ-260016", rows[3])
 
 
 class TransactionAssetCreationTests(TestCase):

@@ -246,7 +246,7 @@ class Job(BusinessOwnedModelMixin):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-is_active", "-job_year", "job_number", "label"]
+        ordering = ["-is_active", "-job_year", "-job_seq", "label"]
         constraints = [
             models.UniqueConstraint(
                 fields=["business", "job_number"],
