@@ -104,6 +104,7 @@ class AirDataImporterTimezoneTests(TestCase):
             "Signal Score": "98",
             "Ground Weather Summary": "Clear",
             "Photos": "7",
+            "Videos": "4",
         }
         row.update(values)
         return _normalised_row(row)
@@ -165,6 +166,7 @@ class AirDataImporterTimezoneTests(TestCase):
         self.assertEqual(payload["signal_score"], 98)
         self.assertEqual(payload["ground_weather_summary"], "Clear")
         self.assertEqual(payload["photos"], 7)
+        self.assertEqual(payload["videos"], 4)
 
 
 class AirDataReconciliationMatchingTests(TestCase):

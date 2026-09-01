@@ -80,6 +80,8 @@ EXPECTED_FIELDS = {
     "maximum_vertical_speed_mps",
     "signal_loss_events_over_one_second",
     "photo_count",
+    "video_count",
+    "camera_record_count",
     "flight_modes",
     "rc_serial",
     "camera_serial",
@@ -212,4 +214,11 @@ def parse_dji_source(source_file):
             _safe_stderr(stderr),
         )
         raise import_error("DJI_PARSER_OUTPUT_INVALID") from exc
-    return _validate_result(payload)
+    payload = _validate_result(payload)
+    logger.info(
+        "DJI media telemetry parsed camera_records=%s photo_events=%s video_sessions=%s",
+        payload.get("camera_record_count"),
+        payload.get("photo_count"),
+        payload.get("video_count"),
+    )
+    return payload

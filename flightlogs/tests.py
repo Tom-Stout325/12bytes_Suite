@@ -149,6 +149,27 @@ class FlightLogListFilterTests(TestCase):
         self.assertNotIn(2030, response.context["years"])
         self.assertNotIn(6, response.context["months_present"])
 
+    def test_media_columns_distinguish_confirmed_zero_from_unknown(self):
+        self._flight(date(2026, 8, 2)).__class__.objects.filter(
+            business=self.business, flight_date=date(2026, 8, 2)
+        ).update(photos=0, videos=0)
+        self._flight(date(2026, 8, 1))
+
+        response = self.client.get(self.url)
+
+        self.assertContains(
+            response,
+            '<td class="d-none d-lg-table-cell">0</td>',
+            count=2,
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<td class="d-none d-lg-table-cell">—</td>',
+            count=2,
+            html=True,
+        )
+
     def test_existing_year_and_month_filters_still_return_correct_records(self):
         expected = self._flight(date(2023, 3, 1), address="10965 Olio Rd")
         self._flight(date(2023, 4, 1), address="Second St")
@@ -342,6 +363,8 @@ def parser_payload(**overrides):
         "maximum_vertical_speed_mps": 6.0,
         "signal_loss_events_over_one_second": 2,
         "photo_count": 37,
+        "video_count": 4,
+        "camera_record_count": 120,
         "flight_modes": ["GPSAtti", "GPSSport"],
         "rc_serial": "RC-COMPONENT-SERIAL",
         "camera_serial": "CAMERA-COMPONENT-SERIAL",
@@ -490,6 +513,7 @@ class FlightLogDJIUploadTests(TestCase):
         self.assertAlmostEqual(log.max_speed_mph, 43.061023622, places=6)
         self.assertEqual(log.signal_losses, 2)
         self.assertEqual(log.photos, 37)
+        self.assertEqual(log.videos, 4)
         self.assertEqual(log.maximum_satellites, 32)
         self.assertEqual(log.minimum_airborne_satellites, 18)
         self.assertEqual(log.minimum_airborne_gps_level, 4)
@@ -507,6 +531,92 @@ class FlightLogDJIUploadTests(TestCase):
         self.assertAlmostEqual(log.total_mileage_ft, 8847.6476378, places=5)
         self.weather_mock.assert_called_once_with(log)
         self.location_mock.assert_called_once_with(log)
+
+    @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
+    def test_missing_camera_telemetry_keeps_media_counts_unknown(self, parse_mock):
+        parse_mock.return_value = parser_payload(
+            photo_count=None,
+            video_count=None,
+            camera_record_count=0,
+        )
+
+        self.upload(content=b"no-camera-telemetry")
+
+        log = FlightLog.objects.get()
+        self.assertIsNone(log.photos)
+        self.assertIsNone(log.videos)
+
+    @mock.patch("flightlogs.management.commands.recalculate_dji_media_counts.parse_dji_source")
+    def test_media_repair_dry_run_and_default_unknown_only_update(self, parse_mock):
+        flight = FlightLog.objects.create(
+            business=self.business,
+            flight_date=date(2026, 8, 15),
+            photos=None,
+            videos=9,
+        )
+        FlightLogSource.objects.create(
+            business=self.business,
+            source_type=FlightLogSource.SourceType.DJI_TXT,
+            original_filename="repair.txt",
+            file=SimpleUploadedFile("repair.txt", b"retained"),
+            sha256="a" * 64,
+            size_bytes=8,
+            status=FlightLogSource.Status.COMPLETE,
+            flight_log=flight,
+        )
+        parse_mock.return_value = parser_payload(photo_count=2, video_count=3)
+        output = StringIO()
+
+        call_command(
+            "recalculate_dji_media_counts",
+            business=self.business.pk,
+            dry_run=True,
+            stdout=output,
+        )
+        flight.refresh_from_db()
+        self.assertIsNone(flight.photos)
+        self.assertEqual(flight.videos, 9)
+        self.assertIn("photos=None->2 videos=9->3", output.getvalue())
+
+        call_command("recalculate_dji_media_counts", business=self.business.pk)
+        flight.refresh_from_db()
+        self.assertEqual(flight.photos, 2)
+        self.assertEqual(flight.videos, 9)
+
+    @mock.patch("flightlogs.management.commands.recalculate_dji_media_counts.parse_dji_source")
+    def test_media_repair_overwrite_flag_and_file_failure_isolation(self, parse_mock):
+        failed_flight = FlightLog.objects.create(
+            business=self.business, flight_date=date(2026, 8, 14), photos=0, videos=0
+        )
+        repaired_flight = FlightLog.objects.create(
+            business=self.business, flight_date=date(2026, 8, 15), photos=0, videos=0
+        )
+        for index, flight in enumerate((failed_flight, repaired_flight), start=1):
+            FlightLogSource.objects.create(
+                business=self.business,
+                source_type=FlightLogSource.SourceType.DJI_TXT,
+                original_filename=f"repair-{index}.txt",
+                file=SimpleUploadedFile(f"repair-{index}.txt", b"retained"),
+                sha256=str(index) * 64,
+                size_bytes=8,
+                status=FlightLogSource.Status.COMPLETE,
+                flight_log=flight,
+            )
+        parse_mock.side_effect = [RuntimeError("bad source"), parser_payload(photo_count=2, video_count=3)]
+        errors = StringIO()
+
+        call_command(
+            "recalculate_dji_media_counts",
+            business=self.business.pk,
+            overwrite_existing=True,
+            stderr=errors,
+        )
+
+        failed_flight.refresh_from_db()
+        repaired_flight.refresh_from_db()
+        self.assertEqual((failed_flight.photos, failed_flight.videos), (0, 0))
+        self.assertEqual((repaired_flight.photos, repaired_flight.videos), (2, 3))
+        self.assertIn("failed: RuntimeError: bad source", errors.getvalue())
 
     def test_pilot_dropdown_is_tenant_scoped_and_current_user_is_selected(self):
         other_business = Business.objects.create(name="Other Pilots")
@@ -1019,7 +1129,7 @@ class FlightLogDJIUploadTests(TestCase):
 
     @mock.patch("flightlogs.services.dji.importer.parse_dji_source")
     def test_high_confidence_match_links_without_creating_or_overwriting(self, parse_mock):
-        existing = self._airdata_flight()
+        existing = self._airdata_flight(photos=7, videos=4)
         parse_mock.return_value = parser_payload()
 
         response = self.upload(content=b"cross-source-high")
@@ -1032,6 +1142,8 @@ class FlightLogDJIUploadTests(TestCase):
         self.assertEqual(source.status, FlightLogSource.Status.COMPLETE)
         self.assertEqual(existing.flight_title, "AirData value")
         self.assertEqual(existing.battery_serial_internal, "AIRDATA-BATTERY")
+        self.assertEqual(existing.photos, 7)
+        self.assertEqual(existing.videos, 4)
         self.assertTrue(source.file.name)
         self.assertTrue(source.file.storage.exists(source.file.name))
         self.assertTrue(source.sha256)

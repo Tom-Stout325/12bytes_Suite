@@ -140,6 +140,7 @@ def _flightlog_payload(payload):
     )
     signal_losses = _optional_integer(payload, "signal_loss_events_over_one_second")
     photo_count = _optional_integer(payload, "photo_count")
+    video_count = _optional_integer(payload, "video_count")
     maximum_satellites = _optional_integer(payload, "maximum_satellites", maximum=255)
     minimum_airborne_satellites = _optional_integer(
         payload,
@@ -271,6 +272,7 @@ def _flightlog_payload(payload):
         "rc_serial": _optional_text(payload, "rc_serial"),
         "camera_serial": _optional_text(payload, "camera_serial"),
         "photos": photo_count,
+        "videos": video_count,
     }
 
 

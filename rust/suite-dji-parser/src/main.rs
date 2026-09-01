@@ -65,6 +65,8 @@ struct Output {
     maximum_vertical_speed_mps: Option<f32>,
     signal_loss_events_over_one_second: Option<u32>,
     photo_count: Option<u32>,
+    video_count: Option<u32>,
+    camera_record_count: u32,
     flight_modes: Vec<String>,
     rc_serial: Option<String>,
     camera_serial: Option<String>,
@@ -196,6 +198,7 @@ fn process_parsed_log(parser: &DJILog) -> Result<Output, Failure> {
         .map_err(|_| Failure::user_safe("Could not decrypt or parse the DJI flight record."))?;
     let component_serials = component_serials(&records);
     let record_metrics = record_metrics(&records, parser.version);
+    let media_metrics = media_metrics(&records);
     let operational_messages = operational_messages(&records);
     let signal_loss_events_over_one_second = signal_loss_events_over_one_second(&records);
     let frames = records_to_frames(records, parser.details.clone());
@@ -264,7 +267,9 @@ fn process_parsed_log(parser: &DJILog) -> Result<Output, Failure> {
         maximum_vertical_speed_m_s: maximum_vertical_speed_mps,
         maximum_vertical_speed_mps,
         signal_loss_events_over_one_second,
-        photo_count: u32::try_from(details.capture_num).ok(),
+        photo_count: media_metrics.photo_count,
+        video_count: media_metrics.video_count,
+        camera_record_count: media_metrics.camera_record_count,
         flight_modes: flight_modes(&frames),
         rc_serial: component_serials.rc,
         camera_serial: component_serials.camera,
@@ -274,6 +279,46 @@ fn process_parsed_log(parser: &DJILog) -> Result<Output, Failure> {
         // Retained for compatibility with the existing JSON contract.
         messages: operational_messages.tips,
     })
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct MediaMetrics {
+    photo_count: Option<u32>,
+    video_count: Option<u32>,
+    camera_record_count: u32,
+}
+
+fn media_counts(states: impl IntoIterator<Item = (bool, bool)>) -> MediaMetrics {
+    let mut camera_record_count = 0_u32;
+    let mut photo_count = 0_u32;
+    let mut video_count = 0_u32;
+    let mut photo_active = false;
+    let mut video_active = false;
+
+    for (photo, video) in states {
+        camera_record_count += 1;
+        if photo && !photo_active {
+            photo_count += 1;
+        }
+        if video && !video_active {
+            video_count += 1;
+        }
+        photo_active = photo;
+        video_active = video;
+    }
+
+    MediaMetrics {
+        photo_count: (camera_record_count > 0).then_some(photo_count),
+        video_count: (camera_record_count > 0).then_some(video_count),
+        camera_record_count,
+    }
+}
+
+fn media_metrics(records: &[Record]) -> MediaMetrics {
+    media_counts(records.iter().filter_map(|record| match record {
+        Record::Camera(camera) => Some((camera.is_shooting_single_photo, camera.is_recording)),
+        _ => None,
+    }))
 }
 
 fn single_input_path(args: &[OsString]) -> Result<PathBuf, Failure> {
@@ -1356,6 +1401,8 @@ mod tests {
             maximum_vertical_speed_mps: None,
             signal_loss_events_over_one_second: None,
             photo_count: None,
+            video_count: None,
+            camera_record_count: 0,
             flight_modes: Vec::new(),
             rc_serial: None,
             camera_serial: None,
@@ -1687,6 +1734,40 @@ mod tests {
         frame.osd.x_speed = 3.0;
         frame.osd.y_speed = 4.0;
         assert_eq!(maximum_horizontal_speed_m_s(4.5, &[frame]), Some(5.0));
+    }
+
+    #[test]
+    fn repeated_photo_samples_count_as_one_capture() {
+        let metrics = media_counts([(false, false), (true, false), (true, false), (false, false)]);
+        assert_eq!(metrics.photo_count, Some(1));
+    }
+
+    #[test]
+    fn distinct_photo_captures_count_separately() {
+        let metrics = media_counts([(true, false), (false, false), (true, false)]);
+        assert_eq!(metrics.photo_count, Some(2));
+    }
+
+    #[test]
+    fn video_sessions_count_rising_edges_including_active_first_sample() {
+        let one = media_counts([(false, true), (false, true), (false, false)]);
+        assert_eq!(one.video_count, Some(1));
+
+        let two = media_counts([
+            (false, true),
+            (false, true),
+            (false, false),
+            (false, true),
+        ]);
+        assert_eq!(two.video_count, Some(2));
+    }
+
+    #[test]
+    fn missing_camera_telemetry_keeps_media_counts_unknown() {
+        let metrics = media_counts([]);
+        assert_eq!(metrics.photo_count, None);
+        assert_eq!(metrics.video_count, None);
+        assert_eq!(metrics.camera_record_count, 0);
     }
 
     #[test]
